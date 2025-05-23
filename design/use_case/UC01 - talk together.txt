@@ -1,0 +1,23 @@
+User create a chat room, and enter it.
+
+User add Google Gemini into the chatroom.
+
+User add xAI Grok into the chatroom.
+
+User ask a question, "What is 1+1?".
+
+User let Google Gemini to speak.
+
+Google Gemini reply "2".
+
+User let xAI Grok to speak.
+
+xAI Grok reply: "That is wrong, 3 is the answer."
+
+User say: "I believe 4 is the answer."
+
+User add OpenAI ChatGPT into the chatroom.
+
+User let OpenAI ChatGPT to speak.
+
+OpenAI ChatGPT say: "5 is the answer."
