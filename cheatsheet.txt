@@ -1,0 +1,6 @@
+# Get python path
+(Get-Command python).Path ; (Get-Command pip).Path
+
+# Get Powershell version
+$PSVersionTable.PSVersion.ToString()
+# 7.5.1
