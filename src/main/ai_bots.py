@@ -69,6 +69,8 @@ def create_bot(bot_name: str, system_prompt: str, engine_config: dict, engine_ma
         system_prompt: The system prompt for the bot.
         engine_config: A dictionary containing engine configuration.
                        Expected keys: "engine_type" (str), "api_key" (str | None).
+        engine_map: Optional mapping of engine types to their respective classes.
+                       If None, defaults to ENGINE_TYPE_TO_CLASS_MAP.
 
     Returns:
         A Bot instance.
