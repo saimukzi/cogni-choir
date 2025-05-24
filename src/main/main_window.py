@@ -14,14 +14,14 @@ import logging # For logging
 # Attempt to import from sibling modules
 try:
     from .chatroom import Chatroom, ChatroomManager
-    from .ai_bots import Bot, AIEngine # AIEngine and Bot remain in ai_bots
+    from .ai_bots import Bot, AIEngine, create_bot # AIEngine and Bot remain in ai_bots, added create_bot
     from .ai_engines import GeminiEngine, GrokEngine, OpenAIEngine # Engines from new package
     from .api_key_manager import ApiKeyManager
     from .message import Message
 except ImportError:
     # Fallback for running script directly for testing
     from chatroom import Chatroom, ChatroomManager
-    from ai_bots import Bot, AIEngine # AIEngine and Bot remain in ai_bots
+    from ai_bots import Bot, AIEngine, create_bot # AIEngine and Bot remain in ai_bots, added create_bot
     from ai_engines import GeminiEngine, GrokEngine, OpenAIEngine # Engines from new package
     from api_key_manager import ApiKeyManager
     from message import Message
@@ -679,19 +679,16 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, self.tr("Warning"), 
                                 self.tr("API Key for {0} not found. Please set it in Settings. Bot will be created but may not function.").format(engine_type))
 
-        engine: AIEngine
-        if engine_type == "Gemini":
-            engine = GeminiEngine(api_key=api_key) 
-        elif engine_type == "Grok":
-            engine = GrokEngine(api_key=api_key)
-        elif engine_type == "OpenAI":
-            engine = OpenAIEngine(api_key=api_key)
-        else: 
-            self.logger.error(f"Invalid AI engine type '{engine_type}' selected for bot '{bot_name}'.") # ERROR - should not happen
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Invalid AI engine selected."))
+        engine_config = {"engine_type": engine_type, "api_key": api_key}
+
+        try:
+            # Use the create_bot factory function
+            new_bot = create_bot(bot_name=bot_name, system_prompt=system_prompt, engine_config=engine_config)
+        except ValueError as e:
+            self.logger.error(f"Error creating bot '{bot_name}' with engine '{engine_type}': {e}", exc_info=True)
+            QMessageBox.critical(self, self.tr("Error Creating Bot"), self.tr("Could not create bot: {0}").format(str(e)))
             return
 
-        new_bot = Bot(name=bot_name, system_prompt=system_prompt, engine=engine)
         if chatroom.add_bot(new_bot): 
             self.logger.info(f"Bot '{bot_name}' (engine: {engine_type}) added to chatroom '{chatroom_name}' successfully.") # INFO - user action success
             self._update_bot_list(chatroom_name)

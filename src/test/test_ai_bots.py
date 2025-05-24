@@ -6,7 +6,7 @@ import os
 # Adjusting sys.path for direct imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from src.main.ai_bots import Bot, AIEngine # AIEngine and Bot are still in ai_bots
+from src.main.ai_bots import Bot, AIEngine, create_bot # AIEngine and Bot are still in ai_bots, added create_bot
 from src.main.ai_engines import GeminiEngine, GrokEngine, OpenAIEngine # Engines from new package
 
 # No global SDK mocks here; will use @patch decorator for targeted mocking
@@ -216,6 +216,80 @@ class TestGrokEngine(unittest.TestCase):
         engine = GeminiEngine(api_key="key123", model_name="model-abc") 
         self.assertEqual(engine.api_key, "key123")
         self.assertEqual(engine.model_name, "model-abc")
+
+
+class TestCreateBot(unittest.TestCase):
+    def test_create_gemini_bot_success(self):
+        engine_config = {"engine_type": "GeminiEngine", "api_key": "test_gemini_key"}
+        bot = create_bot(bot_name="GeminiTestBot", system_prompt="Test", engine_config=engine_config)
+        self.assertIsInstance(bot, Bot)
+        self.assertIsInstance(bot.get_engine(), GeminiEngine)
+        self.assertEqual(bot.get_engine().api_key, "test_gemini_key")
+
+    def test_create_openai_bot_success(self):
+        engine_config = {"engine_type": "OpenAIEngine", "api_key": "test_openai_key"}
+        bot = create_bot(bot_name="OpenAITestBot", system_prompt="Test", engine_config=engine_config)
+        self.assertIsInstance(bot, Bot)
+        self.assertIsInstance(bot.get_engine(), OpenAIEngine)
+        self.assertEqual(bot.get_engine().api_key, "test_openai_key")
+
+    def test_create_grok_bot_success(self):
+        engine_config = {"engine_type": "GrokEngine", "api_key": "test_grok_key"}
+        bot = create_bot(bot_name="GrokTestBot", system_prompt="Test", engine_config=engine_config)
+        self.assertIsInstance(bot, Bot)
+        self.assertIsInstance(bot.get_engine(), GrokEngine)
+        self.assertEqual(bot.get_engine().api_key, "test_grok_key")
+
+    def test_create_bot_with_model_name(self):
+        engine_config = {"engine_type": "GeminiEngine", "api_key": "test_key", "model_name": "gemini-custom-model"}
+        bot = create_bot(bot_name="CustomModelBot", system_prompt="Test", engine_config=engine_config)
+        self.assertIsInstance(bot.get_engine(), GeminiEngine)
+        self.assertEqual(bot.get_engine().model_name, "gemini-custom-model")
+
+    def test_create_bot_with_none_api_key(self):
+        engine_config = {"engine_type": "GeminiEngine", "api_key": None}
+        bot = create_bot(bot_name="NoApiKeyBot", system_prompt="Test", engine_config=engine_config)
+        self.assertIsInstance(bot.get_engine(), GeminiEngine)
+        self.assertIsNone(bot.get_engine().api_key)
+
+    def test_create_bot_invalid_engine_type(self):
+        engine_config = {"engine_type": "UnknownEngine", "api_key": "test_key"}
+        with self.assertRaisesRegex(ValueError, "Unsupported engine type: UnknownEngine"):
+            create_bot(bot_name="InvalidEngineBot", system_prompt="Test", engine_config=engine_config)
+
+    def test_create_bot_missing_engine_type(self):
+        engine_config = {"api_key": "test_key"} # Missing "engine_type"
+        # create_bot uses .get("engine_type"), which returns None if key is missing.
+        # This None value then fails the "if engine_type not in engine_map" check.
+        # So it should raise a ValueError with a message like "Unsupported engine type: None"
+        with self.assertRaisesRegex(ValueError, "Unsupported engine type: None"):
+            create_bot(bot_name="MissingEngineTypeBot", system_prompt="Test", engine_config=engine_config)
+
+    def test_create_bot_empty_engine_config(self):
+        engine_config = {} # Empty config
+        with self.assertRaisesRegex(ValueError, "Unsupported engine type: None"):
+            create_bot(bot_name="EmptyConfigBot", system_prompt="Test", engine_config=engine_config)
+    
+    # Test for default model name when not provided in config
+    @patch('src.main.ai_engines.gemini_engine.genai') # Patch to avoid actual SDK calls if any
+    def test_create_gemini_bot_default_model(self, mock_genai_sdk):
+        engine_config = {"engine_type": "GeminiEngine", "api_key": "test_key_default_model"}
+        # Mock the GeminiEngine's default model if necessary, or ensure it has one
+        # For this test, we assume GeminiEngine sets a default model if not provided.
+        # We are testing if create_bot passes model_name=None to the engine constructor,
+        # and the engine then uses its default.
+        bot = create_bot(bot_name="DefaultModelGemini", system_prompt="Test", engine_config=engine_config)
+        self.assertIsInstance(bot.get_engine(), GeminiEngine)
+        # Assuming GeminiEngine's __init__ sets a default model_name if None is passed.
+        # e.g. self.model_name = model_name or "gemini-pro"
+        # We'd need to know the default or mock the engine's __init__ to check this robustly.
+        # For now, let's check if it's not None or empty, assuming a default is set.
+        # A better test would be to mock GeminiEngine and assert it was called with model_name=None.
+        # Or, if GeminiEngine has a known default constant, check against that.
+        self.assertIsNotNone(bot.get_engine().model_name) # Check that some model name is set
+        self.assertTrue(len(bot.get_engine().model_name) > 0) # And it's not empty
+        # The actual default model name in GeminiEngine is "gemini-pro".
+        self.assertEqual(bot.get_engine().model_name, "gemini-pro")
 
 
 if __name__ == '__main__':

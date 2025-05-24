@@ -1,6 +1,6 @@
 import logging
 import requests # For Grok, if/when a real API call is made
-from ..ai_bots import AIEngine # Use relative import
+from ..ai_base import AIEngine # Use relative import from new location
 
 
 class GrokEngine(AIEngine):

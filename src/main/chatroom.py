@@ -123,37 +123,45 @@ class Chatroom:
         logger = logging.getLogger(__name__ + ".Chatroom") # Static method, so get logger instance
         chatroom_name = data.get("name", "UnknownChatroom")
         logger.debug(f"Deserializing chatroom '{chatroom_name}' from dictionary. File: {filepath}") # DEBUG
-        # Import AI engine classes locally to avoid circular dependency at module level
-        from .ai_engines import GeminiEngine, GrokEngine, OpenAIEngine # Updated import
-        from .ai_bots import Bot # Bot import remains the same
-        
-        engine_map = {
-            "GeminiEngine": GeminiEngine, "GrokEngine": GrokEngine, "OpenAIEngine": OpenAIEngine
-        }
-        
+        # Import create_bot and Bot (Bot is still needed for type hints if not for instantiation here)
+        from .ai_bots import Bot, create_bot
+        # Removed local imports for GeminiEngine, GrokEngine, OpenAIEngine as create_bot handles engine instantiation
+
         chatroom = Chatroom(name=data["name"]) # Initializes _name
         chatroom.manager = manager
         chatroom.filepath = filepath
         # chatroom._name is already set by Chatroom(name=data["name"])
 
         for bot_data in data.get("bots", []):
-            engine_type_name = bot_data.get("engine_type") # Use .get for safety
-            engine_class = engine_map.get(engine_type_name)
-            if engine_class:
-                service_name_for_key = engine_type_name.replace("Engine", "")
-                api_key = None # Default to None
-                if api_key_manager: # Check if api_key_manager is provided
-                    api_key = api_key_manager.load_key(service_name_for_key)
-                
-                engine_instance = engine_class(api_key=api_key, model_name=bot_data.get("model_name", ""))
-                
-                if not api_key and engine_instance.requires_api_key():
-                     print(f"Warning: API key for {service_name_for_key} not found for bot '{bot_data.get('name', 'UnknownBot')}' in chatroom '{chatroom.name}'. Bot may not function as it requires an API key.")
-                
-                bot = Bot(name=bot_data.get("name","UnnamedBot"), system_prompt=bot_data.get("system_prompt",""), engine=engine_instance)
+            engine_type_name = bot_data.get("engine_type")
+            api_key = None # Default to None
+            if engine_type_name and api_key_manager: # Ensure engine_type_name exists before trying to use it
+                service_name_for_key = engine_type_name.replace("Engine", "") # This assumes engine_type_name is "XEngine"
+                api_key = api_key_manager.load_key(service_name_for_key)
+
+            engine_config = {
+                "engine_type": engine_type_name,
+                "api_key": api_key,
+                "model_name": bot_data.get("model_name")
+            }
+
+            try:
+                bot = create_bot(
+                    bot_name=bot_data.get("name", "UnnamedBot"),
+                    system_prompt=bot_data.get("system_prompt", ""),
+                    engine_config=engine_config
+                )
+                # Check for API key warning after bot creation, if engine requires it.
+                # This logic might be slightly different as the engine instance is now inside create_bot
+                # However, create_bot itself doesn't have visibility to print this warning directly.
+                # For now, we rely on the existing warning mechanism if a bot fails to operate later.
+                # A more sophisticated approach might involve create_bot returning a status or the engine instance for checks.
+                if not api_key and bot.get_engine().requires_api_key():
+                     logger.warning(f"API key for {engine_type_name.replace('Engine','')} not found for bot '{bot.get_name()}' in chatroom '{chatroom.name}'. Bot may not function as it requires an API key.")
+
                 chatroom.bots[bot.get_name()] = bot
-            else:
-                logger.warning(f"Unknown or missing engine type '{engine_type_name}' for bot '{bot_data.get('name', 'UnknownBot')}' in chatroom '{chatroom.name}'.")
+            except ValueError as e:
+                logger.warning(f"Failed to create bot '{bot_data.get('name', 'UnknownBot')}' from data in chatroom '{chatroom_name}' due to: {e}")
         
         for msg_data in data.get("messages", []):
             try:
@@ -291,12 +299,12 @@ class ChatroomManager:
         self.logger.info(f"Chatroom '{original_chatroom_name}' cloned as '{cloned_chatroom.name}'. Now copying bots.") # INFO
         # Copy bots from the original chatroom
         # Local import to avoid potential circular dependency issues at module level if any
-        from .ai_engines import GeminiEngine, GrokEngine, OpenAIEngine # Updated import
-        from .ai_bots import Bot # Bot import remains the same
+        # Local imports for engines are removed here as well if create_bot handles instantiation.
+        # Bot import is still needed for type hinting and direct instantiation if used.
+        # from .ai_engines import GeminiEngine, GrokEngine, OpenAIEngine # Removed
+        from .ai_bots import Bot, create_bot # create_bot added, Bot was already there
 
-        engine_map = {
-            "GeminiEngine": GeminiEngine, "GrokEngine": GrokEngine, "OpenAIEngine": OpenAIEngine
-        }
+        # engine_map is removed as create_bot handles this logic.
 
         for original_bot in original_chatroom.list_bots():
             original_engine = original_bot.get_engine()
@@ -306,18 +314,25 @@ class ChatroomManager:
             api_key = self.api_key_manager.load_key(service_name_for_key)
             model_name = original_engine.model_name # Get model_name from original engine
             
-            engine_class = engine_map.get(engine_type_name)
-
-            if engine_class:
-                # If API key is None, engine should handle it (e.g. operate in a limited mode or error on use)
-                new_engine_instance = engine_class(api_key=api_key, model_name=model_name)
+            engine_config = {
+                "engine_type": engine_type_name,
+                "api_key": api_key,
+                "model_name": model_name
+            }
+            
+            try:
+                cloned_bot = create_bot(
+                    bot_name=original_bot.get_name(),
+                    system_prompt=original_bot.get_system_prompt(),
+                    engine_config=engine_config
+                )
+                # Similar to from_dict, API key warning logic after bot creation
+                if not api_key and cloned_bot.get_engine().requires_api_key():
+                    self.logger.warning(f"API key for {service_name_for_key} not found for cloned bot '{cloned_bot.get_name()}' in chatroom '{cloned_chatroom.name}'. Bot may not function as it requires an API key.")
                 
-                cloned_bot = Bot(name=original_bot.get_name(),
-                                 system_prompt=original_bot.get_system_prompt(),
-                                 engine=new_engine_instance)
-                cloned_chatroom.add_bot(cloned_bot) 
-            else:
-                self.logger.warning(f"Could not determine engine class for {engine_type_name} while cloning bot '{original_bot.get_name()}' from '{original_chatroom_name}' into '{cloned_chatroom.name}'. Bot not copied.") # WARNING
+                cloned_chatroom.add_bot(cloned_bot)
+            except ValueError as e:
+                self.logger.warning(f"Failed to clone bot '{original_bot.get_name()}' into chatroom '{cloned_chatroom.name}' due to: {e}")
 
         self.logger.info(f"Finished cloning chatroom '{original_chatroom_name}' as '{cloned_chatroom.name}'. Message history was not copied.") # INFO
         # cloned_chatroom is already saved by create_chatroom and subsequent add_bot calls.
