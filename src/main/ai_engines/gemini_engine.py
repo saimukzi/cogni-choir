@@ -43,3 +43,6 @@ class GeminiEngine(AIEngine):
             return response.text
         except Exception as e:
             return f"Error: Gemini API call failed: {str(e)}"
+
+    def requires_api_key(self) -> bool:
+        return True

@@ -13,3 +13,6 @@ class GrokEngine(AIEngine):
         # Using such methods is brittle and potentially against terms of service.
         # Therefore, a real implementation is not feasible without an official, public API.
         return "Error: Grok API not implemented or no public API found."
+
+    def requires_api_key(self) -> bool:
+        return True

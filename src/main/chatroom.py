@@ -114,10 +114,11 @@ class Chatroom:
                 if api_key_manager: # Check if api_key_manager is provided
                     api_key = api_key_manager.load_key(service_name_for_key)
                 
-                if not api_key and engine_type_name in ["GeminiEngine", "GrokEngine", "OpenAIEngine"]: # Assuming these definitely need keys
-                     print(f"Warning: API key for {service_name_for_key} not found for bot '{bot_data.get('name', 'UnknownBot')}' in chatroom '{chatroom.name}'. Bot may not function.")
+                engine_instance = engine_class(api_key=api_key, model_name=bot_data.get("model_name", ""))
                 
-                engine_instance = engine_class(api_key=api_key, model_name=bot_data.get("model_name", "")) 
+                if not api_key and engine_instance.requires_api_key():
+                     print(f"Warning: API key for {service_name_for_key} not found for bot '{bot_data.get('name', 'UnknownBot')}' in chatroom '{chatroom.name}'. Bot may not function as it requires an API key.")
+                
                 bot = Bot(name=bot_data.get("name","UnnamedBot"), system_prompt=bot_data.get("system_prompt",""), engine=engine_instance)
                 chatroom.bots[bot.get_name()] = bot
             else:

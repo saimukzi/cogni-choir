@@ -13,6 +13,10 @@ class AIEngine(abc.ABC):
     def generate_response(self, current_user_prompt: str, conversation_history: list[tuple[str, str]]) -> str:
         pass
 
+    @abc.abstractmethod
+    def requires_api_key(self) -> bool:
+        pass
+
 class Bot:
     def __init__(self, name: str, system_prompt: str, engine: AIEngine): # engine will be an instance of a class from ai_engines
         self.name = name

@@ -44,3 +44,6 @@ class OpenAIEngine(AIEngine):
             return completion.choices[0].message.content
         except Exception as e:
             return f"Error: OpenAI API call failed: {str(e)}"
+
+    def requires_api_key(self) -> bool:
+        return True

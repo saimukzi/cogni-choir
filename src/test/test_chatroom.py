@@ -9,8 +9,8 @@ import time # For message timestamp tests
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from src.main.chatroom import Chatroom, ChatroomManager, _sanitize_filename, DATA_DIR
-from src.main.ai_bots import Bot # Bot is still in ai_bots
-from src.main.ai_engines import GeminiEngine, OpenAIEngine # Engines from new package
+from src.main.ai_bots import Bot, AIEngine # Bot is still in ai_bots, AIEngine added
+from src.main.ai_engines import GeminiEngine, OpenAIEngine, GrokEngine # Engines from new package, GrokEngine added
 from src.main.message import Message
 from src.main.api_key_manager import ApiKeyManager
 
@@ -96,46 +96,153 @@ class TestChatroom(unittest.TestCase):
         self.assertEqual(len(self.chatroom.get_messages()), 0)
         self.mock_manager._notify_chatroom_updated.assert_called_with(self.chatroom)
 
-    def test_chatroom_save_load_cycle(self):
+    @patch('builtins.print')
+    def test_chatroom_save_load_cycle(self, mock_print):
+        # Define NoKeyEngine (can be an inner class or defined in the test module)
+        class NoKeyEngine(AIEngine): # Make sure AIEngine is imported
+            def __init__(self, api_key: str = None, model_name: str = "no-key-model"):
+                super().__init__(api_key, model_name)
+            def generate_response(self, current_user_prompt: str, conversation_history: list[tuple[str, str]]) -> str:
+                return "NoKeyEngine response"
+            def requires_api_key(self) -> bool:
+                return False
+
         # Setup chatroom
         bot1 = Bot("BotAlpha", "Prompt Alpha", GeminiEngine(api_key="gemini_test_key", model_name="gemini-alpha"))
         bot2 = Bot("BotBeta", "Prompt Beta", OpenAIEngine(api_key="openai_test_key", model_name="openai-beta"))
+        bot3 = Bot("BotGamma", "Prompt Gamma", NoKeyEngine(model_name="no-key-gamma")) # Add this bot
+
         self.chatroom.add_bot(bot1)
         self.chatroom.add_bot(bot2)
+        self.chatroom.add_bot(bot3) # Add this bot
         self.chatroom.add_message("User", "Hello Bots")
-        self.chatroom.add_message("BotAlpha", "Hello User from Alpha")
-
+        self.chatroom.add_message("BotAlpha", "Hello User from Alpha") # Keep one message for original tests
+        
         dict_data = self.chatroom.to_dict()
+        # Ensure engine_type for NoKeyEngine is 'NoKeyEngine'
+        for bot_d in dict_data["bots"]:
+            if bot_d["name"] == "BotGamma":
+                self.assertEqual(bot_d["engine_type"], "NoKeyEngine")
 
-        # Mock ApiKeyManager for from_dict
-        mock_api_key_manager_for_load = MagicMock(spec=ApiKeyManager)
-        mock_api_key_manager_for_load.load_key.side_effect = lambda service_name: {
-            "Gemini": "gemini_test_key", "OpenAI": "openai_test_key"
+
+        # --- Scenario 1: Key required, not provided (Gemini) ---
+        mock_api_key_manager_missing_gemini = MagicMock(spec=ApiKeyManager)
+        mock_api_key_manager_missing_gemini.load_key.side_effect = lambda service_name: {
+            "OpenAI": "openai_test_key" # No Gemini key, NoKey key also missing (but not needed)
+        }.get(service_name)
+        
+        # Bot data for this specific test scenario
+        # Note: engine_type must match what Bot.to_dict() produces (i.e., class name)
+        bot_data_gemini_for_test = {
+            "name": "BotAlpha", "system_prompt": "Prompt Alpha", 
+            "engine_type": "GeminiEngine", "model_name": "gemini-alpha"
+        }
+        bot_data_nokey_for_test = {
+            "name": "BotGamma", "system_prompt": "Prompt Gamma",
+            "engine_type": "NoKeyEngine", "model_name": "no-key-gamma"
+        }
+            
+        test_data_missing_keys = {
+            "name": "TestRoomMissingKeys", # Original chatroom name is "Test Room"
+            "bots": [bot_data_gemini_for_test, bot_data_nokey_for_test],
+            "messages": [] # Messages not relevant for this part of the test
+        }
+
+        # Mock the engine classes themselves as they are looked up by from_dict
+        MockGeminiEngine = MagicMock(spec=GeminiEngine)
+        MockGeminiEngine.return_value.requires_api_key.return_value = True
+        MockGeminiEngine.return_value.model_name = "gemini-alpha" # Ensure model_name is present
+
+        MockNoKeyEngine = MagicMock(spec=NoKeyEngine)
+        MockNoKeyEngine.return_value.requires_api_key.return_value = False
+        MockNoKeyEngine.return_value.model_name = "no-key-gamma" # Ensure model_name is present
+
+        # Patch the specific engine classes in the context of where Chatroom.from_dict imports them
+        with patch.dict(sys.modules['src.main.ai_engines'].__dict__, {
+            'GeminiEngine': MockGeminiEngine,
+            'OpenAIEngine': OpenAIEngine, # Keep real OpenAIEngine for simplicity if not directly tested here
+            'GrokEngine': GrokEngine,     # Keep real GrokEngine
+            'NoKeyEngine': MockNoKeyEngine # Add our mock NoKeyEngine to the dict
+        }, clear=False): # clear=False to merge with existing, True to replace all
+            reloaded_chatroom_missing_gemini = Chatroom.from_dict(
+                test_data_missing_keys, # Use the specific test data
+                manager=self.mock_manager,
+                filepath="dummy_missing.json",
+                api_key_manager=mock_api_key_manager_missing_gemini
+            )
+        
+        gemini_warning_found = False
+        nokey_warning_found = False
+        for call_args in mock_print.call_args_list:
+            arg_str = call_args[0][0]
+            if "API key for Gemini not found" in arg_str and "BotAlpha" in arg_str and "TestRoomMissingKeys" in arg_str :
+                gemini_warning_found = True
+            if "API key for NoKey not found" in arg_str and "BotGamma" in arg_str and "TestRoomMissingKeys" in arg_str:
+                nokey_warning_found = True
+        
+        self.assertTrue(gemini_warning_found, "Warning for missing Gemini key (BotAlpha) was not printed.")
+        self.assertFalse(nokey_warning_found, "Warning for NoKeyEngine (BotGamma) was printed but should not have been.")
+        mock_print.reset_mock()
+
+
+        # --- Scenario 2: All Keys provided / Not Required (original test logic adapted) ---
+        mock_api_key_manager_all_keys = MagicMock(spec=ApiKeyManager)
+        mock_api_key_manager_all_keys.load_key.side_effect = lambda service_name: {
+            "Gemini": "gemini_test_key_loaded",
+            "OpenAI": "openai_test_key_loaded",
+            # NoKeyEngine doesn't need a key, so it doesn't matter if "NoKey" is here or not
         }.get(service_name)
 
-        reloaded_chatroom = Chatroom.from_dict(dict_data, 
-                                               manager=self.mock_manager, 
-                                               filepath="dummy.json", 
-                                               api_key_manager=mock_api_key_manager_for_load)
+        # Patch sys.modules to ensure from_dict can find the *actual* NoKeyEngine class
+        with patch.dict(sys.modules['src.main.ai_engines'].__dict__, {
+            'GeminiEngine': GeminiEngine, # Real engine
+            'OpenAIEngine': OpenAIEngine, # Real engine
+            'GrokEngine': GrokEngine,     # Real engine
+            'NoKeyEngine': NoKeyEngine    # The test's actual NoKeyEngine class
+        }, clear=False):
+            reloaded_chatroom_all_keys = Chatroom.from_dict(
+                dict_data, # Use the original dict_data, which now includes BotGamma with NoKeyEngine
+                manager=self.mock_manager,
+                filepath="dummy_all_keys.json", # Original self.chatroom.filepath is "test_room.json"
+                api_key_manager=mock_api_key_manager_all_keys
+            )
 
-        self.assertEqual(self.chatroom.name, reloaded_chatroom.name)
-        self.assertEqual(len(self.chatroom.list_bots()), len(reloaded_chatroom.list_bots()))
-        self.assertEqual(len(self.chatroom.get_messages()), len(reloaded_chatroom.get_messages()))
+        # Assert no warnings were printed for missing keys
+        for call_args in mock_print.call_args_list:
+            arg_str = call_args[0][0]
+            self.assertNotIn("API key for Gemini not found", arg_str, f"Unexpected warning: {arg_str}")
+            self.assertNotIn("API key for OpenAI not found", arg_str, f"Unexpected warning: {arg_str}")
+            self.assertNotIn("API key for NoKey not found", arg_str, f"Unexpected warning: {arg_str}")
+        
+        # Original assertions from the test
+        self.assertEqual(self.chatroom.name, reloaded_chatroom_all_keys.name) # Name is "Test Room"
+        self.assertEqual(len(self.chatroom.list_bots()), len(reloaded_chatroom_all_keys.list_bots()))
+        self.assertEqual(len(self.chatroom.get_messages()), len(reloaded_chatroom_all_keys.get_messages()))
 
-        # Compare bots
+        # Compare bots (including the new NoKeyEngine bot)
         for original_bot in self.chatroom.list_bots():
-            reloaded_bot = reloaded_chatroom.get_bot(original_bot.get_name())
-            self.assertIsNotNone(reloaded_bot)
+            reloaded_bot = reloaded_chatroom_all_keys.get_bot(original_bot.get_name())
+            self.assertIsNotNone(reloaded_bot, f"Bot {original_bot.get_name()} not found in reloaded chatroom")
             self.assertEqual(original_bot.get_system_prompt(), reloaded_bot.get_system_prompt())
             self.assertEqual(type(original_bot.get_engine()), type(reloaded_bot.get_engine()))
             self.assertEqual(original_bot.get_engine().model_name, reloaded_bot.get_engine().model_name)
-            # API key itself is not stored in bot, but engine instance should have it if loaded
-            self.assertEqual(original_bot.get_engine().api_key, reloaded_bot.get_engine().api_key)
+            # API key check (only if engine is not NoKeyEngine, or if NoKeyEngine happens to have one)
+            if not isinstance(original_bot.get_engine(), NoKeyEngine):
+                 self.assertEqual(original_bot.get_engine().api_key, reloaded_bot.get_engine().api_key)
+            else: # For NoKeyEngine, api_key should be None if loaded correctly without one
+                self.assertIsNone(reloaded_bot.get_engine().api_key)
+
+
+        # Check BotGamma specifically
+        reloaded_bot_gamma = reloaded_chatroom_all_keys.get_bot("BotGamma")
+        self.assertIsNotNone(reloaded_bot_gamma)
+        self.assertIsInstance(reloaded_bot_gamma.get_engine(), NoKeyEngine)
+        self.assertEqual(reloaded_bot_gamma.get_engine().model_name, "no-key-gamma")
 
 
         # Compare messages
         for i, original_msg in enumerate(self.chatroom.get_messages()):
-            reloaded_msg = reloaded_chatroom.get_messages()[i]
+            reloaded_msg = reloaded_chatroom_all_keys.get_messages()[i]
             self.assertEqual(original_msg.sender, reloaded_msg.sender)
             self.assertEqual(original_msg.content, reloaded_msg.content)
             self.assertEqual(original_msg.timestamp, reloaded_msg.timestamp)
