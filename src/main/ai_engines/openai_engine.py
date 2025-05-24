@@ -1,4 +1,6 @@
 import logging
+
+from main.commons import EscapeException
 # Attempt to import AI SDKs
 try:
     import openai
@@ -14,17 +16,23 @@ class OpenAIEngine(AIEngine):
         self.logger = logging.getLogger(__name__ + ".OpenAIEngine")
         self.client = None
         self.logger.info(f"Initializing OpenAIEngine with model '{model_name}'.")
-        if openai and self.api_key:
+
+        try:
+            if not openai:
+                self.logger.warning("OpenAIEngine: openai SDK not found. Ensure it is installed.")
+                raise EscapeException()
+            if not self.api_key:
+                self.logger.warning("OpenAIEngine: API key not provided, real calls will fail.")
+                raise EscapeException()
             try:
                 self.client = openai.OpenAI(api_key=self.api_key) # Do not log self.api_key
                 self.logger.info("OpenAI client configured successfully.")
             except Exception as e:
                 self.logger.error(f"Error configuring OpenAI client: {e}", exc_info=True)
                 self.client = None
-        elif openai and not self.api_key:
-             self.logger.warning("OpenAIEngine: API key not provided, real calls will fail.")
-        elif not openai:
-            self.logger.warning("OpenAIEngine: openai SDK not found.")
+        except EscapeException:
+            self.logger.warning("OpenAIEngine: Initialization failed due to missing SDK or API key.")
+            self.client = None
 
 
     def generate_response(self, current_user_prompt: str, conversation_history: list[tuple[str, str]]) -> str:
