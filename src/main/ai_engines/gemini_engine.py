@@ -6,7 +6,7 @@ except ImportError:
     genai = None
 
 from ..ai_base import AIEngine # Use relative import to access AIEngine from its new location
-
+from ..commons import EscapeException
 
 class GeminiEngine(AIEngine):
     def __init__(self, api_key: str = None, model_name: str = "gemini-2.5-flash-preview-05-20"):
@@ -15,15 +15,17 @@ class GeminiEngine(AIEngine):
         self.client = None
         self.logger.info(f"Initializing GeminiEngine with model '{model_name}'.")
 
-        for _ in range(1):
+        try:
             if not genai:
                 self.logger.warning("GeminiEngine: google.generativeai SDK not found. Ensure it is installed.")
-                break
+                raise EscapeException()
             if not self.api_key:
                 self.logger.warning("GeminiEngine: API key not provided, real calls will fail.")
-                break
+                raise EscapeException()
             self.client = genai.Client(api_key=self.api_key)  # Do not log self.api_key
             self.logger.info("Gemini SDK configured successfully.")
+        except EscapeException:
+            pass
 
 
     def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[tuple[str, str]]) -> str:
