@@ -5,7 +5,7 @@ try:
 except ImportError:
     openai = None
 
-from ..ai_bots import AIEngine # Use relative import
+from ..ai_base import AIEngine # Use relative import from new location
 
 
 class OpenAIEngine(AIEngine):

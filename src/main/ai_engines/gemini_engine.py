@@ -5,7 +5,7 @@ try:
 except ImportError:
     genai = None
 
-from ..ai_bots import AIEngine # Use relative import to access AIEngine from parent directory
+from ..ai_base import AIEngine # Use relative import to access AIEngine from its new location
 
 
 class GeminiEngine(AIEngine):
