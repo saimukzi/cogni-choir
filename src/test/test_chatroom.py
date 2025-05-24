@@ -136,23 +136,6 @@ class TestChatroom(unittest.TestCase):
         # Bot data for this specific test scenario
         # Note: engine_type must match what Bot.to_dict() produces (i.e., class name)
         bot_data_gemini_for_test = {
-            "name": "BotAlpha", "system_prompt": "Prompt Alpha", 
-            "engine_type": "GeminiEngine", "model_name": "gemini-alpha"
-        }
-        bot_data_nokey_for_test = {
-            "name": "BotGamma", "system_prompt": "Prompt Gamma",
-            "engine_type": "NoKeyEngine", "model_name": "no-key-gamma"
-        }
-            
-        test_data_missing_keys = {
-            "name": "TestRoomMissingKeys", # Original chatroom name is "Test Room"
-            "bots": [bot_data_gemini_for_test, bot_data_nokey_for_test],
-            "messages": [] # Messages not relevant for this part of the test
-        }
-
-        # Bot data for this specific test scenario
-        # Note: engine_type must match what Bot.to_dict() produces (i.e., class name)
-        bot_data_gemini_for_test = {
             "name": "BotAlpha", "system_prompt": "Prompt Alpha Sys", 
             "engine_type": "GeminiEngine", "model_name": "gemini-alpha"
         }
