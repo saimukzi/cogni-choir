@@ -1,6 +1,7 @@
 import logging # For logging
 from .ai_base import AIEngine # Import AIEngine from its new location
 from .ai_engines import GeminiEngine, GrokEngine, OpenAIEngine # Import necessary engine classes
+from . import ai_engines # Import the ai_engines package to access ENGINE_TYPE_TO_CLASS_MAP
 # Removed os, requests, google.generativeai, openai imports as they are now in respective engine files.
 
 # Bot class and create_bot function remain here.
@@ -54,12 +55,6 @@ class Bot:
             self.logger.error(f"Bot '{self.name}' encountered an error during response generation: {e}", exc_info=True) # ERROR
             raise # Re-raise the exception so it can be handled upstream if necessary
 
-ENGINE_TYPE_TO_CLASS_MAP = {
-    "GeminiEngine": GeminiEngine,
-    "OpenAIEngine": OpenAIEngine,
-    "GrokEngine": GrokEngine,
-}
-
 def create_bot(bot_name: str, system_prompt: str, engine_config: dict) -> Bot:
     """
     Creates a Bot instance with the specified configuration.
@@ -76,7 +71,7 @@ def create_bot(bot_name: str, system_prompt: str, engine_config: dict) -> Bot:
     Raises:
         ValueError: If the specified engine_type is not supported.
     """
-    engine_map = ENGINE_TYPE_TO_CLASS_MAP
+    engine_map = ai_engines.ENGINE_TYPE_TO_CLASS_MAP
 
     engine_type = engine_config.get("engine_type")
     api_key = engine_config.get("api_key")

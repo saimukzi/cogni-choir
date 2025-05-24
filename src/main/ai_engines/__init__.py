@@ -7,3 +7,9 @@ __all__ = [
     "OpenAIEngine",
     "GrokEngine"
 ]
+
+ENGINE_TYPE_TO_CLASS_MAP = {
+    "GeminiEngine": GeminiEngine,
+    "OpenAIEngine": OpenAIEngine,
+    "GrokEngine": GrokEngine,
+}
