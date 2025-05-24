@@ -32,12 +32,22 @@ class Chatroom:
 
     # No direct set_name; managed by ChatroomManager.rename_chatroom
 
-    def add_bot(self, bot: Bot):
+
+    def add_bot(self, bot: Bot) -> bool:
+        """
+        Adds a bot to the chatroom. If a bot with the same name already exists, it will be replaced.
+
+        Args:
+            bot (Bot): The bot to add.
+        Returns:
+            bool: True if the bot was added successfully, False if the bot name is invalid.
+        """
         bot_name = bot.get_name()
         self.bots[bot_name] = bot
         self.logger.info(f"Bot '{bot_name}' added to chatroom '{self.name}'.") # INFO
         if self.manager:
             self.manager._notify_chatroom_updated(self)
+        return True
 
     def remove_bot(self, bot_name: str):
         if bot_name in self.bots:
