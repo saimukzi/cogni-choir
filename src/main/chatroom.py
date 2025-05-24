@@ -119,7 +119,7 @@ class Chatroom:
             self.logger.error(f"Error saving chatroom '{self.name}' to '{self.filepath}': {e}", exc_info=True) # ERROR
 
     @staticmethod
-    def from_dict(data: dict, manager: ChatroomManager, filepath: str, api_key_manager, engine_map: dict = None) -> Chatroom:
+    def from_dict(data: dict, manager: ChatroomManager, filepath: str, api_key_manager) -> Chatroom:
         logger = logging.getLogger(__name__ + ".Chatroom") # Static method, so get logger instance
         chatroom_name = data.get("name", "UnknownChatroom")
         logger.debug(f"Deserializing chatroom '{chatroom_name}' from dictionary. File: {filepath}") # DEBUG
@@ -150,7 +150,6 @@ class Chatroom:
                     bot_name=bot_data.get("name", "UnnamedBot"),
                     system_prompt=bot_data.get("system_prompt", ""),
                     engine_config=engine_config,
-                    engine_map=engine_map,
                 )
                 # Check for API key warning after bot creation, if engine requires it.
                 # This logic might be slightly different as the engine instance is now inside create_bot

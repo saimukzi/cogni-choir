@@ -60,7 +60,7 @@ ENGINE_TYPE_TO_CLASS_MAP = {
     "GrokEngine": GrokEngine,
 }
 
-def create_bot(bot_name: str, system_prompt: str, engine_config: dict, engine_map: dict = None) -> Bot:
+def create_bot(bot_name: str, system_prompt: str, engine_config: dict) -> Bot:
     """
     Creates a Bot instance with the specified configuration.
 
@@ -69,8 +69,6 @@ def create_bot(bot_name: str, system_prompt: str, engine_config: dict, engine_ma
         system_prompt: The system prompt for the bot.
         engine_config: A dictionary containing engine configuration.
                        Expected keys: "engine_type" (str), "api_key" (str | None).
-        engine_map: Optional mapping of engine types to their respective classes.
-                       If None, defaults to ENGINE_TYPE_TO_CLASS_MAP.
 
     Returns:
         A Bot instance.
@@ -78,8 +76,7 @@ def create_bot(bot_name: str, system_prompt: str, engine_config: dict, engine_ma
     Raises:
         ValueError: If the specified engine_type is not supported.
     """
-    if engine_map is None:
-        engine_map = ENGINE_TYPE_TO_CLASS_MAP
+    engine_map = ENGINE_TYPE_TO_CLASS_MAP
 
     engine_type = engine_config.get("engine_type")
     api_key = engine_config.get("api_key")
