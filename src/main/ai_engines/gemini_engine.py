@@ -28,7 +28,7 @@ class GeminiEngine(AIEngine):
             pass
 
 
-    def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[tuple[str, str]]) -> str:
+    def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[dict]) -> str:
         self.logger.info(f"Generating response for prompt_len={len(system_prompt)}, history_len={len(conversation_history)}")
         if not genai: 
             msg = "Error: google.generativeai SDK not available."
@@ -46,8 +46,10 @@ class GeminiEngine(AIEngine):
         system_instruction = system_prompt.strip()
 
         contents = []
-        for sender, text_content in conversation_history:
-            if sender == role_name:
+        for msg in conversation_history:
+            sender_role = msg['role']
+            text_content = msg['text'].strip()
+            if sender_role == role_name:
                 contents.append({"role": "model", "text": text_content})
             else:
                 reuse_content = True
@@ -58,12 +60,13 @@ class GeminiEngine(AIEngine):
 
                 if reuse_content:
                     text = contents[-1]["text"]
-                    text += f'\n{sender}: {text_content}'
-                    contents[-1]["text"]
+                    text += f'\n\n{sender_role} said:\n{text_content}'
+                    contents[-1]["text"] = text
                 else:
-                    text = f'{sender}: {text_content}'
-                    content = {"role": "user", "text": text_content}
+                    text = f'{sender_role} said:\n{text_content}'
+                    content = {"role": "user", "text": text}
                     contents.append(content)
+        print(contents)
         contents = map(
             lambda x: genai.types.Content(
                 role=x['role'],

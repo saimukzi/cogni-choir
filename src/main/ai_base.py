@@ -6,7 +6,7 @@ class AIEngine(abc.ABC):
         self.model_name = model_name
 
     @abc.abstractmethod
-    def generate_response(self, system_prompt: str, conversation_history: list[tuple[str, str]]) -> str:
+    def generate_response(self, system_prompt: str, conversation_history: list[dict]) -> str:
         pass
 
     @abc.abstractmethod

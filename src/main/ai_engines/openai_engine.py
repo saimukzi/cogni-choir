@@ -1,6 +1,6 @@
 import logging
 
-from main.commons import EscapeException
+from ..commons import EscapeException
 # Attempt to import AI SDKs
 try:
     import openai

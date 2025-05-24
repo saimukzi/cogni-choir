@@ -15,7 +15,7 @@ class GrokEngine(AIEngine):
             self.logger.info("GrokEngine: API key provided, but will not be used due to lack of official API/SDK.")
 
 
-    def generate_response(self, current_user_prompt: str, conversation_history: list[tuple[str, str]]) -> str:
+    def generate_response(self, current_user_prompt: str, conversation_history: list[dict]) -> str:
         self.logger.info(f"Generating placeholder response for GrokEngine. Prompt_len={len(current_user_prompt)}, history_len={len(conversation_history)}.")
         # Research indicates no publicly available official Python SDK or well-documented public REST API for Grok by xAI as of late 2023/early 2024.
         # Some third-party libraries exist but rely on unofficial methods (e.g., reverse-engineering X app's API).

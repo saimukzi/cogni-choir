@@ -515,9 +515,9 @@ class MainWindow(QMainWindow):
                 return
         
         self.logger.info(f"Attempting to trigger bot response for bot '{selected_bot_name}' in chatroom '{chatroom_name}'.")
-        conversation_history_tuples = [(msg.sender, msg.content) for msg in chatroom.get_messages()]
+        conversation_history = [{'role': msg.sender, 'text': msg.content} for msg in chatroom.get_messages()]
 
-        if not conversation_history_tuples:
+        if not conversation_history:
             self.logger.info(f"Trigger bot response: No messages in chatroom '{chatroom_name}' to respond to.")
             QMessageBox.information(self, self.tr("Info"), self.tr("No messages in chat to respond to."))
             return 
@@ -528,7 +528,7 @@ class MainWindow(QMainWindow):
             self.trigger_bot_response_button.setEnabled(False)
             QApplication.processEvents() 
 
-            ai_response = bot.generate_response(conversation_history=conversation_history_tuples)
+            ai_response = bot.generate_response(conversation_history=conversation_history)
             
             self.logger.info(f"Bot '{selected_bot_name}' generated response successfully in chatroom '{chatroom_name}'.")
             chatroom.add_message(bot.get_name(), ai_response)

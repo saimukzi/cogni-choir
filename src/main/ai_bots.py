@@ -45,7 +45,7 @@ class Bot:
     def set_engine(self, new_engine: AIEngine):
         self.engine = new_engine
 
-    def generate_response(self, conversation_history: list) -> str:
+    def generate_response(self, conversation_history: list[dict]) -> str:
         self.logger.info(f"Bot '{self.name}' generating response for conversation_history of length {len(conversation_history)}.") # INFO
         try:
             response = self.engine.generate_response(
