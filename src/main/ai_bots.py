@@ -60,7 +60,7 @@ ENGINE_TYPE_TO_CLASS_MAP = {
     "GrokEngine": GrokEngine,
 }
 
-def create_bot(bot_name: str, system_prompt: str, engine_config: dict) -> Bot:
+def create_bot(bot_name: str, system_prompt: str, engine_config: dict, engine_map: dict = None) -> Bot:
     """
     Creates a Bot instance with the specified configuration.
 
@@ -76,19 +76,16 @@ def create_bot(bot_name: str, system_prompt: str, engine_config: dict) -> Bot:
     Raises:
         ValueError: If the specified engine_type is not supported.
     """
-    # engine_map = {
-    #     "GeminiEngine": GeminiEngine,
-    #     "OpenAIEngine": OpenAIEngine,
-    #     "GrokEngine": GrokEngine,
-    # }
+    if engine_map is None:
+        engine_map = ENGINE_TYPE_TO_CLASS_MAP
 
     engine_type = engine_config.get("engine_type")
     api_key = engine_config.get("api_key")
 
-    if engine_type not in ENGINE_TYPE_TO_CLASS_MAP:
+    if engine_type not in engine_map:
         raise ValueError(f"Unsupported engine type: {engine_type}")
 
-    engine_class = ENGINE_TYPE_TO_CLASS_MAP[engine_type]
+    engine_class = engine_map[engine_type]
     
     # Pass model_name if it's in engine_config, otherwise it will use the default in the engine class
     model_name = engine_config.get("model_name")
