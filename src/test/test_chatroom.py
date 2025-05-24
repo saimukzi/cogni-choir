@@ -275,14 +275,13 @@ class TestChatroom(unittest.TestCase):
         self.assertEqual(reloaded_bot_beta_s2.get_engine().api_key, "openai_test_key_loaded")
         self.assertEqual(reloaded_bot_beta_s2.get_engine().model_name, "openai-beta")
 
-        # Add warning assertion for BotGamma failing to load in Scenario 1
-        # The chatroom name for Scenario 1 is test_data_missing_keys["name"] = "TestRoomMissingKeys"
+        # Add warning assertion for BotGamma failing to load in Scenario 2
         # The engine_type for BotGamma is "NoKeyEngine"
-        expected_nokey_warning_scen1 = f"Failed to create bot 'BotGamma' from data in chatroom 'TestRoomMissingKeys' due to: Unsupported engine type: NoKeyEngine"
+        expected_nokey_warning_scen2 = f"Failed to create bot 'BotGamma' from data in chatroom 'Test Room' due to: Unsupported engine type: NoKeyEngine"
         # This warning occurs during the creation of `reloaded_chatroom_missing_gemini`
         # So, mock_logger_warning.assert_any_call for this should be checked after that object's creation.
         # The current structure checks mock_logger_warning calls after `reloaded_chatroom_missing_gemini` is created.
-        mock_logger_warning.assert_any_call(expected_nokey_warning_scen1)
+        mock_logger_warning.assert_any_call(expected_nokey_warning_scen2)
         
         # Assertions for messages in reloaded_chatroom_all_keys (Scenario 2)
         for i, original_msg in enumerate(self.chatroom.get_messages()):
