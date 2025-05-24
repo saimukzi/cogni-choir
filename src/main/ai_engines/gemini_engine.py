@@ -15,11 +15,13 @@ class GeminiEngine(AIEngine):
         self.client = None
         self.logger.info(f"Initializing GeminiEngine with model '{model_name}'.")
 
-        if not genai:
-            self.logger.warning("GeminiEngine: google.generativeai SDK not found. Ensure it is installed.")
-        elif not self.api_key:
-            self.logger.warning("GeminiEngine: API key not provided, real calls will fail.")
-        else:
+        for _ in range(1):
+            if not genai:
+                self.logger.warning("GeminiEngine: google.generativeai SDK not found. Ensure it is installed.")
+                break
+            if not self.api_key:
+                self.logger.warning("GeminiEngine: API key not provided, real calls will fail.")
+                break
             self.client = genai.Client(api_key=self.api_key)  # Do not log self.api_key
             self.logger.info("Gemini SDK configured successfully.")
 
