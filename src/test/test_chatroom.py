@@ -166,7 +166,7 @@ class TestChatroom(unittest.TestCase):
         mock_engine_beta.model_name = bot_data_openai_for_test['model_name']
         mock_engine_beta.requires_api_key.return_value = True # OpenAIEngine requires a key
 
-        def mock_create_bot_side_effect(bot_name, system_prompt, engine_config):
+        def mock_create_bot_side_effect(bot_name, system_prompt, engine_config, engine_map=None):
             # Find the bot_data from self.test_data_missing_keys_scen1 to ensure prompts match
             current_bot_data = next((b for b in self.test_data_missing_keys_scen1['bots'] if b['name'] == bot_name), None)
             if not current_bot_data:
