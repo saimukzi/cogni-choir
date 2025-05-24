@@ -1,5 +1,5 @@
 PyQt6
-google-generativeai
+google-genai
 openai
 keyring
 requests

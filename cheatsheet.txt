@@ -4,3 +4,11 @@
 # Get Powershell version
 $PSVersionTable.PSVersion.ToString()
 # 7.5.1
+
+===
+
+python -m src.main.main_window
+
+python -m unittest discover -s src/test -p "test_*.py" > tmp/test.out 2>&1
+
+python -m unittest src.test.test_chatroom.TestChatroom.test_chatroom_save_load_cycle > tmp/test.out 2>&1

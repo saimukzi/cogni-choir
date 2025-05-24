@@ -45,10 +45,14 @@ class Bot:
     def set_engine(self, new_engine: AIEngine):
         self.engine = new_engine
 
-    def generate_response(self, prompt: str, history: list) -> str:
-        self.logger.info(f"Bot '{self.name}' generating response for prompt of length {len(prompt)}.") # INFO
+    def generate_response(self, conversation_history: list) -> str:
+        self.logger.info(f"Bot '{self.name}' generating response for conversation_history of length {len(conversation_history)}.") # INFO
         try:
-            response = self.engine.generate_response(prompt, history)
+            response = self.engine.generate_response(
+                role_name=self.name,
+                system_prompt=self.system_prompt,
+                conversation_history=conversation_history
+            )
             self.logger.info(f"Bot '{self.name}' successfully generated response.") # INFO
             return response
         except Exception as e:

@@ -18,6 +18,7 @@ try:
     from .ai_engines import GeminiEngine, GrokEngine, OpenAIEngine # Engines from new package
     from .api_key_manager import ApiKeyManager
     from .message import Message
+    from . import ai_engines
 except ImportError:
     # Fallback for running script directly for testing
     from chatroom import Chatroom, ChatroomManager
@@ -38,7 +39,8 @@ class ApiKeyDialog(QDialog):
         form_layout = QFormLayout()
 
         self.service_combo = QComboBox()
-        self.service_combo.addItems(["OpenAI", "Gemini", "Grok"]) # Service names should match what ApiKeyManager expects
+        # self.service_combo.addItems(["OpenAI", "Gemini", "Grok"]) # Service names should match what ApiKeyManager expects
+        self.service_combo.addItems(ai_engines.ENGINE_TYPE_TO_CLASS_MAP.keys()) # Dynamically load service names from ENGINE_TYPE_TO_CLASS_MAP
         self.service_combo.currentTextChanged.connect(self._load_key_for_display)
         form_layout.addRow(self.tr("Service:"), self.service_combo)
 
@@ -514,25 +516,11 @@ class MainWindow(QMainWindow):
         
         self.logger.info(f"Attempting to trigger bot response for bot '{selected_bot_name}' in chatroom '{chatroom_name}'.")
         conversation_history_tuples = [(msg.sender, msg.content) for msg in chatroom.get_messages()]
-        current_user_prompt = ""
-        history_for_ai = []
 
         if not conversation_history_tuples:
             self.logger.info(f"Trigger bot response: No messages in chatroom '{chatroom_name}' to respond to.")
             QMessageBox.information(self, self.tr("Info"), self.tr("No messages in chat to respond to."))
             return 
-        
-        if conversation_history_tuples[-1][0] == "User":
-            current_user_prompt = conversation_history_tuples[-1][1]
-            history_for_ai = conversation_history_tuples[:-1]
-        else:
-            history_for_ai = conversation_history_tuples
-            current_user_prompt = bot.get_system_prompt() or "Continue the conversation." 
-
-        if not current_user_prompt and not history_for_ai: # Should be 'or' not 'and'
-             self.logger.warning(f"Trigger bot response: Cannot send an empty prompt to bot '{selected_bot_name}' in chatroom '{chatroom_name}'.")
-             QMessageBox.warning(self, self.tr("Warning"), self.tr("Cannot send an empty prompt to the bot."))
-             return
         
         original_button_text = self.trigger_bot_response_button.text()
         try:
@@ -540,7 +528,7 @@ class MainWindow(QMainWindow):
             self.trigger_bot_response_button.setEnabled(False)
             QApplication.processEvents() 
 
-            ai_response = bot.generate_response(current_user_prompt=current_user_prompt, conversation_history=history_for_ai)
+            ai_response = bot.generate_response(conversation_history=conversation_history_tuples)
             
             self.logger.info(f"Bot '{selected_bot_name}' generated response successfully in chatroom '{chatroom_name}'.")
             chatroom.add_message(bot.get_name(), ai_response)
@@ -664,8 +652,8 @@ class MainWindow(QMainWindow):
             self.logger.debug(f"Add bot '{bot_name}' to chatroom '{chatroom_name}' cancelled by user at system prompt input.") # DEBUG - user cancelled
             return 
 
-        engine_types = ["Gemini", "Grok", "OpenAI"] 
-        engine_type, ok_engine = QInputDialog.getItem(self, self.tr("Add Bot"), self.tr("Select AI engine for {0}:").format(bot_name), engine_types, 0, False)
+        engine_type_list = list(ai_engines.ENGINE_TYPE_TO_CLASS_MAP.keys())
+        engine_type, ok_engine = QInputDialog.getItem(self, self.tr("Add Bot"), self.tr("Select AI engine for {0}:").format(bot_name), engine_type_list, 0, False)
         if not ok_engine:
             self.logger.debug(f"Add bot '{bot_name}' to chatroom '{chatroom_name}' cancelled by user at engine selection.") # DEBUG - user cancelled
             return
@@ -674,7 +662,7 @@ class MainWindow(QMainWindow):
 
         api_key = self.api_key_manager.load_key(engine_type) 
         # Do NOT log the api_key itself
-        if not api_key and engine_type in ["OpenAI", "Gemini", "Grok"]: 
+        if not api_key and engine_type in ai_engines.ENGINE_TYPE_TO_CLASS_MAP: 
             self.logger.warning(f"API Key for {engine_type} not found when adding bot '{bot_name}'. Bot will be created but may not function.") # WARNING - API key missing
             QMessageBox.warning(self, self.tr("Warning"), 
                                 self.tr("API Key for {0} not found. Please set it in Settings. Bot will be created but may not function.").format(engine_type))

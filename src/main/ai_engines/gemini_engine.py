@@ -1,7 +1,7 @@
 import logging
 # Attempt to import AI SDKs
 try:
-    import google.generativeai as genai
+    from google import genai
 except ImportError:
     genai = None
 
@@ -9,27 +9,24 @@ from ..ai_base import AIEngine # Use relative import to access AIEngine from its
 
 
 class GeminiEngine(AIEngine):
-    def __init__(self, api_key: str = None, model_name: str = "gemini-pro"):
+    def __init__(self, api_key: str = None, model_name: str = "gemini-2.5-flash-preview-05-20"):
         super().__init__(api_key, model_name)
         self.logger = logging.getLogger(__name__ + ".GeminiEngine")
-        self.model = None
+        self.client = None
         self.logger.info(f"Initializing GeminiEngine with model '{model_name}'.")
-        if genai and self.api_key:
-            try:
-                genai.configure(api_key=self.api_key) # Do not log self.api_key
-                self.model = genai.GenerativeModel(self.model_name)
+
+        if not genai:
+            self.logger.warning("GeminiEngine: google.generativeai SDK not found. Ensure it is installed.")
+        else:
+            if not self.api_key:
+                self.logger.warning("GeminiEngine: API key not provided, real calls will fail.")
+            else:
+                self.client = genai.Client(api_key=self.api_key)  # Do not log self.api_key
                 self.logger.info("Gemini SDK configured successfully.")
-            except Exception as e:
-                self.logger.error(f"Error configuring Gemini SDK: {e}", exc_info=True)
-                self.model = None 
-        elif genai and not self.api_key:
-            self.logger.warning("GeminiEngine: API key not provided, real calls will fail.")
-        elif not genai:
-            self.logger.warning("GeminiEngine: google.generativeai SDK not found.")
 
 
-    def generate_response(self, current_user_prompt: str, conversation_history: list[tuple[str, str]]) -> str:
-        self.logger.info(f"Generating response for prompt_len={len(current_user_prompt)}, history_len={len(conversation_history)}")
+    def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[tuple[str, str]]) -> str:
+        self.logger.info(f"Generating response for prompt_len={len(system_prompt)}, history_len={len(conversation_history)}")
         if not genai: 
             msg = "Error: google.generativeai SDK not available."
             self.logger.error(msg)
@@ -38,20 +35,53 @@ class GeminiEngine(AIEngine):
             msg = "Error: Gemini API key not configured."
             self.logger.error(msg)
             return msg
-        if not self.model: 
-            msg = "Error: Gemini model not initialized. Check API key and SDK installation."
+        if not self.client: 
+            msg = "Error: Gemini client not initialized. Check if the SDK is installed and API key is set."
             self.logger.error(msg)
             return msg
 
-        gemini_history = []
+        system_instruction = system_prompt.strip()
+
+        contents = []
         for sender, text_content in conversation_history:
-            role = "user" if sender == "User" else "model"
-            gemini_history.append({"role": role, "parts": [{"text": text_content}]})
+            if sender == role_name:
+                contents.append({"role": "model", "text": text_content})
+            else:
+                reuse_content = True
+                if len(contents) <= 0:
+                    reuse_content = False
+                if reuse_content and len(contents) >= 1 and contents[-1]["role"] == "model":
+                    reuse_content = False
+
+                if reuse_content:
+                    text = contents[-1]["text"]
+                    text += f'\n{sender}: {text_content}'
+                    contents[-1]["text"]
+                else:
+                    text = f'{sender}: {text_content}'
+                    content = {"role": "user", "text": text_content}
+                    contents.append(content)
+        contents = map(
+            lambda x: genai.types.Content(
+                role=x['role'],
+                parts=[genai.types.Part(text=x['text'])]
+            ),
+            contents
+        )
+        contents = list(contents)
         
         try:
-            self.logger.debug(f"Sending request to Gemini API. Prompt (first 50 chars): '{current_user_prompt[:50]}...'")
-            chat = self.model.start_chat(history=gemini_history)
-            response = chat.send_message(current_user_prompt)
+            self.logger.debug(f"Sending request to Gemini API. System prompt (first 50 chars): '{system_prompt[:50]}...'")
+            # chat = self.model.start_chat(history=gemini_history)
+            # response = chat.send_message(current_user_prompt)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=contents,
+                # systemInstruction=system_instruction,
+                config=genai.types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                ),
+            )
             # Check if response.text exists and is not empty, as per some API behaviors for safety/errors
             if hasattr(response, 'text') and response.text:
                  self.logger.info("Successfully received response from Gemini API.")
