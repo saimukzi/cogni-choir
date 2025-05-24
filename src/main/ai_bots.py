@@ -1,4 +1,5 @@
 import abc
+import logging # For logging
 # Removed os, requests, google.generativeai, openai imports as they are now in respective engine files.
 
 # AIEngine and Bot classes remain here.
@@ -19,9 +20,11 @@ class AIEngine(abc.ABC):
 
 class Bot:
     def __init__(self, name: str, system_prompt: str, engine: AIEngine): # engine will be an instance of a class from ai_engines
+        self.logger = logging.getLogger(__name__ + ".Bot")
         self.name = name
         self.system_prompt = system_prompt
         self.engine = engine
+        self.logger.debug(f"Bot '{self.name}' created with engine '{type(self.engine).__name__}'.") # DEBUG
 
     def to_dict(self) -> dict:
         engine_type = type(self.engine).__name__
@@ -53,4 +56,11 @@ class Bot:
         self.engine = new_engine
 
     def generate_response(self, prompt: str, history: list) -> str:
-        return self.engine.generate_response(prompt, history)
+        self.logger.info(f"Bot '{self.name}' generating response for prompt of length {len(prompt)}.") # INFO
+        try:
+            response = self.engine.generate_response(prompt, history)
+            self.logger.info(f"Bot '{self.name}' successfully generated response.") # INFO
+            return response
+        except Exception as e:
+            self.logger.error(f"Bot '{self.name}' encountered an error during response generation: {e}", exc_info=True) # ERROR
+            raise # Re-raise the exception so it can be handled upstream if necessary

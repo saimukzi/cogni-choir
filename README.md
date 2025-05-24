@@ -68,3 +68,16 @@ set PYTHONPATH=.    # For Windows (in Command Prompt)
 - **`i18n/`**: Contains internationalization files (e.g., `app_zh_TW.ts`, `app_zh_TW.qm`).
 - **`requirements.txt`**: Lists Python package dependencies.
 - **`README.md`**: This file.
+
+## Logging
+
+This application uses the Python `logging` module to record its operations and any potential errors.
+- Logs are saved to a file named `app.log` in the same directory where the application is run.
+- The log file is overwritten each time the application starts.
+- The default logging level is DEBUG, which means detailed information useful for troubleshooting will be recorded.
+- Log entries include a timestamp, log level (DEBUG, INFO, WARNING, ERROR), the module where the log originated, and the log message.
+
+This log can be helpful for:
+- Understanding the application's behavior.
+- Diagnosing issues or unexpected behavior.
+- Tracking events like chatroom creation, bot interactions, and API calls.
