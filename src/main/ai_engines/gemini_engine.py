@@ -17,12 +17,11 @@ class GeminiEngine(AIEngine):
 
         if not genai:
             self.logger.warning("GeminiEngine: google.generativeai SDK not found. Ensure it is installed.")
+        elif not self.api_key:
+            self.logger.warning("GeminiEngine: API key not provided, real calls will fail.")
         else:
-            if not self.api_key:
-                self.logger.warning("GeminiEngine: API key not provided, real calls will fail.")
-            else:
-                self.client = genai.Client(api_key=self.api_key)  # Do not log self.api_key
-                self.logger.info("Gemini SDK configured successfully.")
+            self.client = genai.Client(api_key=self.api_key)  # Do not log self.api_key
+            self.logger.info("Gemini SDK configured successfully.")
 
 
     def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[tuple[str, str]]) -> str:
