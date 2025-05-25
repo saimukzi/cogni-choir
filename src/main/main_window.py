@@ -728,7 +728,8 @@ def main():
         level=logging.DEBUG, # Changed to DEBUG
         format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
         filename='app.log',
-        filemode='w' # Overwrite log file each time for now, can be changed to 'a' for append
+        filemode='w', # Overwrite log file each time for now, can be changed to 'a' for append
+        encoding='utf-8'  # Ensure UTF-8 encoding for log file
     )
     logging.info("Application starting")
     app = QApplication(sys.argv)
