@@ -1,18 +1,21 @@
 import logging
+import os
 import openai
 from ..ai_base import AIEngine
+from .. import commons
 
 
 class AzureOpenAIEngine(AIEngine):
-    def __init__(self, api_key: str, model_name: str, azure_endpoint: str, api_version: str):
-        super().__init__(model_name)
+    def __init__(self, api_key: str = None, model_name: str = None):
+        super().__init__(api_key, model_name)
         self.api_key = api_key
-        self.azure_endpoint = azure_endpoint
-        self.api_version = api_version
+        self.azure_endpoint = commons.read_str(os.path.join('tmp','azure_endpoint.txt'))
+        self.api_version = '2024-12-01-preview'
+        self.deployment_name = commons.read_str(os.path.join('tmp','azure_model.txt'))
         self.client = openai.AzureOpenAI(
             api_key=api_key,
-            azure_endpoint=azure_endpoint,
-            api_version=api_version
+            azure_endpoint=self.azure_endpoint,
+            api_version=self.api_version
         )
         logging.info("AzureOpenAIEngine initialized.")
 
@@ -22,14 +25,25 @@ class AzureOpenAIEngine(AIEngine):
             if msg['role'] == role_name:
                 messages.append({"role": "assistant", "content": msg['text']})
             else:
-                messages.append({"role": "user", "content": msg['text']})
-        
+                # messages.append({"role": "user", "content": msg['text']})
+                reuse_content = True
+                if len(messages) <= 0:
+                    reuse_content = False
+                if reuse_content and len(messages) >= 1 and messages[-1]["role"] != "user":
+                    reuse_content = False
+
+                if reuse_content:
+                    messages[-1]["content"] += '\n\n'
+                else:
+                    messages.append({"role": "user", "content": ""})
+                messages[-1]["content"] += f'{msg["role"]} said:\n{msg["text"]}'
+
         # Log the constructed messages list for debugging, if necessary (optional)
         # logging.debug(f"Constructed messages for Azure OpenAI: {messages}")
 
         try:
             response = self.client.chat.completions.create(
-                model=self.model_name,
+                model=self.deployment_name,
                 messages=messages
             )
             if response.choices and len(response.choices) > 0:
