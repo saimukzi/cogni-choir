@@ -66,7 +66,7 @@ class GeminiEngine(AIEngine):
                     text = f'{sender_role} said:\n{text_content}'
                     content = {"role": "user", "text": text}
                     contents.append(content)
-        print(contents)
+        # print(contents)
         contents = map(
             lambda x: genai.types.Content(
                 role=x['role'],

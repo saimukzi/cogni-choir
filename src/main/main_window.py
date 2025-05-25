@@ -504,7 +504,7 @@ class MainWindow(QMainWindow):
             return
 
         engine = bot.get_engine()
-        engine_type_name = type(engine).__name__.replace("Engine", "") 
+        engine_type_name = type(engine).__name__
         
         if isinstance(engine, (GeminiEngine, GrokEngine, OpenAIEngine)): 
             api_key = self.api_key_manager.load_key(engine_type_name)

@@ -136,7 +136,7 @@ class Chatroom:
             engine_type_name = bot_data.get("engine_type")
             api_key = None # Default to None
             if engine_type_name and api_key_manager: # Ensure engine_type_name exists before trying to use it
-                service_name_for_key = engine_type_name.replace("Engine", "") # This assumes engine_type_name is "XEngine"
+                service_name_for_key = engine_type_name
                 api_key = api_key_manager.load_key(service_name_for_key)
 
             engine_config = {
