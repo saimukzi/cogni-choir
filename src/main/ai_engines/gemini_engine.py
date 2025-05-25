@@ -7,6 +7,7 @@ except ImportError:
 
 from ..ai_base import AIEngine # Use relative import to access AIEngine from its new location
 from ..commons import EscapeException
+from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 
 class GeminiEngine(AIEngine):
     def __init__(self, api_key: str = None, model_name: str = "gemini-2.5-flash-preview-05-20"):
@@ -14,6 +15,7 @@ class GeminiEngine(AIEngine):
         self.logger = logging.getLogger(__name__ + ".GeminiEngine")
         self.client = None
         self.logger.info(f"Initializing GeminiEngine with model '{model_name}'.")
+        self.tools = [Tool(google_search = GoogleSearch())]
 
         try:
             if not genai:
@@ -86,6 +88,7 @@ class GeminiEngine(AIEngine):
                 # systemInstruction=system_instruction,
                 config=genai.types.GenerateContentConfig(
                     system_instruction=system_instruction,
+                    tools=self.tools,
                 ),
             )
             # Check if response.text exists and is not empty, as per some API behaviors for safety/errors
