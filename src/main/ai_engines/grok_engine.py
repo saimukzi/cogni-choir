@@ -8,6 +8,7 @@ response generation is attempted.
 import logging
 import requests # For Grok, if/when a real API call is made
 from ..ai_base import AIEngine # Use relative import from new location
+from ..types import ConversationHistory # Import ConversationHistory
 
 
 class GrokEngine(AIEngine):
@@ -44,7 +45,7 @@ class GrokEngine(AIEngine):
             self.logger.info("GrokEngine: API key was provided, but it will not be actively used due to the lack of an official API/SDK.")
 
 
-    def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[dict]) -> str:
+    def generate_response(self, role_name: str, system_prompt: str, conversation_history: ConversationHistory) -> str:
         """Attempts to generate a response using Grok (currently a placeholder).
 
         Since there is no official public API for Grok, this method returns
@@ -53,13 +54,16 @@ class GrokEngine(AIEngine):
         Args:
             role_name (str): The name of the assistant role in the conversation.
             system_prompt (str): The system prompt to guide the AI's behavior.
-            conversation_history (list[dict]): A list of message dictionaries.
+            conversation_history (ConversationHistory): A ConversationHistory object
+                                                        containing the current
+                                                        conversation.
 
         Returns:
             str: An error message stating that the Grok API is not implemented.
         """
         # Adjusted parameters to match the base class abstract method
-        self.logger.info(f"Generating placeholder response for GrokEngine. System_prompt_len={len(system_prompt)}, history_len={len(conversation_history)} for role {role_name}.")
+        history_list_dict = conversation_history.to_list_dict()
+        self.logger.info(f"Generating placeholder response for GrokEngine. System_prompt_len={len(system_prompt)}, history_len={len(history_list_dict)} for role {role_name}.")
         # Research indicates no publicly available official Python SDK or well-documented public REST API for Grok by xAI.
         # Some third-party libraries exist but rely on unofficial methods (e.g., reverse-engineering X app's API).
         # Using such methods is brittle and potentially against terms of service.

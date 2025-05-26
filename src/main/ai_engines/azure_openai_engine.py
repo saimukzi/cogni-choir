@@ -13,6 +13,7 @@ import os
 import openai
 from ..ai_base import AIEngine
 from .. import commons
+from ..types import ConversationHistory
 
 
 class AzureOpenAIEngine(AIEngine):
@@ -62,7 +63,7 @@ class AzureOpenAIEngine(AIEngine):
         )
         logging.info(f"AzureOpenAIEngine initialized with deployment: {self.deployment_name}, endpoint: {self.azure_endpoint}")
 
-    def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[dict]) -> str:
+    def generate_response(self, role_name: str, system_prompt: str, conversation_history: ConversationHistory) -> str:
         """Generates a response using the configured Azure OpenAI model.
 
         Constructs a message list suitable for the Azure OpenAI API from the
@@ -74,15 +75,17 @@ class AzureOpenAIEngine(AIEngine):
             role_name (str): The name of the assistant role in the conversation.
                              Messages from this role are mapped to "assistant".
             system_prompt (str): The system prompt to guide the AI's behavior.
-            conversation_history (list[dict]): A list of message dictionaries,
-                                               where each dictionary has 'role' and 'text'.
+            conversation_history (ConversationHistory): A ConversationHistory object
+                                                        containing the current
+                                                        conversation.
 
         Returns:
             str: The generated text response from the AI, or an error message
                  if generation fails.
         """
         messages = [{"role": "system", "content": system_prompt}]
-        for msg in conversation_history:
+        history_list_dict = conversation_history.to_list_dict()
+        for msg in history_list_dict:
             if msg['role'] == role_name:
                 messages.append({"role": "assistant", "content": msg['text']})
             else:

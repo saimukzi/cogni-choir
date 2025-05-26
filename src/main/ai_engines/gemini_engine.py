@@ -8,13 +8,14 @@ prompt construction, communication with the Gemini API, and error handling.
 import logging
 # Attempt to import AI SDKs
 try:
-    from google import genai
+    import google.generativeai as genai # Corrected import style
 except ImportError:
     genai = None
 
 from ..ai_base import AIEngine # Use relative import to access AIEngine from its new location
 from ..commons import EscapeException
-from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
+from ..types import ConversationHistory # Import ConversationHistory
+# Removed: from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 
 class GeminiEngine(AIEngine):
     """An AI engine that uses Google's Gemini models for response generation.
@@ -47,7 +48,16 @@ class GeminiEngine(AIEngine):
         self.logger = logging.getLogger(__name__ + ".GeminiEngine")
         self.client = None
         self.logger.info(f"Initializing GeminiEngine with model '{self.model_name}'.") # Use self.model_name
-        self.tools = [Tool(google_search = GoogleSearch())]
+        if genai: # Ensure genai is imported before using its types
+            try:
+                # Attempt to use protos for Tool and GoogleSearch
+                self.tools = [genai.protos.Tool(google_search = genai.protos.GoogleSearch())]
+            except AttributeError:
+                # Fallback or log warning if protos.GoogleSearch is also not found
+                self.logger.warning("genai.protos.GoogleSearch not found, proceeding without GoogleSearch tool.")
+                self.tools = []
+        else:
+            self.tools = [] # Or handle the case where genai is not available
 
         try:
             if not genai:
@@ -67,7 +77,7 @@ class GeminiEngine(AIEngine):
             self.logger.error(f"GeminiEngine: Error during google.genai.Client initialization: {e}", exc_info=True)
 
 
-    def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[dict]) -> str:
+    def generate_response(self, role_name: str, system_prompt: str, conversation_history: ConversationHistory) -> str:
         """Generates a response using the configured Gemini model.
 
         Constructs a message list suitable for the Gemini API from the
@@ -79,14 +89,16 @@ class GeminiEngine(AIEngine):
             role_name (str): The name of the assistant role in the conversation.
                              Messages from this role are mapped to "model".
             system_prompt (str): The system prompt to guide the AI's behavior.
-            conversation_history (list[dict]): A list of message dictionaries,
-                                               where each dictionary has 'role' and 'text'.
+            conversation_history (ConversationHistory): A ConversationHistory object
+                                                        containing the current
+                                                        conversation.
 
         Returns:
             str: The generated text response from the AI, or an error message
                  if generation fails or prerequisites (SDK, API key) are not met.
         """
-        self.logger.info(f"Generating response for prompt_len={len(system_prompt)}, history_len={len(conversation_history)}")
+        history_list_dict = conversation_history.to_list_dict()
+        self.logger.info(f"Generating response for prompt_len={len(system_prompt)}, history_len={len(history_list_dict)}")
         if not genai: 
             msg = "Error: google.generativeai SDK not available."
             self.logger.error(msg)
@@ -103,7 +115,7 @@ class GeminiEngine(AIEngine):
         system_instruction = system_prompt.strip()
 
         contents = []
-        for msg in conversation_history:
+        for msg in history_list_dict:
             sender_role = msg['role']
             text_content = msg['text'].strip()
             if sender_role == role_name:
@@ -144,7 +156,9 @@ class GeminiEngine(AIEngine):
                 config=genai.types.GenerateContentConfig(
                     system_instruction=system_instruction,
                     tools=self.tools,
-                ),
+                ) if genai and self.tools else genai.types.GenerateContentConfig(
+                    system_instruction=system_instruction
+                ) if genai else None, # Ensure config is formed correctly even if self.tools is empty
             )
             # Check if response.text exists and is not empty, as per some API behaviors for safety/errors
             if hasattr(response, 'text') and response.text:

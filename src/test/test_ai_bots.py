@@ -6,8 +6,9 @@ import os
 # Adjusting sys.path for direct imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from src.main.ai_bots import Bot, AIEngine, create_bot # AIEngine and Bot are still in ai_bots, added create_bot
-from src.main.ai_engines import GeminiEngine, GrokEngine, OpenAIEngine # Engines from new package
+from src.main.ai_bots import Bot, AIEngine, create_bot
+from src.main.ai_engines import GeminiEngine, GrokEngine, OpenAIEngine
+from src.main.types import ConversationHistory # Import ConversationHistory
 
 # No global SDK mocks here; will use @patch decorator for targeted mocking
 
@@ -118,8 +119,12 @@ class TestGeminiEngine(unittest.TestCase):
         self.mock_genai_client_instance.models.generate_content.return_value = MagicMock(text="Test Gemini response") # GenerateContentResponse
 
         engine = GeminiEngine(api_key="fake_gemini_key") # Init with mocked SDK
-        response = engine.generate_response('Fake Gemini KYVAAXQBVQ', "System prompt ASFWDYPWYL", [{'role': 'user', 'text': 'Test message OETMTOCXPR'}])
-
+        history_data = [{'role': 'user', 'text': 'Test message OETMTOCXPR'}]
+        response = engine.generate_response(
+            role_name='Fake Gemini KYVAAXQBVQ', 
+            system_prompt="System prompt ASFWDYPWYL", 
+            conversation_history=ConversationHistory(history_data)
+        )
         self.assertEqual(response, "Test Gemini response")
 
     @patch('src.main.ai_engines.gemini_engine.genai') # Patched where genai is now imported and used
@@ -134,10 +139,11 @@ class TestGeminiEngine(unittest.TestCase):
         self.mock_genai_client_instance.models.generate_content.side_effect = Exception("Gemini API Error")
 
         engine = GeminiEngine(api_key="fake_gemini_key") # Init with mocked SDK
+        history_data = [{'role': 'user', 'text': 'Test message'}]
         response = engine.generate_response(
             role_name="TestRole",
             system_prompt="System Prompt for API Error Test",
-            conversation_history=[{'role': 'user', 'text': 'Test message'}]
+            conversation_history=ConversationHistory(history_data)
         )
         self.assertTrue(response.startswith("Error: Gemini API call failed: Gemini API Error"))
 
@@ -147,7 +153,7 @@ class TestGeminiEngine(unittest.TestCase):
         response = engine_no_key.generate_response(
             role_name="TestRole",
             system_prompt="System Prompt for No API Key Test",
-            conversation_history=[]
+            conversation_history=ConversationHistory([])
         )
         self.assertEqual(response, "Error: Gemini API key not configured.")
 
@@ -157,7 +163,7 @@ class TestGeminiEngine(unittest.TestCase):
         response = engine_sdk_missing.generate_response(
             role_name="TestRole",
             system_prompt="System Prompt for SDK Not Available Test",
-            conversation_history=[]
+            conversation_history=ConversationHistory([])
         )
         self.assertEqual(response, "Error: google.generativeai SDK not available.")
 
@@ -193,12 +199,12 @@ class TestOpenAIEngine(unittest.TestCase):
         # Define inputs for the generate_response call as per subtask
         role_name = "TestBot"
         system_prompt_for_test = "System instructions for AI."
-        conversation_history = [{'role': 'User1', 'text': 'Hello AI, this is my first message.'}]
+        history_data = [{'role': 'User1', 'text': 'Hello AI, this is my first message.'}]
         
         response = engine.generate_response(
             role_name=role_name,
             system_prompt=system_prompt_for_test,
-            conversation_history=conversation_history
+            conversation_history=ConversationHistory(history_data)
         )
         
         self.assertEqual(response, "Test OpenAI response")
@@ -208,7 +214,7 @@ class TestOpenAIEngine(unittest.TestCase):
         # - If msg['role'] == role_name -> {"role": "assistant", "content": msg['text']}
         # - Else (user message) -> {"role": "user", "content": f"{msg['role']} said:\n{msg['text']}"}
         #   (with logic for concatenating consecutive user messages)
-        # Given role_name="TestBot" and conversation_history=[{'role': 'User1', 'text': 'Hello AI, this is my first message.'}]
+        # Given role_name="TestBot" and history_data=[{'role': 'User1', 'text': 'Hello AI, this is my first message.'}]
         # 'User1' != "TestBot", so it's a user message.
         expected_api_input_messages = [
             {'role': 'user', 'content': 'User1 said:\nHello AI, this is my first message.'}
@@ -228,10 +234,11 @@ class TestOpenAIEngine(unittest.TestCase):
         # Update to mock responses.create for consistency
         self.mock_openai_client_instance.responses.create.side_effect = Exception("OpenAI API Error")
         engine = OpenAIEngine(api_key="fake_openai_key")
+        history_data = [{'role': 'user', 'text': 'Test message'}]
         response = engine.generate_response(
             role_name="TestRole",
             system_prompt="System Prompt for API Error Test",
-            conversation_history=[{'role': 'user', 'text': 'Test message'}]
+            conversation_history=ConversationHistory(history_data)
         )
         self.assertTrue(response.startswith("Error: OpenAI API call failed: OpenAI API Error"))
 
@@ -241,7 +248,7 @@ class TestOpenAIEngine(unittest.TestCase):
         response = engine_no_key.generate_response(
             role_name="TestRole",
             system_prompt="System Prompt for No API Key Test",
-            conversation_history=[]
+            conversation_history=ConversationHistory([])
         )
         self.assertEqual(response, "Error: OpenAI API key not configured or client not initialized.")
 
@@ -251,19 +258,26 @@ class TestOpenAIEngine(unittest.TestCase):
         response = engine_sdk_missing.generate_response(
             role_name="TestRole",
             system_prompt="System Prompt for SDK Not Available Test",
-            conversation_history=[]
+            conversation_history=ConversationHistory([])
         )
         self.assertEqual(response, "Error: openai SDK not available.")
 
 
-class TestGrokEngine(unittest.TestCase): 
-    def test_grok_response(self): 
-        prompt = "Test prompt"
-        history = [("User", "Previous message")]
-        grok_engine = GrokEngine(api_key="grok_key") 
+class TestGrokEngine(unittest.TestCase):
+    def test_grok_response(self):
+        # Correcting the call to match AIEngine.generate_response signature
+        role_name = "TestGrokBot"
+        system_prompt = "System prompt for Grok."
+        history_data = [{'role': "User", 'text': "Previous message"}]
+        grok_engine = GrokEngine(api_key="grok_key")
         expected_grok_response = "Error: Grok API not implemented or no public API found."
-        self.assertEqual(grok_engine.generate_response(prompt, history), expected_grok_response)
-        
+        response = grok_engine.generate_response(
+            role_name=role_name,
+            system_prompt=system_prompt,
+            conversation_history=ConversationHistory(history_data)
+        )
+        self.assertEqual(response, expected_grok_response)
+
     @patch('src.main.ai_engines.gemini_engine.genai') # Mock genai via its new path for consistency
     def test_engine_base_class_init(self, mock_genai_sdk): # mock_genai_sdk is passed due to patch
         engine = GeminiEngine(api_key="key123", model_name="model-abc") 
@@ -341,8 +355,8 @@ class TestCreateBot(unittest.TestCase):
         # Or, if GeminiEngine has a known default constant, check against that.
         self.assertIsNotNone(bot.get_engine().model_name) # Check that some model name is set
         self.assertTrue(len(bot.get_engine().model_name) > 0) # And it's not empty
-        # The actual default model name in GeminiEngine is "gemini-2.5-flash-preview-05-20".
-        self.assertEqual(bot.get_engine().model_name, "gemini-2.5-flash-preview-05-20")
+        # The actual default model name in GeminiEngine is "gemini-1.5-flash-latest".
+        self.assertEqual(bot.get_engine().model_name, "gemini-1.5-flash-latest")
 
 
 if __name__ == '__main__':

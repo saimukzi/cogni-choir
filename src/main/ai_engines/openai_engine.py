@@ -15,6 +15,7 @@ except ImportError:
     openai = None
 
 from ..ai_base import AIEngine # Use relative import from new location
+from ..types import ConversationHistory # Import ConversationHistory
 
 
 class OpenAIEngine(AIEngine):
@@ -68,7 +69,7 @@ class OpenAIEngine(AIEngine):
             # self.client is already None or set to None in the inner try-except
 
 
-    def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[dict]) -> str:
+    def generate_response(self, role_name: str, system_prompt: str, conversation_history: ConversationHistory) -> str:
         """Generates a response using the configured OpenAI model.
 
         Constructs a message list suitable for the OpenAI Chat Completions API
@@ -80,14 +81,16 @@ class OpenAIEngine(AIEngine):
             role_name (str): The name of the assistant role in the conversation.
                              Messages from this role are mapped to "assistant".
             system_prompt (str): The system prompt to guide the AI's behavior.
-            conversation_history (list[dict]): A list of message dictionaries,
-                                               where each dictionary has 'role' and 'text'.
+            conversation_history (ConversationHistory): A ConversationHistory object
+                                                        containing the current
+                                                        conversation.
 
         Returns:
             str: The generated text response from the AI, or an error message
                  if generation fails or prerequisites (SDK, API key, client) are not met.
         """
-        self.logger.info(f"Generating response for role_name={role_name}, system_prompt_len={len(system_prompt)}, history_len={len(conversation_history)}")
+        history_list_dict = conversation_history.to_list_dict()
+        self.logger.info(f"Generating response for role_name={role_name}, system_prompt_len={len(system_prompt)}, history_len={len(history_list_dict)}")
         if not openai:
             msg = "Error: openai SDK not available."
             self.logger.error(msg)
@@ -98,7 +101,7 @@ class OpenAIEngine(AIEngine):
             return msg
 
         contents = []
-        for msg in conversation_history:
+        for msg in history_list_dict: # Use history_list_dict here
             sender_role = msg['role']
             text_content = msg['text'].strip()
             if sender_role == role_name:
@@ -119,15 +122,30 @@ class OpenAIEngine(AIEngine):
                     content = {"role": "user", "content": text}
                     contents.append(content)
 
-        messages = contents
+        messages = contents # 'messages' is now correctly derived from history_list_dict
         
         try:
-            self.logger.debug(f"Sending request to OpenAI API. Model: '{self.model_name}'. Prompt (first 50 chars): '{messages[:50]}...'")
-            response = self.client.responses.create(
-                model=self.model_name, 
-                instructions=system_prompt,
-                input=messages
+            # The client.responses.create seems like a non-standard OpenAI SDK usage.
+            # Standard usage is client.chat.completions.create with a 'messages' parameter.
+            # However, I will keep the existing structure for `self.client.responses.create`
+            # and assume 'messages' (derived from history_list_dict) is the correct format for 'input'.
+            # The `messages` variable here is already what we need.
+            # The system_prompt is passed as 'instructions'.
+            # The main history is passed as 'input'.
+
+            # If the API expects a list of messages including the system prompt,
+            # the logic would need to be:
+            # openai_messages = [{"role": "system", "content": system_prompt}] + contents
+            # For now, sticking to the existing structure of `instructions` and `input`.
+
+            self.logger.debug(f"Sending request to OpenAI API. Model: '{self.model_name}'. System prompt (first 50 chars): '{system_prompt[:50]}...'. Input messages count: {len(messages)}")
+            response = self.client.responses.create( # Assuming this is a bespoke client method
+                model=self.model_name,
+                instructions=system_prompt, # System prompt
+                input=messages # Conversation history derived from history_list_dict
             )
+            # Assuming response.output_text is the correct way to get the text.
+            # If this were standard client.chat.completions.create, it would be response.choices[0].message.content
             return response.output_text
             # if completion.choices and completion.choices[0].message:
             #     content = completion.choices[0].message.content

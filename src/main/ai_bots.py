@@ -3,6 +3,7 @@ import logging # For logging
 from .ai_base import AIEngine # Import AIEngine from its new location
 from .ai_engines import GeminiEngine, GrokEngine, OpenAIEngine # Import necessary engine classes
 from . import ai_engines # Import the ai_engines package to access ENGINE_TYPE_TO_CLASS_MAP
+from .types import ConversationHistory # Import ConversationHistory
 # Removed os, requests, google.generativeai, openai imports as they are now in respective engine files.
 
 # Bot class and create_bot function remain here.
@@ -89,11 +90,12 @@ class Bot:
         """
         self.engine = new_engine
 
-    def generate_response(self, conversation_history: list[dict]) -> str:
+    def generate_response(self, conversation_history: ConversationHistory) -> str:
         """Generates a response from the bot's AI engine.
 
         Args:
-            conversation_history: The conversation history.
+            conversation_history: A ConversationHistory object representing the
+                                  current conversation.
 
         Returns:
             The response from the AI engine.
@@ -106,7 +108,7 @@ class Bot:
             response = self.engine.generate_response(
                 role_name=self.name,
                 system_prompt=self.system_prompt,
-                conversation_history=conversation_history
+                conversation_history=conversation_history.to_list_dict() # Pass the list[dict] representation
             )
             self.logger.info(f"Bot '{self.name}' successfully generated response.") # INFO
             return response
