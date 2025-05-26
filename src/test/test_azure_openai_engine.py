@@ -6,6 +6,7 @@ from unittest.mock import patch, MagicMock
 # from src.main.ai_engines.azure_openai_engine import AzureOpenAIEngine
 from src.main.ai_engines.azure_openai_engine import AzureOpenAIEngine
 from src.main.ai_base import AIEngine
+from src.main.types import ConversationHistory # Import ConversationHistory
 import openai # openai is still needed for the exception types
 import logging
 
@@ -104,7 +105,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         response = self.engine.generate_response(
             role_name=self.role_name,
             system_prompt=self.system_prompt,
-            conversation_history=self.conversation_history_simple
+            conversation_history=ConversationHistory(self.conversation_history_simple)
         )
         
         self.assertEqual(response, "Test response")
@@ -121,7 +122,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         response = self.engine.generate_response(
             role_name=self.role_name,
             system_prompt=self.system_prompt,
-            conversation_history=self.conversation_history_mixed # Using mixed for variety
+            conversation_history=ConversationHistory(self.conversation_history_mixed) # Using mixed for variety
         )
         
         self.assertEqual(response, "Error: No response generated.")
@@ -134,7 +135,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         self.mock_openai_client.chat.completions.create.side_effect = openai.APIConnectionError(request=MagicMock())
         
         response = self.engine.generate_response(
-            self.role_name, self.system_prompt, self.conversation_history_simple
+            self.role_name, self.system_prompt, ConversationHistory(self.conversation_history_simple)
         )
         self.assertIn("Error: Could not connect to Azure OpenAI API.", response)
 
@@ -142,7 +143,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         self.mock_openai_client.chat.completions.create.side_effect = openai.RateLimitError(message="Rate limit exceeded", response=MagicMock(), body=None)
         
         response = self.engine.generate_response(
-            self.role_name, self.system_prompt, self.conversation_history_simple
+            self.role_name, self.system_prompt, ConversationHistory(self.conversation_history_simple)
         )
         self.assertIn("Error: Azure OpenAI API rate limit exceeded.", response)
 
@@ -150,7 +151,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         self.mock_openai_client.chat.completions.create.side_effect = openai.AuthenticationError(message="Authentication failed", response=MagicMock(), body=None)
         
         response = self.engine.generate_response(
-            self.role_name, self.system_prompt, self.conversation_history_simple
+            self.role_name, self.system_prompt, ConversationHistory(self.conversation_history_simple)
         )
         self.assertIn("Error: Azure OpenAI API authentication failed.", response)
 
@@ -159,7 +160,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         self.mock_openai_client.chat.completions.create.side_effect = openai.APIError("Test API Error", request=MagicMock(), body={})
         
         response = self.engine.generate_response(
-            self.role_name, self.system_prompt, self.conversation_history_simple
+            self.role_name, self.system_prompt, ConversationHistory(self.conversation_history_simple)
         )
         self.assertIn("Error: An unexpected error occurred with the Azure OpenAI API.", response)
 
@@ -167,7 +168,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         self.mock_openai_client.chat.completions.create.side_effect = Exception("Some unexpected error")
         
         response = self.engine.generate_response(
-            self.role_name, self.system_prompt, self.conversation_history_simple
+            self.role_name, self.system_prompt, ConversationHistory(self.conversation_history_simple)
         )
         self.assertIn("Error: An unexpected error occurred. Details: Some unexpected error", response)
 
