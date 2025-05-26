@@ -165,7 +165,7 @@ class TestGeminiEngine(unittest.TestCase):
             system_prompt="System Prompt for SDK Not Available Test",
             conversation_history=ConversationHistory([])
         )
-        self.assertEqual(response, "Error: google.generativeai SDK not available.")
+        self.assertEqual(response, "Error: google.genai SDK not available.")
 
 
 class TestOpenAIEngine(unittest.TestCase):

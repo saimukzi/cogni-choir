@@ -12,3 +12,5 @@ python -m src.main.main_window
 python -m unittest discover -s src/test -p "test_*.py" > tmp/test.out 2>&1
 
 python -m unittest src.test.test_chatroom.TestChatroom.test_chatroom_save_load_cycle > tmp/test.out 2>&1
+
+python -m unittest src.test.test_ai_bots.TestGeminiEngine.test_gemini_generate_response_api_error > tmp/test.out 2>&1

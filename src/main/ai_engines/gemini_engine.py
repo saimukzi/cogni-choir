@@ -7,10 +7,9 @@ prompt construction, communication with the Gemini API, and error handling.
 """
 import logging
 # Attempt to import AI SDKs
-try:
-    import google.generativeai as genai # Corrected import style
-except ImportError:
-    genai = None
+
+from google import genai # google.genai from python package google-genai
+# google.generativeai is deprecated.  It is MUST NOT be used.
 
 from ..ai_base import AIEngine # Use relative import to access AIEngine from its new location
 from ..commons import EscapeException
@@ -61,8 +60,8 @@ class GeminiEngine(AIEngine):
 
         try:
             if not genai:
-                self.logger.warning("GeminiEngine: google.generativeai SDK not found. Ensure it is installed.")
-                raise EscapeException("google.generativeai SDK not found.") # Add message to exception
+                self.logger.warning("GeminiEngine: google.genai SDK not found. Ensure it is installed.")
+                raise EscapeException("google.genai SDK not found.") # Add message to exception
             if not self.api_key:
                 self.logger.warning("GeminiEngine: API key not provided, real calls will fail.")
                 # Not raising EscapeException here as the engine might be used in a context
@@ -100,7 +99,7 @@ class GeminiEngine(AIEngine):
         history_list_dict = conversation_history.to_list_dict()
         self.logger.info(f"Generating response for prompt_len={len(system_prompt)}, history_len={len(history_list_dict)}")
         if not genai: 
-            msg = "Error: google.generativeai SDK not available."
+            msg = "Error: google.genai SDK not available."
             self.logger.error(msg)
             return msg
         if not self.api_key:
