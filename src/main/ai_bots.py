@@ -17,7 +17,7 @@ class Bot:
         self.logger.debug(f"Bot '{self.name}' created with engine '{type(self.engine).__name__}'.") # DEBUG
 
     def to_dict(self) -> dict:
-        engine_type = type(self.engine).__name__
+        engine_type = self.engine.__class__.__name__
         model_name = self.engine.model_name if hasattr(self.engine, 'model_name') else None
         
         return {
