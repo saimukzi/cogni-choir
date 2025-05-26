@@ -12,3 +12,13 @@ Branches should follow the pattern: `type/YYYYMMDD-descriptive-name`
 -   `feat/20231027-user-authentication`
 -   `fix/20231028-api-key-bug`
 -   `docs/20231029-update-readme`
+
+## Documentation
+
+All python code should be documented in Google style.
+
+## Forbidden python libraries
+
+The following python libraries are forbiddedn and MUST NOT be used:
+
+- google.generativeai: deprecated
