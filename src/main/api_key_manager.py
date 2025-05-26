@@ -1,3 +1,15 @@
+"""Manages API keys for different services, using keyring if available,
+otherwise falling back to a JSON file.
+
+This module provides an `ApiKeyManager` class that abstracts the storage
+and retrieval of API keys. It attempts to use the system's keyring
+service for secure storage. If keyring is not available or accessible,
+it falls back to storing keys in a JSON file named `api_keys.json`
+within a `data` subdirectory.
+
+The `SERVICE_NAME_PREFIX` constant is used to prefix service names
+when storing them in the keyring to avoid naming conflicts.
+"""
 import keyring
 import json
 import os
@@ -6,7 +18,18 @@ import sys
 SERVICE_NAME_PREFIX = "MyChatApp"
 
 class ApiKeyManager:
+    """Manages API keys using keyring or a fallback JSON file.
+
+    Attempts to use the system's keyring for secure API key storage.
+    If keyring is unavailable, it uses a JSON file (`data/api_keys.json`)
+    as a fallback mechanism.
+    """
     def __init__(self):
+        """Initializes the ApiKeyManager.
+
+        Determines if keyring is available and sets up the fallback path
+        if necessary.
+        """
         self.use_keyring = True
         self.fallback_file_path = os.path.join("data", "api_keys.json")
 
@@ -28,6 +51,11 @@ class ApiKeyManager:
             self._keys_cache = {} # Not strictly needed for keyring but good for consistency if we were to cache
 
     def _ensure_data_dir_exists(self):
+        """Ensures the data directory for the fallback JSON file exists.
+
+        Creates the 'data' directory if it doesn't already exist.
+        Prints an error to stderr if directory creation fails.
+        """
         if not os.path.exists("data"):
             try:
                 os.makedirs("data")
@@ -36,10 +64,24 @@ class ApiKeyManager:
                 # Potentially raise this or handle more gracefully
 
     def _get_service_key_name(self, service_name: str) -> str:
-        """Helper to create a unique service name for keyring."""
+        """Generates a unique service name for keyring storage.
+
+        Args:
+            service_name: The original name of the service.
+
+        Returns:
+            A string prefixed with `SERVICE_NAME_PREFIX` for keyring.
+        """
         return f"{SERVICE_NAME_PREFIX}_{service_name}"
 
     def _load_keys_from_fallback(self) -> dict:
+        """Loads API keys from the fallback JSON file.
+
+        Returns:
+            A dictionary of service names to API keys if the file exists
+            and is valid JSON, otherwise an empty dictionary.
+            Prints an error to stderr if loading or parsing fails.
+        """
         if not os.path.exists(self.fallback_file_path):
             return {}
         try:
@@ -50,6 +92,14 @@ class ApiKeyManager:
             return {}
 
     def _save_keys_to_fallback(self, keys: dict):
+        """Saves the API keys to the fallback JSON file.
+
+        Ensures the data directory exists before writing.
+        Prints an error to stderr if saving fails.
+
+        Args:
+            keys: A dictionary of service names to API keys to save.
+        """
         self._ensure_data_dir_exists()
         try:
             with open(self.fallback_file_path, 'w') as f:
@@ -58,6 +108,15 @@ class ApiKeyManager:
             print(f"Error saving API keys to fallback file: {e}", file=sys.stderr)
 
     def save_key(self, service_name: str, api_key: str):
+        """Saves an API key for a given service.
+
+        Uses keyring if available, otherwise saves to the fallback JSON file.
+        Validates that service_name and api_key are not empty.
+
+        Args:
+            service_name: The name of the service for which to save the key.
+            api_key: The API key to save.
+        """
         if not service_name or not api_key: # Basic validation
             print("Service name and API key cannot be empty.", file=sys.stderr)
             return
@@ -73,6 +132,16 @@ class ApiKeyManager:
             self._save_keys_to_fallback(self._keys_cache)
 
     def load_key(self, service_name: str) -> str | None:
+        """Loads an API key for a given service.
+
+        Uses keyring if available, otherwise loads from the fallback JSON file.
+
+        Args:
+            service_name: The name of the service whose key is to be loaded.
+
+        Returns:
+            The API key as a string if found, otherwise None.
+        """
         if not service_name:
             return None
 
@@ -86,6 +155,13 @@ class ApiKeyManager:
             return self._keys_cache.get(service_name)
 
     def delete_key(self, service_name: str):
+        """Deletes an API key for a given service.
+
+        Uses keyring if available, otherwise deletes from the fallback JSON file.
+
+        Args:
+            service_name: The name of the service whose key is to be deleted.
+        """
         if not service_name:
             return
 

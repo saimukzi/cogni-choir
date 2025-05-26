@@ -1,3 +1,10 @@
+"""Implementation of an AI engine using Google's Gemini models.
+
+This module defines the `GeminiEngine` class, which interfaces with the
+Google Generative AI SDK (google-genai) to provide text generation
+capabilities using Gemini models. It handles API key configuration,
+prompt construction, communication with the Gemini API, and error handling.
+"""
 import logging
 # Attempt to import AI SDKs
 try:
@@ -10,27 +17,75 @@ from ..commons import EscapeException
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 
 class GeminiEngine(AIEngine):
-    def __init__(self, api_key: str = None, model_name: str = "gemini-2.5-flash-preview-05-20"):
-        super().__init__(api_key, model_name)
+    """An AI engine that uses Google's Gemini models for response generation.
+
+    This engine leverages the `google-genai` SDK. It requires an API key for
+    Google's Generative AI services and can be configured to use different
+    Gemini models.
+
+    Attributes:
+        logger: Logger instance for this engine.
+        client: An instance of `google.genai.Client` if initialization is successful.
+        model_name (str): The specific Gemini model to be used (e.g., "gemini-1.5-flash-latest").
+        tools (list[Tool]): A list of tools available to the Gemini model,
+                            currently configured with GoogleSearch.
+    """
+    def __init__(self, api_key: str = None, model_name: str = "gemini-1.5-flash-latest"): # Updated model name
+        """Initializes the GeminiEngine.
+
+        Sets up the logger and attempts to configure the `google-genai` client
+        using the provided API key. If the SDK is not found or the API key is
+        missing, warnings are logged, and the client remains uninitialized.
+
+        Args:
+            api_key (str, optional): The API key for Google Generative AI services.
+                                     Defaults to None.
+            model_name (str, optional): The name of the Gemini model to use.
+                                        Defaults to "gemini-1.5-flash-latest".
+        """
+        super().__init__(api_key, model_name) # model_name is passed to super
         self.logger = logging.getLogger(__name__ + ".GeminiEngine")
         self.client = None
-        self.logger.info(f"Initializing GeminiEngine with model '{model_name}'.")
+        self.logger.info(f"Initializing GeminiEngine with model '{self.model_name}'.") # Use self.model_name
         self.tools = [Tool(google_search = GoogleSearch())]
 
         try:
             if not genai:
                 self.logger.warning("GeminiEngine: google.generativeai SDK not found. Ensure it is installed.")
-                raise EscapeException()
+                raise EscapeException("google.generativeai SDK not found.") # Add message to exception
             if not self.api_key:
                 self.logger.warning("GeminiEngine: API key not provided, real calls will fail.")
-                raise EscapeException()
-            self.client = genai.Client(api_key=self.api_key)  # Do not log self.api_key
+                # Not raising EscapeException here as the engine might be used in a context
+                # where API key is optional for some operations or set later.
+                # However, generate_response will fail.
+                return # Exit init if no API key
+            self.client = genai.Client(api_key=self.api_key)
             self.logger.info("Gemini SDK configured successfully.")
-        except EscapeException:
-            pass
+        except EscapeException as e:
+            self.logger.warning(f"GeminiEngine initialization skipped due to: {e}")
+        except Exception as e: # Catch other potential errors during client init
+            self.logger.error(f"GeminiEngine: Error during google.genai.Client initialization: {e}", exc_info=True)
 
 
     def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[dict]) -> str:
+        """Generates a response using the configured Gemini model.
+
+        Constructs a message list suitable for the Gemini API from the
+        provided system prompt and conversation history. It then calls the
+        API via the `google-genai` client and returns the generated text.
+        Handles cases where the SDK or API key is missing.
+
+        Args:
+            role_name (str): The name of the assistant role in the conversation.
+                             Messages from this role are mapped to "model".
+            system_prompt (str): The system prompt to guide the AI's behavior.
+            conversation_history (list[dict]): A list of message dictionaries,
+                                               where each dictionary has 'role' and 'text'.
+
+        Returns:
+            str: The generated text response from the AI, or an error message
+                 if generation fails or prerequisites (SDK, API key) are not met.
+        """
         self.logger.info(f"Generating response for prompt_len={len(system_prompt)}, history_len={len(conversation_history)}")
         if not genai: 
             msg = "Error: google.generativeai SDK not available."
@@ -111,4 +166,9 @@ class GeminiEngine(AIEngine):
             return f"Error: Gemini API call failed: {str(e)}"
 
     def requires_api_key(self) -> bool:
+        """Checks if this AI engine requires an API key for its operation.
+
+        Returns:
+            bool: True, as Gemini models always require an API key.
+        """
         return True

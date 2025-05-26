@@ -90,13 +90,13 @@ class TestBot(unittest.TestCase):
         # was an attempt to control this, but `type()` doesn't use the instance's `__class__.__name__`.
         # It uses the actual type of the object.
         # So, the test should expect 'MagicMock'.
-        expected_dict_for_magicmock = {
+        expected_dict = {
             "name": "TestBot",
             "system_prompt": "Be helpful.",
-            "engine_type": "MagicMock", 
+            "engine_type": "SpecificMockedEngine", 
             "model_name": "mocked-model-001"
         }
-        self.assertEqual(self.bot.to_dict(), expected_dict_for_magicmock)
+        self.assertEqual(self.bot.to_dict(), expected_dict)
 
 
 class TestGeminiEngine(unittest.TestCase):
@@ -124,36 +124,58 @@ class TestGeminiEngine(unittest.TestCase):
 
     @patch('src.main.ai_engines.gemini_engine.genai') # Patched where genai is now imported and used
     def test_gemini_generate_response_api_error(self, mock_genai_sdk):
-        mock_genai_sdk.GenerativeModel.return_value = self.mock_gemini_model_instance
-        self.mock_chat_instance.send_message.side_effect = Exception("Gemini API Error")
+        # Assuming self.mock_genai_client_instance is set up in setUp like other tests
+        # and that the actual API call made by the engine is on this client instance.
+        # The original error also mentioned 'mock_gemini_model_instance' and 'mock_chat_instance',
+        # which are not defined in the provided setUp. Let's assume the client's method is called.
+        if not hasattr(self, 'mock_genai_client_instance'): # Ensure it exists from setUp
+            self.mock_genai_client_instance = MagicMock()
+        mock_genai_sdk.Client.return_value = self.mock_genai_client_instance
+        self.mock_genai_client_instance.models.generate_content.side_effect = Exception("Gemini API Error")
 
         engine = GeminiEngine(api_key="fake_gemini_key") # Init with mocked SDK
-        response = engine.generate_response("prompt", [])
+        response = engine.generate_response(
+            role_name="TestRole",
+            system_prompt="System Prompt for API Error Test",
+            conversation_history=[{'role': 'user', 'text': 'Test message'}]
+        )
         self.assertTrue(response.startswith("Error: Gemini API call failed: Gemini API Error"))
 
     @patch('src.main.ai_engines.gemini_engine.genai') # Patched where genai is now imported and used
     def test_gemini_no_api_key(self, mock_genai_sdk):
         engine_no_key = GeminiEngine(api_key=None)
-        response = engine_no_key.generate_response("prompt", [])
+        response = engine_no_key.generate_response(
+            role_name="TestRole",
+            system_prompt="System Prompt for No API Key Test",
+            conversation_history=[]
+        )
         self.assertEqual(response, "Error: Gemini API key not configured.")
 
     @patch('src.main.ai_engines.gemini_engine.genai', None) # Target the new location for this specific test
     def test_gemini_sdk_not_available(self):
         engine_sdk_missing = GeminiEngine(api_key="fake_key")
-        response = engine_sdk_missing.generate_response("prompt", [])
+        response = engine_sdk_missing.generate_response(
+            role_name="TestRole",
+            system_prompt="System Prompt for SDK Not Available Test",
+            conversation_history=[]
+        )
         self.assertEqual(response, "Error: google.generativeai SDK not available.")
 
 
 class TestOpenAIEngine(unittest.TestCase):
     def setUp(self):
         self.mock_openai_client_instance = MagicMock()
+        # Configure self.mock_completion_object for the responses.create API
+        # which is expected to return an object with an 'output_text' attribute.
         self.mock_completion_object = MagicMock()
-        self.mock_choice_object = MagicMock()
-        self.mock_message_object = MagicMock(content="Test OpenAI response")
+        self.mock_completion_object.output_text = "Test OpenAI response"
         
-        self.mock_choice_object.message = self.mock_message_object
-        self.mock_completion_object.choices = [self.mock_choice_object]
-        self.mock_openai_client_instance.chat.completions.create.return_value = self.mock_completion_object
+        # The OpenAIEngine's generate_response method calls self.client.responses.create
+        # So, we set the return_value for that specific mock path.
+        self.mock_openai_client_instance.responses.create.return_value = self.mock_completion_object
+        
+        # self.mock_choice_object and self.mock_message_object are removed as they were
+        # part of the structure for chat.completions.create, which is not used by the engine.
 
     @patch('src.main.ai_engines.openai_engine.openai') # Patched where openai is now imported and used
     def test_openai_init_success(self, mock_openai_sdk):
@@ -166,35 +188,71 @@ class TestOpenAIEngine(unittest.TestCase):
     def test_openai_generate_response_success(self, mock_openai_sdk):
         mock_openai_sdk.OpenAI.return_value = self.mock_openai_client_instance
         engine = OpenAIEngine(api_key="fake_openai_key")
-        response = engine.generate_response("Hello OpenAI", [("User", "Old message")])
+        
+        # Original call: engine.generate_response("Hello OpenAI", [("User", "Old message")])
+        # Define inputs for the generate_response call as per subtask
+        role_name = "TestBot"
+        system_prompt_for_test = "System instructions for AI."
+        conversation_history = [{'role': 'User1', 'text': 'Hello AI, this is my first message.'}]
+        
+        response = engine.generate_response(
+            role_name=role_name,
+            system_prompt=system_prompt_for_test,
+            conversation_history=conversation_history
+        )
         
         self.assertEqual(response, "Test OpenAI response")
-        expected_messages = [
-            {"role": "user", "content": "Old message"},
-            {"role": "user", "content": "Hello OpenAI"}
+        
+        # Calculate the expected 'input' argument for responses.create based on engine logic
+        # OpenAIEngine processes conversation_history:
+        # - If msg['role'] == role_name -> {"role": "assistant", "content": msg['text']}
+        # - Else (user message) -> {"role": "user", "content": f"{msg['role']} said:\n{msg['text']}"}
+        #   (with logic for concatenating consecutive user messages)
+        # Given role_name="TestBot" and conversation_history=[{'role': 'User1', 'text': 'Hello AI, this is my first message.'}]
+        # 'User1' != "TestBot", so it's a user message.
+        expected_api_input_messages = [
+            {'role': 'user', 'content': 'User1 said:\nHello AI, this is my first message.'}
         ]
-        self.mock_openai_client_instance.chat.completions.create.assert_called_once_with(
-            model=engine.model_name, messages=expected_messages
+        
+        # Assert that self.client.responses.create was called correctly
+        # engine.model_name will be "gpt-3.5-turbo" as engine is created with no model_name specified.
+        self.mock_openai_client_instance.responses.create.assert_called_once_with(
+            model=engine.model_name,
+            instructions=system_prompt_for_test,
+            input=expected_api_input_messages
         )
 
     @patch('src.main.ai_engines.openai_engine.openai') # Patched where openai is now imported and used
     def test_openai_generate_response_api_error(self, mock_openai_sdk):
         mock_openai_sdk.OpenAI.return_value = self.mock_openai_client_instance
-        self.mock_openai_client_instance.chat.completions.create.side_effect = Exception("OpenAI API Error")
+        # Update to mock responses.create for consistency
+        self.mock_openai_client_instance.responses.create.side_effect = Exception("OpenAI API Error")
         engine = OpenAIEngine(api_key="fake_openai_key")
-        response = engine.generate_response("prompt", [])
+        response = engine.generate_response(
+            role_name="TestRole",
+            system_prompt="System Prompt for API Error Test",
+            conversation_history=[{'role': 'user', 'text': 'Test message'}]
+        )
         self.assertTrue(response.startswith("Error: OpenAI API call failed: OpenAI API Error"))
 
     @patch('src.main.ai_engines.openai_engine.openai') # Patched where openai is now imported and used
     def test_openai_no_api_key(self, mock_openai_sdk):
         engine_no_key = OpenAIEngine(api_key=None)
-        response = engine_no_key.generate_response("prompt", [])
+        response = engine_no_key.generate_response(
+            role_name="TestRole",
+            system_prompt="System Prompt for No API Key Test",
+            conversation_history=[]
+        )
         self.assertEqual(response, "Error: OpenAI API key not configured or client not initialized.")
 
     @patch('src.main.ai_engines.openai_engine.openai', None) # Target the new location
     def test_openai_sdk_not_available(self):
         engine_sdk_missing = OpenAIEngine(api_key="fake_key")
-        response = engine_sdk_missing.generate_response("prompt", [])
+        response = engine_sdk_missing.generate_response(
+            role_name="TestRole",
+            system_prompt="System Prompt for SDK Not Available Test",
+            conversation_history=[]
+        )
         self.assertEqual(response, "Error: openai SDK not available.")
 
 
@@ -283,8 +341,8 @@ class TestCreateBot(unittest.TestCase):
         # Or, if GeminiEngine has a known default constant, check against that.
         self.assertIsNotNone(bot.get_engine().model_name) # Check that some model name is set
         self.assertTrue(len(bot.get_engine().model_name) > 0) # And it's not empty
-        # The actual default model name in GeminiEngine is "gemini-pro".
-        self.assertEqual(bot.get_engine().model_name, "gemini-pro")
+        # The actual default model name in GeminiEngine is "gemini-2.5-flash-preview-05-20".
+        self.assertEqual(bot.get_engine().model_name, "gemini-2.5-flash-preview-05-20")
 
 
 if __name__ == '__main__':
