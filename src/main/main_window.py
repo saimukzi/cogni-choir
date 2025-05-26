@@ -1,3 +1,15 @@
+"""
+Main window and associated dialogs for the Chat Application.
+
+This module defines the main graphical user interface (GUI) for the chat
+application, including the `MainWindow` class which orchestrates the various
+UI elements and interactions. It also defines helper dialog classes:
+- `ApiKeyDialog`: For managing API keys for different AI services.
+- `CreateFakeMessageDialog`: For manually adding messages to a chatroom (for testing/dev).
+
+The application uses PyQt6 for its GUI components. Internationalization (i18n)
+is supported using QTranslator. Logging is used for diagnostics.
+"""
 import sys
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -29,7 +41,14 @@ except ImportError:
 
 
 class ApiKeyDialog(QDialog):
+    """A dialog for managing API keys for various AI services."""
     def __init__(self, api_key_manager: ApiKeyManager, parent=None):
+        """Initializes the ApiKeyDialog.
+
+        Args:
+            api_key_manager: An instance of ApiKeyManager to handle key storage.
+            parent: The parent widget, if any.
+        """
         super().__init__(parent)
         self.api_key_manager = api_key_manager
         self.setWindowTitle(self.tr("API Key Management"))
@@ -68,6 +87,7 @@ class ApiKeyDialog(QDialog):
         self._load_key_for_display() # Initial load
 
     def _load_key_for_display(self):
+        """Loads and displays the API key for the currently selected service."""
         selected_service = self.service_combo.currentText()
         if selected_service: # Ensure a service is actually selected
             key = self.api_key_manager.load_key(selected_service)
@@ -77,6 +97,7 @@ class ApiKeyDialog(QDialog):
 
 
     def _save_key(self):
+        """Saves the API key entered in the input field for the selected service."""
         selected_service = self.service_combo.currentText()
         key_text = self.api_key_input.text()
         if not selected_service:
@@ -90,6 +111,7 @@ class ApiKeyDialog(QDialog):
         QMessageBox.information(self, self.tr("Success"), self.tr("API Key saved."))
 
     def _delete_key(self):
+        """Deletes the API key for the selected service after confirmation."""
         selected_service = self.service_combo.currentText()
         if not selected_service:
             QMessageBox.warning(self, self.tr("Warning"), self.tr("Please select a service to delete the key for."))
@@ -105,7 +127,18 @@ class ApiKeyDialog(QDialog):
 
 
 class CreateFakeMessageDialog(QDialog):
+    """A dialog for creating and inserting a 'fake' message into a chatroom.
+
+    This is primarily a development/testing utility. It allows specifying
+    the sender (User or any existing bot) and the message content.
+    """
     def __init__(self, current_bots: list[str], parent=None):
+        """Initializes the CreateFakeMessageDialog.
+
+        Args:
+            current_bots: A list of names of bots currently in the active chatroom.
+            parent: The parent widget, if any.
+        """
         super().__init__(parent)
         self.setWindowTitle(self.tr("Create Fake Message"))
 
@@ -131,17 +164,46 @@ class CreateFakeMessageDialog(QDialog):
         layout.addWidget(self.button_box)
 
     def get_data(self) -> tuple[str, str] | None:
+        """Retrieves the sender and content from the dialog if accepted.
+
+        Returns:
+            A tuple containing the sender name (str) and message content (str)
+            if the dialog was accepted, otherwise None.
+        """
         if self.result() == QDialog.DialogCode.Accepted:
             return self.sender_combo.currentText(), self.content_input.toPlainText()
         return None
     
     # Using QApplication.translate for robustness, especially if this dialog moves to another file.
-    def tr(self, text, disambiguation=None, n=-1):
+    def tr(self, text, disambiguation=None, n=-1) -> str:
+        """Translates text using the application's translator.
+
+        This method is provided for convenience if this dialog were to be
+        moved to its own module, ensuring it uses the correct translation context.
+
+        Args:
+            text: The text to translate.
+            disambiguation: Optional disambiguation string.
+            n: Optional number for plural forms.
+
+        Returns:
+            The translated string.
+        """
         return QApplication.translate("CreateFakeMessageDialog", text, disambiguation, n)
 
 
 class MainWindow(QMainWindow):
+    """The main window of the chat application.
+
+    This class orchestrates the user interface, manages chatrooms and bots,
+    and handles user interactions for sending messages, managing API keys,
+    and configuring chatrooms.
+    """
     def __init__(self):
+        """Initializes the MainWindow.
+
+        Sets up logging, API key manager, chatroom manager, and initializes the UI.
+        """
         super().__init__()
         self.logger = logging.getLogger(__name__)
         self.setWindowTitle(self.tr("Chatroom and Bot Manager"))
@@ -154,6 +216,13 @@ class MainWindow(QMainWindow):
         self._update_chatroom_list() # Initial population
 
     def _init_ui(self):
+        """Initializes the main user interface components and layout.
+
+        This includes setting up the menu bar, chatroom list, bot list,
+        message display area, message input, and various control buttons.
+        A QSplitter is used to make the chatroom/bot panel and the message
+        panel resizable.
+        """
         self.logger.debug("Initializing UI...") # Changed to DEBUG
         # Central Widget and Main Layout
         central_widget = QWidget()
@@ -267,7 +336,15 @@ class MainWindow(QMainWindow):
         self._update_message_related_ui_state(False) # Message UI disabled initially
 
     def _update_message_related_ui_state(self, enabled: bool):
-        """Enable/disable message input, send button, bot selector, and trigger button."""
+        """Updates the enabled state of message-related UI elements.
+
+        This includes the message input field, send button, bot response selector,
+        delete message button, trigger bot response button, and create fake message button.
+        It also clears the message display and bot response selector if disabling.
+
+        Args:
+            enabled: True to enable the UI elements, False to disable them.
+        """
         self.message_input_area.setEnabled(enabled)
         self.send_message_button.setEnabled(enabled)
         self.bot_response_selector.setEnabled(enabled)
@@ -284,6 +361,13 @@ class MainWindow(QMainWindow):
             self.bot_response_selector.clear()
 
     def _show_message_context_menu(self, position: QPoint):
+        """Displays a context menu for messages in the message display area.
+
+        Currently, the only action is to delete selected message(s).
+
+        Args:
+            position: The position where the context menu was requested (local to the widget).
+        """
         menu = QMenu()
         if self.message_display_area.selectedItems():
             delete_action = menu.addAction(self.tr("Delete Message(s)"))
@@ -292,7 +376,16 @@ class MainWindow(QMainWindow):
 
 
     def _update_bot_panel_state(self, enabled: bool, chatroom_name: str | None = None):
-        """Updates the enabled state of the bot panel and its label."""
+        """Updates the enabled state of the bot management panel and its label.
+
+        This includes the bot list widget, add bot button, and remove bot button.
+        The label of the panel is updated to reflect the selected chatroom or
+        indicate that no chatroom is selected.
+
+        Args:
+            enabled: True to enable the bot panel, False to disable it.
+            chatroom_name: The name of the currently selected chatroom, if any.
+        """
         self.bot_list_widget.setEnabled(enabled)
         self.add_bot_button.setEnabled(enabled)
         self.remove_bot_button.setEnabled(enabled and bool(self.bot_list_widget.currentItem()))
@@ -304,6 +397,11 @@ class MainWindow(QMainWindow):
         # else: Keep current label if chatroom selected but panel is being disabled for other reasons
 
     def _update_chatroom_related_button_states(self):
+        """Updates the enabled state of chatroom action buttons.
+
+        Buttons like "Rename Chatroom", "Clone Chatroom", and "Delete Chatroom"
+        are enabled only if a chatroom is currently selected in the list.
+        """
         has_selection = bool(self.chatroom_list_widget.currentItem())
         self.rename_chatroom_button.setEnabled(has_selection)
         self.clone_chatroom_button.setEnabled(has_selection)
@@ -311,6 +409,12 @@ class MainWindow(QMainWindow):
 
 
     def _update_chatroom_list(self):
+        """Refreshes the list of chatrooms displayed in the UI.
+
+        It preserves the current selection if possible. If no chatroom
+        is selected after the update (e.g., if the list becomes empty),
+        it updates the bot list and related UI states accordingly.
+        """
         current_selection_name = self.chatroom_list_widget.currentItem().text() if self.chatroom_list_widget.currentItem() else None
         
         self.chatroom_list_widget.clear()
@@ -330,6 +434,17 @@ class MainWindow(QMainWindow):
 
 
     def _on_selected_chatroom_changed(self, current: QListWidgetItem, previous: QListWidgetItem):
+        """Handles the change in the selected chatroom.
+
+        Updates the bot list, bot panel state, message display, bot response selector,
+        and the overall state of message-related UI elements based on the newly
+        selected chatroom. If no chatroom is selected, these UI elements are
+        typically disabled or cleared.
+
+        Args:
+            current: The currently selected QListWidgetItem (the new selection).
+            previous: The previously selected QListWidgetItem.
+        """
         self._update_chatroom_related_button_states() # Update button states based on selection
         if current:
             selected_chatroom_name = current.text()
@@ -347,6 +462,12 @@ class MainWindow(QMainWindow):
 
 
     def _clone_selected_chatroom(self):
+        """Clones the currently selected chatroom.
+
+        Prompts the user for confirmation. If successful, updates the
+        chatroom list and optionally selects the newly cloned chatroom.
+        Shows success or error messages accordingly.
+        """
         current_item = self.chatroom_list_widget.currentItem()
         if not current_item:
             QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected to clone."))
@@ -372,6 +493,12 @@ class MainWindow(QMainWindow):
 
 
     def _update_message_display(self):
+        """Refreshes the message display area for the currently selected chatroom.
+
+        Messages are cleared and then repopulated from the chatroom's history,
+        sorted by timestamp. Each message item stores its timestamp for later use
+        (e.g., deletion).
+        """
         current_chatroom_name = self.chatroom_list_widget.currentItem().text() if self.chatroom_list_widget.currentItem() else None
         self.message_display_area.clear()
         if current_chatroom_name:
@@ -384,6 +511,11 @@ class MainWindow(QMainWindow):
                     self.message_display_area.addItem(item)
 
     def _delete_selected_messages(self):
+        """Deletes the selected messages from the current chatroom.
+
+        Prompts the user for confirmation before deleting. Updates the
+        message display if messages are deleted.
+        """
         current_chatroom_name = self.chatroom_list_widget.currentItem().text() if self.chatroom_list_widget.currentItem() else None
         if not current_chatroom_name:
             QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected."))
@@ -413,6 +545,11 @@ class MainWindow(QMainWindow):
 
 
     def _show_create_fake_message_dialog(self):
+        """Shows the dialog to create a 'fake' message.
+
+        If a chatroom is selected and the dialog is accepted with valid content,
+        the message is added to the current chatroom and the display is updated.
+        """
         current_chatroom_name = self.chatroom_list_widget.currentItem().text() if self.chatroom_list_widget.currentItem() else None
         if not current_chatroom_name:
             QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected."))
@@ -437,6 +574,12 @@ class MainWindow(QMainWindow):
 
 
     def _send_user_message(self):
+        """Sends a message from the user to the currently selected chatroom.
+
+        The message content is taken from the message input area.
+        If successful, the message is added to the chatroom, the display
+        is updated, and the input area is cleared.
+        """
         current_chatroom_item = self.chatroom_list_widget.currentItem()
         if not current_chatroom_item:
             QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected to send message."))
@@ -458,6 +601,12 @@ class MainWindow(QMainWindow):
         self.message_input_area.clear()
 
     def _update_bot_response_selector(self):
+        """Updates the bot response selector combo box.
+
+        Populates the combo box with the names of bots from the currently
+        selected chatroom. The "Get Bot Response" button is enabled only
+        if there are bots in the selector.
+        """
         self.bot_response_selector.clear()
         current_chatroom_item = self.chatroom_list_widget.currentItem()
         if not current_chatroom_item:
@@ -474,6 +623,13 @@ class MainWindow(QMainWindow):
 
 
     def _trigger_bot_response(self):
+        """Triggers a response from the selected bot in the current chatroom.
+
+        Collects the conversation history, sends it to the selected bot's
+        engine, and displays the response. Handles potential errors like
+        missing API keys or exceptions during generation. The UI is updated
+        to indicate that the bot is processing.
+        """
         current_chatroom_item = self.chatroom_list_widget.currentItem()
         if not current_chatroom_item:
             QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected."))
@@ -544,6 +700,12 @@ class MainWindow(QMainWindow):
 
 
     def _create_chatroom(self):
+        """Handles the creation of a new chatroom.
+
+        Prompts the user for a chatroom name. If a valid name is provided
+        and does not already exist, a new chatroom is created and the
+        list is updated.
+        """
         name, ok = QInputDialog.getText(self, self.tr("New Chatroom"), self.tr("Enter chatroom name:"))
         if ok and name:
             if self.chatroom_manager.create_chatroom(name):
@@ -562,6 +724,12 @@ class MainWindow(QMainWindow):
             self.logger.debug("Chatroom creation cancelled by user.") # DEBUG - user cancelled
 
     def _rename_chatroom(self):
+        """Handles renaming of the selected chatroom.
+
+        Prompts the user for a new name. If a chatroom is selected and a
+        valid new name is provided that isn't already in use, the chatroom
+        is renamed and the list is updated.
+        """
         current_item = self.chatroom_list_widget.currentItem()
         if not current_item:
             QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected to rename."))
@@ -589,6 +757,12 @@ class MainWindow(QMainWindow):
 
 
     def _delete_chatroom(self):
+        """Handles deletion of the selected chatroom.
+
+        Prompts the user for confirmation. If confirmed, the chatroom is
+        deleted from the manager and its file is removed from disk. The
+        UI is then updated.
+        """
         current_item = self.chatroom_list_widget.currentItem()
         if not current_item:
             QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected to delete."))
@@ -614,6 +788,15 @@ class MainWindow(QMainWindow):
 
 
     def _update_bot_list(self, chatroom_name: str | None):
+        """Updates the list of bots displayed for the selected chatroom.
+
+        Clears the existing bot list and repopulates it with bots from the
+        specified chatroom. Also updates the bot panel's state.
+
+        Args:
+            chatroom_name: The name of the chatroom whose bots are to be listed,
+                           or None to clear the list.
+        """
         self.bot_list_widget.clear()
         if chatroom_name:
             chatroom = self.chatroom_manager.get_chatroom(chatroom_name)
@@ -625,6 +808,12 @@ class MainWindow(QMainWindow):
 
 
     def _add_bot_to_chatroom(self):
+        """Handles adding a new bot to the selected chatroom.
+
+        Prompts the user for the bot's name, system prompt, and AI engine type.
+        If all inputs are valid, creates the bot and adds it to the chatroom.
+        Updates the UI accordingly. Warns if API keys are missing for the chosen engine.
+        """
         current_chatroom_item = self.chatroom_list_widget.currentItem()
         if not current_chatroom_item:
             QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected to add a bot to."))
@@ -687,11 +876,17 @@ class MainWindow(QMainWindow):
 
 
     def _show_api_key_dialog(self):
+        """Displays the API Key Management dialog."""
         self.logger.debug("Showing API Key Management dialog.") # DEBUG - UI interaction
         dialog = ApiKeyDialog(self.api_key_manager, self)
         dialog.exec()
 
     def _remove_bot_from_chatroom(self):
+        """Handles removing the selected bot from the current chatroom.
+
+        Prompts the user for confirmation. If confirmed, the bot is removed
+        from the chatroom and the UI is updated.
+        """
         current_chatroom_item = self.chatroom_list_widget.currentItem()
         if not current_chatroom_item:
             QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected."))
@@ -724,6 +919,12 @@ class MainWindow(QMainWindow):
 
 
 def main():
+    """Main entry point for the application.
+
+    Initializes logging, sets up the QApplication, handles internationalization
+    by loading translation files, creates and shows the MainWindow, and starts
+    the application event loop.
+    """
     logging.basicConfig(
         level=logging.DEBUG, # Changed to DEBUG
         format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',

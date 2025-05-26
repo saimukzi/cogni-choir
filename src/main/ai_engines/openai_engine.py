@@ -1,3 +1,10 @@
+"""Implementation of an AI engine using OpenAI's models (e.g., GPT series).
+
+This module defines the `OpenAIEngine` class, which interfaces with the
+OpenAI Python SDK to provide text generation capabilities. It handles API key
+configuration, prompt construction (mapping to OpenAI's message format),
+communication with the OpenAI API, and error handling.
+"""
 import logging
 
 from ..commons import EscapeException
@@ -11,33 +18,77 @@ from ..ai_base import AIEngine # Use relative import from new location
 
 
 class OpenAIEngine(AIEngine):
+    """An AI engine that uses OpenAI's models (e.g., GPT-3.5 Turbo, GPT-4) for response generation.
+
+    This engine utilizes the `openai` Python SDK. It requires an API key for
+    OpenAI services and can be configured to use different models available
+    through the OpenAI API.
+
+    Attributes:
+        logger: Logger instance for this engine.
+        client: An instance of `openai.OpenAI` if initialization is successful.
+        model_name (str): The specific OpenAI model to be used (e.g., "gpt-3.5-turbo").
+    """
     def __init__(self, api_key: str = None, model_name: str = "gpt-3.5-turbo"):
-        super().__init__(api_key, model_name)
+        """Initializes the OpenAIEngine.
+
+        Sets up the logger and attempts to configure the `openai` client
+        using the provided API key. If the SDK is not found or the API key is
+        missing, warnings are logged, and the client remains uninitialized.
+
+        Args:
+            api_key (str, optional): The API key for OpenAI services.
+                                     Defaults to None.
+            model_name (str, optional): The name of the OpenAI model to use.
+                                        Defaults to "gpt-3.5-turbo".
+        """
+        super().__init__(api_key, model_name) # model_name is passed to super
         self.logger = logging.getLogger(__name__ + ".OpenAIEngine")
         self.client = None
-        self.logger.info(f"Initializing OpenAIEngine with model '{model_name}'.")
+        self.logger.info(f"Initializing OpenAIEngine with model '{self.model_name}'.") # Use self.model_name
 
         try:
             if not openai:
                 self.logger.warning("OpenAIEngine: openai SDK not found. Ensure it is installed.")
-                raise EscapeException()
+                raise EscapeException("openai SDK not found.") # Add message to exception
             if not self.api_key:
                 self.logger.warning("OpenAIEngine: API key not provided, real calls will fail.")
-                raise EscapeException()
+                # Not raising EscapeException here, similar to GeminiEngine,
+                # to allow for potential scenarios where client might be used differently or key set later.
+                # generate_response will handle the lack of a client.
+                return # Exit init if no API key
             try:
-                self.client = openai.OpenAI(api_key=self.api_key) # Do not log self.api_key
+                self.client = openai.OpenAI(api_key=self.api_key)
                 self.logger.info("OpenAI client configured successfully.")
             except Exception as e:
                 self.logger.error(f"Error configuring OpenAI client: {e}", exc_info=True)
-                self.client = None
-        except EscapeException:
-            self.logger.warning("OpenAIEngine: Initialization failed due to missing SDK or API key.")
-            self.client = None
+                self.client = None # Ensure client is None if config fails
+        except EscapeException as e:
+            self.logger.warning(f"OpenAIEngine: Initialization skipped due to: {e}")
+            # self.client is already None or set to None in the inner try-except
 
 
     def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[dict]) -> str:
-        self.logger.info(f"Generating response for role_name={role_name}, system_prompt={system_prompt}, history_len={len(conversation_history)}")
-        if not openai: 
+        """Generates a response using the configured OpenAI model.
+
+        Constructs a message list suitable for the OpenAI Chat Completions API
+        from the provided system prompt and conversation history. It then calls
+        the API via the `openai` client and returns the generated text.
+        Handles cases where the SDK or API key is missing or the client isn't initialized.
+
+        Args:
+            role_name (str): The name of the assistant role in the conversation.
+                             Messages from this role are mapped to "assistant".
+            system_prompt (str): The system prompt to guide the AI's behavior.
+            conversation_history (list[dict]): A list of message dictionaries,
+                                               where each dictionary has 'role' and 'text'.
+
+        Returns:
+            str: The generated text response from the AI, or an error message
+                 if generation fails or prerequisites (SDK, API key, client) are not met.
+        """
+        self.logger.info(f"Generating response for role_name={role_name}, system_prompt_len={len(system_prompt)}, history_len={len(conversation_history)}")
+        if not openai:
             msg = "Error: openai SDK not available."
             self.logger.error(msg)
             return msg
@@ -92,7 +143,13 @@ class OpenAIEngine(AIEngine):
             #     return "Error: OpenAI API call did not return expected structure."
         except Exception as e:
             self.logger.error(f"OpenAI API call failed: {str(e)}", exc_info=True)
+            # Check for specific OpenAI error types if desired, e.g., openai.APIError, openai.RateLimitError
             return f"Error: OpenAI API call failed: {str(e)}"
 
     def requires_api_key(self) -> bool:
+        """Checks if this AI engine requires an API key for its operation.
+
+        Returns:
+            bool: True, as OpenAI models always require an API key.
+        """
         return True
