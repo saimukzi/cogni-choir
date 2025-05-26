@@ -19,6 +19,10 @@ All python code should be documented in Google style.
 
 ## Forbidden python libraries
 
-The following python libraries are forbiddedn and MUST NOT be used:
+The following python libraries are forbidden and MUST NOT be used:
 
 - google.generativeai: deprecated
+
+## etc
+
+- When illegal argument, raise ValueError

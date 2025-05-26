@@ -57,7 +57,7 @@ class AzureOpenAIEngine(AIEngine):
         self.deployment_name = commons.read_str(os.path.join('tmp','azure_model.txt'))
         
         self.client = openai.AzureOpenAI(
-            api_key=api_key,
+            api_key=self.api_key,
             azure_endpoint=self.azure_endpoint,
             api_version=self.api_version
         )

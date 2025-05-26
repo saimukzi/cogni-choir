@@ -6,7 +6,7 @@ engine serves as a placeholder and will return an error message if
 response generation is attempted.
 """
 import logging
-import requests # For Grok, if/when a real API call is made
+import openai
 from ..ai_base import AIEngine # Use relative import from new location
 from src.main.message import Message
 
@@ -22,7 +22,7 @@ class GrokEngine(AIEngine):
         logger: Logger instance for this engine.
         model_name (str): The model name specified for Grok (e.g., "grok-default").
     """
-    def __init__(self, api_key: str = None, model_name: str = "grok-default"):
+    def __init__(self, api_key: str = None, model_name: str = "grok-3-latest"):
         """Initializes the GrokEngine placeholder.
 
         Logs information about the model name and the current placeholder status
@@ -33,17 +33,19 @@ class GrokEngine(AIEngine):
                                      Currently logged if provided but not used.
                                      Defaults to None.
             model_name (str, optional): The name of the Grok model.
-                                        Defaults to "grok-default".
+                                        Defaults to "grok-3-latest".
         """
         super().__init__(api_key, model_name) # model_name is passed to super
         self.logger = logging.getLogger(__name__ + ".GrokEngine")
         self.logger.info(f"Initializing GrokEngine with model '{self.model_name}'.")
-        # Placeholder for any Grok-specific initialization if an API becomes available
-        # SDK status for Grok is effectively "not found" or "not applicable" for now.
-        self.logger.info("GrokEngine: No official SDK or public API available. Using placeholder.")
-        if api_key: # Log self.api_key usage if needed, but not the key itself for security
-            self.logger.info("GrokEngine: API key was provided, but it will not be actively used due to the lack of an official API/SDK.")
 
+        if not api_key:
+            raise ValueError("GrokEngine requires an API key, but none was provided.")
+
+        self.client = openai.OpenAI(
+            api_key = self.api_key,
+            base_url = "https://api.x.ai/v1",
+        )
 
     def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[Message]) -> str:
         """Attempts to generate a response using Grok (currently a placeholder).
@@ -61,15 +63,41 @@ class GrokEngine(AIEngine):
         Returns:
             str: An error message stating that the Grok API is not implemented.
         """
-        # Adjusted parameters to match the base class abstract method
-        self.logger.info(f"Generating placeholder response for GrokEngine. System_prompt_len={len(system_prompt)}, conversation_history_len={len(conversation_history)} for role {role_name}.")
-        # Research indicates no publicly available official Python SDK or well-documented public REST API for Grok by xAI.
-        # Some third-party libraries exist but rely on unofficial methods (e.g., reverse-engineering X app's API).
-        # Using such methods is brittle and potentially against terms of service.
-        # Therefore, a real implementation is not feasible without an official, public API.
-        error_message = "Error: Grok API not implemented or no public API found."
-        self.logger.warning(error_message)
-        return error_message
+        messages = [{"role": "system", "content": system_prompt}]
+        for msg in conversation_history:
+            if msg.sender == role_name:
+                messages.append({"role": "assistant", "content": msg.content.strip()})
+            else:
+                messages.append({"role": "user", "content": f'{msg.sender} said:\n{msg.content.strip()}'})
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages
+            )
+            if response.choices and len(response.choices) > 0:
+                generated_text = response.choices[0].message.content.strip()
+                # Log the successful generation, possibly with a summary of input if not too verbose
+                logging.info(f"Successfully generated response from Grok for role {role_name}.")
+                return generated_text
+            else:
+                logging.error(f"No response choices found from Grok for role {role_name}.")
+                return "Error: No response generated."
+        except openai.APIConnectionError as e:
+            logging.error(f"Grok API connection error for role {role_name}: {e}")
+            return f"Error: Could not connect to Grok API. Details: {e}"
+        except openai.RateLimitError as e:
+            logging.error(f"Grok API rate limit exceeded for role {role_name}: {e}")
+            return f"Error: Grok API rate limit exceeded. Details: {e}"
+        except openai.AuthenticationError as e:
+            logging.error(f"Grok API authentication error for role {role_name}: {e}")
+            return f"Error: Grok API authentication failed. Please check your API key and endpoint. Details: {e}"
+        except openai.APIError as e:
+            logging.error(f"Grok API error for role {role_name}: {e}")
+            return f"Error: An unexpected error occurred with the Grok API. Details: {e}"
+        except Exception as e:
+            logging.error(f"An unexpected error occurred for role {role_name}: {e}")
+            return f"Error: An unexpected error occurred. Details: {e}"
 
     def requires_api_key(self) -> bool:
         """Checks if this AI engine requires an API key for its operation.

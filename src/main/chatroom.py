@@ -248,7 +248,7 @@ class Chatroom:
             engine_type_name = bot_data.get("engine_type")
             api_key = None # Default to None
             if engine_type_name and api_key_manager: # Ensure engine_type_name exists before trying to use it
-                service_name_for_key = engine_type_name.replace("Engine", "")
+                service_name_for_key = engine_type_name
                 api_key = api_key_manager.load_key(service_name_for_key)
 
             engine_config = {
@@ -504,7 +504,7 @@ class ChatroomManager:
         for original_bot in original_chatroom.list_bots():
             original_engine = original_bot.get_engine()
             engine_type_name = type(original_engine).__name__
-            service_name_for_key = engine_type_name.replace("Engine", "")
+            service_name_for_key = engine_type_name
             
             api_key = self.api_key_manager.load_key(service_name_for_key)
             model_name = original_engine.model_name # Get model_name from original engine
