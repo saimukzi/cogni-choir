@@ -15,7 +15,7 @@ except ImportError:
     openai = None
 
 from ..ai_base import AIEngine # Use relative import from new location
-from ..types import ConversationHistory # Import ConversationHistory
+from src.main.message import Message
 
 
 class OpenAIEngine(AIEngine):
@@ -69,7 +69,7 @@ class OpenAIEngine(AIEngine):
             # self.client is already None or set to None in the inner try-except
 
 
-    def generate_response(self, role_name: str, system_prompt: str, conversation_history: ConversationHistory) -> str:
+    def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[Message]) -> str:
         """Generates a response using the configured OpenAI model.
 
         Constructs a message list suitable for the OpenAI Chat Completions API
@@ -81,7 +81,7 @@ class OpenAIEngine(AIEngine):
             role_name (str): The name of the assistant role in the conversation.
                              Messages from this role are mapped to "assistant".
             system_prompt (str): The system prompt to guide the AI's behavior.
-            conversation_history (ConversationHistory): A ConversationHistory object
+            conversation_history (list[Message]): A Message list
                                                         containing the current
                                                         conversation.
 
@@ -89,7 +89,6 @@ class OpenAIEngine(AIEngine):
             str: The generated text response from the AI, or an error message
                  if generation fails or prerequisites (SDK, API key, client) are not met.
         """
-        history_list_dict = conversation_history.to_list_dict()
         self.logger.info(f"Generating response for role_name={role_name}, system_prompt_len={len(system_prompt)}, history_len={len(history_list_dict)}")
         if not openai:
             msg = "Error: openai SDK not available."
@@ -101,9 +100,9 @@ class OpenAIEngine(AIEngine):
             return msg
 
         contents = []
-        for msg in history_list_dict: # Use history_list_dict here
-            sender_role = msg['role']
-            text_content = msg['text'].strip()
+        for msg in conversation_history: # Use history_list_dict here
+            sender_role = msg.sender
+            text_content = msg.content.strip()
             if sender_role == role_name:
                 contents.append({"role": "assistant", "content": text_content})
             else:

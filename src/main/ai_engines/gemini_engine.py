@@ -13,8 +13,8 @@ from google import genai # google.genai from python package google-genai
 
 from ..ai_base import AIEngine # Use relative import to access AIEngine from its new location
 from ..commons import EscapeException
-from ..types import ConversationHistory # Import ConversationHistory
-# Removed: from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
+from src.main.message import Message
+from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 
 class GeminiEngine(AIEngine):
     """An AI engine that uses Google's Gemini models for response generation.
@@ -26,11 +26,11 @@ class GeminiEngine(AIEngine):
     Attributes:
         logger: Logger instance for this engine.
         client: An instance of `google.genai.Client` if initialization is successful.
-        model_name (str): The specific Gemini model to be used (e.g., "gemini-1.5-flash-latest").
+        model_name (str): The specific Gemini model to be used (e.g., "gemini-2.5-flash-preview-05-20").
         tools (list[Tool]): A list of tools available to the Gemini model,
                             currently configured with GoogleSearch.
     """
-    def __init__(self, api_key: str = None, model_name: str = "gemini-1.5-flash-latest"): # Updated model name
+    def __init__(self, api_key: str = None, model_name: str = "gemini-2.5-flash-preview-05-20"): # Updated model name
         """Initializes the GeminiEngine.
 
         Sets up the logger and attempts to configure the `google-genai` client
@@ -41,22 +41,13 @@ class GeminiEngine(AIEngine):
             api_key (str, optional): The API key for Google Generative AI services.
                                      Defaults to None.
             model_name (str, optional): The name of the Gemini model to use.
-                                        Defaults to "gemini-1.5-flash-latest".
+                                        Defaults to "gemini-2.5-flash-preview-05-20".
         """
         super().__init__(api_key, model_name) # model_name is passed to super
         self.logger = logging.getLogger(__name__ + ".GeminiEngine")
         self.client = None
         self.logger.info(f"Initializing GeminiEngine with model '{self.model_name}'.") # Use self.model_name
-        if genai: # Ensure genai is imported before using its types
-            try:
-                # Attempt to use protos for Tool and GoogleSearch
-                self.tools = [genai.protos.Tool(google_search = genai.protos.GoogleSearch())]
-            except AttributeError:
-                # Fallback or log warning if protos.GoogleSearch is also not found
-                self.logger.warning("genai.protos.GoogleSearch not found, proceeding without GoogleSearch tool.")
-                self.tools = []
-        else:
-            self.tools = [] # Or handle the case where genai is not available
+        self.tools = [Tool(google_search = GoogleSearch())]
 
         try:
             if not genai:
@@ -76,7 +67,7 @@ class GeminiEngine(AIEngine):
             self.logger.error(f"GeminiEngine: Error during google.genai.Client initialization: {e}", exc_info=True)
 
 
-    def generate_response(self, role_name: str, system_prompt: str, conversation_history: ConversationHistory) -> str:
+    def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[Message]) -> str:
         """Generates a response using the configured Gemini model.
 
         Constructs a message list suitable for the Gemini API from the
@@ -88,7 +79,7 @@ class GeminiEngine(AIEngine):
             role_name (str): The name of the assistant role in the conversation.
                              Messages from this role are mapped to "model".
             system_prompt (str): The system prompt to guide the AI's behavior.
-            conversation_history (ConversationHistory): A ConversationHistory object
+            conversation_history (list[Message]): A Message list
                                                         containing the current
                                                         conversation.
 
@@ -96,8 +87,7 @@ class GeminiEngine(AIEngine):
             str: The generated text response from the AI, or an error message
                  if generation fails or prerequisites (SDK, API key) are not met.
         """
-        history_list_dict = conversation_history.to_list_dict()
-        self.logger.info(f"Generating response for prompt_len={len(system_prompt)}, history_len={len(history_list_dict)}")
+        self.logger.info(f"Generating response for prompt_len={len(system_prompt)}, conversation_history_len={len(conversation_history)}")
         if not genai: 
             msg = "Error: google.genai SDK not available."
             self.logger.error(msg)
@@ -114,9 +104,9 @@ class GeminiEngine(AIEngine):
         system_instruction = system_prompt.strip()
 
         contents = []
-        for msg in history_list_dict:
-            sender_role = msg['role']
-            text_content = msg['text'].strip()
+        for msg in conversation_history:
+            sender_role = msg.sender
+            text_content = msg.content.strip()
             if sender_role == role_name:
                 contents.append({"role": "model", "text": text_content})
             else:
@@ -152,12 +142,10 @@ class GeminiEngine(AIEngine):
                 model=self.model_name,
                 contents=contents,
                 # systemInstruction=system_instruction,
-                config=genai.types.GenerateContentConfig(
+                config=GenerateContentConfig(
                     system_instruction=system_instruction,
                     tools=self.tools,
-                ) if genai and self.tools else genai.types.GenerateContentConfig(
-                    system_instruction=system_instruction
-                ) if genai else None, # Ensure config is formed correctly even if self.tools is empty
+                ),
             )
             # Check if response.text exists and is not empty, as per some API behaviors for safety/errors
             if hasattr(response, 'text') and response.text:

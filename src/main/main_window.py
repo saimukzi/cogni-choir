@@ -671,7 +671,7 @@ class MainWindow(QMainWindow):
                 return
         
         self.logger.info(f"Attempting to trigger bot response for bot '{selected_bot_name}' in chatroom '{chatroom_name}'.")
-        conversation_history = [{'role': msg.sender, 'text': msg.content} for msg in chatroom.get_messages()]
+        conversation_history = chatroom.get_messages()
 
         if not conversation_history:
             self.logger.info(f"Trigger bot response: No messages in chatroom '{chatroom_name}' to respond to.")

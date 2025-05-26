@@ -1,6 +1,6 @@
 """This module defines the abstract base class for AI engines."""
 import abc
-from src.main.types import ConversationHistory
+from src.main.message import Message
 
 class AIEngine(abc.ABC):
     """Abstract base class for AI engines.
@@ -19,13 +19,13 @@ class AIEngine(abc.ABC):
         self.model_name = model_name
 
     @abc.abstractmethod
-    def generate_response(self, role_name: str, system_prompt: str, conversation_history: ConversationHistory) -> str:
+    def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[Message]) -> str:
         """Generates a response from the AI engine.
 
         Args:
             role_name: The name of the role for the AI.
             system_prompt: The system prompt to use.
-            conversation_history: A ConversationHistory object representing the
+            conversation_history: A Message list representing the
                                   current conversation.
 
         Returns:
