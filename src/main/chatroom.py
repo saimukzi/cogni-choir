@@ -237,7 +237,7 @@ class Chatroom:
         logger.debug(f"Deserializing chatroom '{chatroom_name}' from dictionary. File: {filepath}") # DEBUG
         # Import create_bot and Bot (Bot is still needed for type hints if not for instantiation here)
         from .ai_bots import Bot, create_bot
-        # Removed local imports for GeminiEngine, GrokEngine, OpenAIEngine as create_bot handles engine instantiation
+        # Removed local imports for GeminiEngine, GrokEngine as create_bot handles engine instantiation
 
         chatroom = Chatroom(name=data["name"]) # Initializes _name
         chatroom.manager = manager

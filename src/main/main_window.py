@@ -27,7 +27,7 @@ import logging # For logging
 try:
     from .chatroom import Chatroom, ChatroomManager
     from .ai_bots import Bot, AIEngine, create_bot # AIEngine and Bot remain in ai_bots, added create_bot
-    from .ai_engines import GeminiEngine, GrokEngine, OpenAIEngine # Engines from new package
+    from .ai_engines import GeminiEngine, GrokEngine # Engines from new package
     from .api_key_manager import ApiKeyManager
     from .message import Message
     from . import ai_engines
@@ -35,7 +35,7 @@ except ImportError:
     # Fallback for running script directly for testing
     from chatroom import Chatroom, ChatroomManager
     from ai_bots import Bot, AIEngine, create_bot # AIEngine and Bot remain in ai_bots, added create_bot
-    from ai_engines import GeminiEngine, GrokEngine, OpenAIEngine # Engines from new package
+    from ai_engines import GeminiEngine, GrokEngine # Engines from new package
     from api_key_manager import ApiKeyManager
     from message import Message
 
@@ -662,7 +662,7 @@ class MainWindow(QMainWindow):
         engine = bot.get_engine()
         engine_type_name = type(engine).__name__
         
-        if isinstance(engine, (GeminiEngine, GrokEngine, OpenAIEngine)): 
+        if isinstance(engine, (GeminiEngine, GrokEngine)): 
             api_key = self.api_key_manager.load_key(engine_type_name)
             if not api_key:
                 self.logger.warning(f"Trigger bot response: API key missing for bot '{bot.get_name()}' using engine '{engine_type_name}'.")

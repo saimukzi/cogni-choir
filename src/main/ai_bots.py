@@ -1,13 +1,12 @@
 """This module defines the Bot class and a factory function to create bots."""
 import logging # For logging
 from .ai_base import AIEngine # Import AIEngine from its new location
-from .ai_engines import GeminiEngine, GrokEngine, OpenAIEngine # Import necessary engine classes
 from . import ai_engines # Import the ai_engines package to access ENGINE_TYPE_TO_CLASS_MAP
 from src.main.message import Message
 
 # Bot class and create_bot function remain here.
 # AIEngine class has been moved to ai_base.py
-# Engine-specific classes (GeminiEngine, OpenAIEngine, GrokEngine) are in ai_engines package.
+# Engine-specific classes (GeminiEngine, GrokEngine) are in ai_engines package.
 
 class Bot:
     """Represents an AI bot with a specific name, system prompt, and AI engine."""
@@ -127,7 +126,7 @@ def create_bot(bot_name: str, system_prompt: str, engine_config: dict) -> Bot:
         system_prompt: The system prompt for the bot.
         engine_config: A dictionary containing engine configuration.
                        Expected keys:
-                           "engine_type" (str): The type of the AI engine (e.g., "GeminiEngine", "OpenAIEngine").
+                           "engine_type" (str): The type of the AI engine (e.g., "GeminiEngine").
                            "api_key" (str, optional): The API key for the AI engine, if required.
                            "model_name" (str, optional): The specific model name for the AI engine.
 

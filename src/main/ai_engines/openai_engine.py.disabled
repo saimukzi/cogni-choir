@@ -1,3 +1,5 @@
+# I live in Hong Kong and OpenAI is not available here, so I cannot test this code.
+
 """Implementation of an AI engine using OpenAI's models (e.g., GPT series).
 
 This module defines the `OpenAIEngine` class, which interfaces with the

@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 from src.main.chatroom import Chatroom, ChatroomManager, _sanitize_filename, DATA_DIR
 from src.main.ai_bots import Bot # Bot is still in ai_bots
 from src.main.ai_base import AIEngine # Import AIEngine from ai_base for spec
-from src.main.ai_engines import GeminiEngine, OpenAIEngine, GrokEngine # Engines from new package, GrokEngine added
+from src.main.ai_engines import GeminiEngine, GrokEngine, AzureOpenAIEngine # Engines from new package, GrokEngine added
 from src.main.message import Message
 from src.main.api_key_manager import ApiKeyManager
 
@@ -104,14 +104,14 @@ class TestChatroom(unittest.TestCase):
         class NoKeyEngine(AIEngine): # Make sure AIEngine is imported
             def __init__(self, api_key: str = None, model_name: str = "no-key-model"):
                 super().__init__(api_key, model_name)
-            def generate_response(self, current_user_prompt: str, conversation_history: list[tuple[str, str]]) -> str:
+            def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[Message]) -> str:
                 return "NoKeyEngine response"
             def requires_api_key(self) -> bool:
                 return False
 
         # Setup chatroom
         bot1 = Bot("BotAlpha", "Prompt Alpha", GeminiEngine(api_key="gemini_test_key", model_name="gemini-alpha"))
-        bot2 = Bot("BotBeta", "Prompt Beta", OpenAIEngine(api_key="openai_test_key", model_name="openai-beta"))
+        bot2 = Bot("BotBeta", "Prompt Beta", AzureOpenAIEngine(api_key="azureopenai_test_key", model_name="azureopenai-beta"))
         bot3 = Bot("BotGamma", "Prompt Gamma", NoKeyEngine(model_name="no-key-gamma")) # Add this bot
 
         self.chatroom.add_bot(bot1)
@@ -130,7 +130,7 @@ class TestChatroom(unittest.TestCase):
         # --- Scenario 1: Key required, not provided (Gemini) ---
         mock_api_key_manager_missing_gemini = MagicMock(spec=ApiKeyManager)
         mock_api_key_manager_missing_gemini.load_key.side_effect = lambda service_name: {
-            "OpenAI": "openai_test_key" # No Gemini key, NoKey key also missing (but not needed)
+            "AzureOpenAI": "azureopenai_test_key" # No Gemini key, NoKey key also missing (but not needed)
         }.get(service_name)
         
         # Bot data for this specific test scenario
@@ -139,9 +139,9 @@ class TestChatroom(unittest.TestCase):
             "name": "BotAlpha", "system_prompt": "Prompt Alpha Sys", 
             "engine_type": "GeminiEngine", "model_name": "gemini-alpha"
         }
-        bot_data_openai_for_test = {
+        bot_data_azureopenai_for_test = {
             "name": "BotBeta", "system_prompt": "Prompt Beta Sys",
-            "engine_type": "OpenAIEngine", "model_name": "openai-beta"
+            "engine_type": "AzureOpenAIEngine", "model_name": "azureopenai-beta"
         }
         bot_data_nokey_for_test = { # This is BotGamma
             "name": "BotGamma", "system_prompt": "Prompt Gamma Sys",
@@ -151,7 +151,7 @@ class TestChatroom(unittest.TestCase):
         # Use this as an instance variable for the side effect function to access
         self.test_data_missing_keys_scen1 = { 
             "name": "TestRoomMissingKeys", # Chatroom name for warnings
-            "bots": [bot_data_gemini_for_test, bot_data_openai_for_test, bot_data_nokey_for_test],
+            "bots": [bot_data_gemini_for_test, bot_data_azureopenai_for_test, bot_data_nokey_for_test],
             "messages": []
         }
 
@@ -162,9 +162,9 @@ class TestChatroom(unittest.TestCase):
         mock_engine_alpha.requires_api_key.return_value = True # GeminiEngine requires a key
 
         mock_engine_beta = MagicMock(spec=AIEngine)
-        mock_engine_beta.api_key = "openai_test_key" # API key is provided for OpenAI by mock_api_key_manager_missing_gemini
-        mock_engine_beta.model_name = bot_data_openai_for_test['model_name']
-        mock_engine_beta.requires_api_key.return_value = True # OpenAIEngine requires a key
+        mock_engine_beta.api_key = "azureopenai_test_key" # API key is provided for AzureOpenAI by mock_api_key_manager_missing_gemini
+        mock_engine_beta.model_name = bot_data_azureopenai_for_test['model_name']
+        mock_engine_beta.requires_api_key.return_value = True # AzureOpenAIEngine requires a key
 
         def mock_create_bot_side_effect(bot_name, system_prompt, engine_config):
             # Find the bot_data from self.test_data_missing_keys_scen1 to ensure prompts match
@@ -177,7 +177,7 @@ class TestChatroom(unittest.TestCase):
 
             if engine_config['engine_type'] == "GeminiEngine" and bot_name == "BotAlpha":
                 return Bot(name="BotAlpha", system_prompt=system_prompt, engine=mock_engine_alpha)
-            elif engine_config['engine_type'] == "OpenAIEngine" and bot_name == "BotBeta":
+            elif engine_config['engine_type'] == "AzureOpenAIEngine" and bot_name == "BotBeta":
                 return Bot(name="BotBeta", system_prompt=system_prompt, engine=mock_engine_beta)
             elif engine_config['engine_type'] == "NoKeyEngine" and bot_name == "BotGamma":
                 raise ValueError("Unsupported engine type: NoKeyEngine")
@@ -213,11 +213,11 @@ class TestChatroom(unittest.TestCase):
         mock_logger_warning.assert_any_call(expected_nokey_warning_scen1)
         
         # Verify no warning for BotBeta as its key is provided by mock_api_key_manager_missing_gemini
-        unexpected_openai_warning_fragment = "API key for OpenAI not found for bot 'BotBeta'"
+        unexpected_azureopenai_warning_fragment = "API key for AzureOpenAI not found for bot 'BotBeta'"
         for call in mock_logger_warning.call_args_list:
             logged_message = call[0][0]
             if "BotBeta" in logged_message: # Only check calls related to BotBeta
-                self.assertNotIn(unexpected_openai_warning_fragment, logged_message, "Warning for BotBeta (OpenAI) was logged but should not have been as key was provided.")
+                self.assertNotIn(unexpected_azureopenai_warning_fragment, logged_message, "Warning for BotBeta (AzureOpenAI) was logged but should not have been as key was provided.")
         
         mock_logger_warning.reset_mock()
 
@@ -225,14 +225,13 @@ class TestChatroom(unittest.TestCase):
         mock_api_key_manager_all_keys = MagicMock(spec=ApiKeyManager)
         mock_api_key_manager_all_keys.load_key.side_effect = lambda service_name: {
             "Gemini": "gemini_test_key_loaded",
-            "OpenAI": "openai_test_key_loaded",
+            "AzureOpenAI": "azureopenai_test_key_loaded",
             # NoKeyEngine doesn't need a key, so it doesn't matter if "NoKey" is here or not
         }.get(service_name)
 
         # Patch sys.modules to ensure from_dict can find the *actual* NoKeyEngine class
         with patch.dict(sys.modules['src.main.ai_engines'].__dict__, {
             'GeminiEngine': GeminiEngine, # Real engine
-            'OpenAIEngine': OpenAIEngine, # Real engine
             'GrokEngine': GrokEngine,     # Real engine
             'NoKeyEngine': NoKeyEngine    # The test's actual NoKeyEngine class
         }, clear=False):
@@ -247,7 +246,7 @@ class TestChatroom(unittest.TestCase):
         for call_args in mock_logger_warning.call_args_list:
             arg_str = call_args[0][0]
             self.assertNotIn("API key for Gemini not found", arg_str, f"Unexpected warning: {arg_str}")
-            self.assertNotIn("API key for OpenAI not found", arg_str, f"Unexpected warning: {arg_str}")
+            self.assertNotIn("API key for AzureOpenAI not found", arg_str, f"Unexpected warning: {arg_str}")
             self.assertNotIn("API key for NoKey not found", arg_str, f"Unexpected warning: {arg_str}") # Assuming NoKeyEngine doesn't trigger this
         
         # Original assertions from the test
@@ -268,12 +267,12 @@ class TestChatroom(unittest.TestCase):
         self.assertEqual(reloaded_bot_alpha_s2.get_engine().api_key, "gemini_test_key_loaded")
         self.assertEqual(reloaded_bot_alpha_s2.get_engine().model_name, "gemini-alpha")
         
-        # BotBeta (OpenAIEngine) - key is "openai_test_key_loaded"
+        # BotBeta (AzureOpenAIEngine) - key is "azureopenai_test_key_loaded"
         reloaded_bot_beta_s2 = reloaded_chatroom_all_keys.get_bot("BotBeta")
         self.assertIsNotNone(reloaded_bot_beta_s2)
-        self.assertIsInstance(reloaded_bot_beta_s2.get_engine(), OpenAIEngine)
-        self.assertEqual(reloaded_bot_beta_s2.get_engine().api_key, "openai_test_key_loaded")
-        self.assertEqual(reloaded_bot_beta_s2.get_engine().model_name, "openai-beta")
+        self.assertIsInstance(reloaded_bot_beta_s2.get_engine(), AzureOpenAIEngine)
+        self.assertEqual(reloaded_bot_beta_s2.get_engine().api_key, "azureopenai_test_key_loaded")
+        self.assertEqual(reloaded_bot_beta_s2.get_engine().model_name, "azureopenai-beta")
 
         # Add warning assertion for BotGamma failing to load in Scenario 2
         # The engine_type for BotGamma is "NoKeyEngine"
