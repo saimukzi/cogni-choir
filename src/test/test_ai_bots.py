@@ -265,25 +265,157 @@ class TestGeminiEngine(unittest.TestCase):
 
 
 class TestGrokEngine(unittest.TestCase):
-    def test_grok_response(self):
-        # Correcting the call to match AIEngine.generate_response signature
+    @patch('src.main.ai_engines.grok_engine.openai.OpenAI')
+    def test_grok_response_success(self, mock_openai_class):
+        # Configure the mock client and its methods
+        mock_client_instance = MagicMock()
+        mock_chat_completion = MagicMock()
+        mock_choice = MagicMock()
+        mock_message = MagicMock()
+        mock_message.content = "Successful Grok response"
+        mock_choice.message = mock_message
+        mock_chat_completion.choices = [mock_choice]
+        mock_client_instance.chat.completions.create.return_value = mock_chat_completion
+        mock_openai_class.return_value = mock_client_instance
+
+        grok_engine = GrokEngine(api_key="fake_grok_key", model_name="grok-test-model")
+        
         role_name = "TestGrokBot"
         system_prompt = "System prompt for Grok."
-        conversation_history = [Message(sender='User', content='Previous message')]
-        grok_engine = GrokEngine(api_key="grok_key")
-        expected_grok_response = "Error: Grok API not implemented or no public API found."
+        conversation_history = [
+            Message(sender='User', content='Hello Grok!'),
+            Message(sender=role_name, content='Hello User!'),
+            Message(sender='User', content='How are you?')
+        ]
+        
         response = grok_engine.generate_response(
             role_name=role_name,
             system_prompt=system_prompt,
             conversation_history=conversation_history
         )
-        self.assertEqual(response, expected_grok_response)
+
+        self.assertEqual(response, "Successful Grok response")
+        
+        expected_messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": "User said:\nHello Grok!"},
+            {"role": "assistant", "content": "Hello User!"},
+            {"role": "user", "content": "User said:\nHow are you?"}
+        ]
+        
+        mock_client_instance.chat.completions.create.assert_called_once_with(
+            model="grok-test-model",
+            messages=expected_messages
+        )
+
+    @patch('src.main.ai_engines.grok_engine.openai.OpenAI')
+    def test_grok_init_success(self, mock_openai_class):
+        mock_client_instance = MagicMock()
+        mock_openai_class.return_value = mock_client_instance
+
+        engine = GrokEngine(api_key="test_api_key_123", model_name="grok-custom-model")
+        
+        mock_openai_class.assert_called_once_with(
+            api_key="test_api_key_123",
+            base_url="https://api.x.ai/v1"
+        )
+        self.assertEqual(engine.api_key, "test_api_key_123")
+        self.assertEqual(engine.model_name, "grok-custom-model")
+        self.assertEqual(engine.client, mock_client_instance)
+
+    def test_grok_init_no_api_key(self):
+        with self.assertRaisesRegex(ValueError, "GrokEngine requires an API key, but none was provided."):
+            GrokEngine(api_key=None)
+
+    # Test for APIConnectionError
+    @patch('src.main.ai_engines.grok_engine.logging.error')
+    @patch('src.main.ai_engines.grok_engine.openai.OpenAI')
+    def test_grok_response_api_connection_error(self, mock_openai_class, mock_logging_error):
+        mock_client_instance = MagicMock()
+        # Import openai for error types
+        import openai
+        mock_client_instance.chat.completions.create.side_effect = openai.APIConnectionError(request=MagicMock())
+        mock_openai_class.return_value = mock_client_instance
+
+        engine = GrokEngine(api_key="fake_key")
+        response = engine.generate_response("TestRole", "SysPrompt", [])
+        
+        self.assertTrue(response.startswith("Error: Could not connect to Grok API."))
+        mock_logging_error.assert_called_once()
+
+    # Test for RateLimitError
+    @patch('src.main.ai_engines.grok_engine.logging.error')
+    @patch('src.main.ai_engines.grok_engine.openai.OpenAI')
+    def test_grok_response_rate_limit_error(self, mock_openai_class, mock_logging_error):
+        mock_client_instance = MagicMock()
+        import openai # Import for error types
+        mock_client_instance.chat.completions.create.side_effect = openai.RateLimitError("Rate limit exceeded", response=MagicMock(), body=None)
+        mock_openai_class.return_value = mock_client_instance
+
+        engine = GrokEngine(api_key="fake_key")
+        response = engine.generate_response("TestRole", "SysPrompt", [])
+
+        self.assertTrue(response.startswith("Error: Grok API rate limit exceeded."))
+        mock_logging_error.assert_called_once()
+
+    # Test for AuthenticationError
+    @patch('src.main.ai_engines.grok_engine.logging.error')
+    @patch('src.main.ai_engines.grok_engine.openai.OpenAI')
+    def test_grok_response_authentication_error(self, mock_openai_class, mock_logging_error):
+        mock_client_instance = MagicMock()
+        import openai # Import for error types
+        mock_client_instance.chat.completions.create.side_effect = openai.AuthenticationError("Auth error", response=MagicMock(), body=None)
+        mock_openai_class.return_value = mock_client_instance
+        
+        engine = GrokEngine(api_key="fake_key")
+        response = engine.generate_response("TestRole", "SysPrompt", [])
+
+        self.assertTrue(response.startswith("Error: Grok API authentication failed."))
+        mock_logging_error.assert_called_once()
+
+    # Test for generic APIError
+    @patch('src.main.ai_engines.grok_engine.logging.error')
+    @patch('src.main.ai_engines.grok_engine.openai.OpenAI')
+    def test_grok_response_api_error(self, mock_openai_class, mock_logging_error):
+        mock_client_instance = MagicMock()
+        import openai # Import for error types
+        mock_client_instance.chat.completions.create.side_effect = openai.APIError("Generic API error", request=MagicMock(), body=None)
+        mock_openai_class.return_value = mock_client_instance
+
+        engine = GrokEngine(api_key="fake_key")
+        response = engine.generate_response("TestRole", "SysPrompt", [])
+
+        self.assertTrue(response.startswith("Error: An unexpected error occurred with the Grok API."))
+        mock_logging_error.assert_called_once()
+
+    # Test for other unexpected Exception
+    @patch('src.main.ai_engines.grok_engine.logging.error')
+    @patch('src.main.ai_engines.grok_engine.openai.OpenAI')
+    def test_grok_response_unexpected_exception(self, mock_openai_class, mock_logging_error):
+        mock_client_instance = MagicMock()
+        mock_client_instance.chat.completions.create.side_effect = Exception("Something totally unexpected happened")
+        mock_openai_class.return_value = mock_client_instance
+
+        engine = GrokEngine(api_key="fake_key")
+        response = engine.generate_response("TestRole", "SysPrompt", [])
+
+        self.assertTrue(response.startswith("Error: An unexpected error occurred."))
+        mock_logging_error.assert_called_once()
+
 
     @patch('src.main.ai_engines.gemini_engine.genai') # Mock genai via its new path for consistency
     def test_engine_base_class_init(self, mock_genai_sdk): # mock_genai_sdk is passed due to patch
-        engine = GeminiEngine(api_key="key123", model_name="model-abc") 
-        self.assertEqual(engine.api_key, "key123")
-        self.assertEqual(engine.model_name, "model-abc")
+        # This test is for AIEngine, but was previously under TestGrokEngine.
+        # It's better placed in a generic TestAIEngine or similar if one exists,
+        # or ensure it's testing something specific to GrokEngine if kept here.
+        # For now, assuming it's a general base class test that found its way here.
+        # If it's meant to test GrokEngine's inheritance, it should instantiate GrokEngine.
+        # Let's make it test GrokEngine's inheritance of base attributes.
+        # Need to patch GrokEngine's specific dependencies if any for __init__
+        with patch('src.main.ai_engines.grok_engine.openai.OpenAI'): # Patch Grok's OpenAI client init
+            engine = GrokEngine(api_key="key123", model_name="model-abc") 
+            self.assertEqual(engine.api_key, "key123")
+            self.assertEqual(engine.model_name, "model-abc")
 
 
 class TestCreateBot(unittest.TestCase):

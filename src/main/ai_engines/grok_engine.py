@@ -1,9 +1,8 @@
-"""Placeholder implementation for an AI engine based on xAI's Grok.
+"""AI engine implementation for xAI's Grok.
 
-This module defines the `GrokEngine` class. As of the last update,
-there is no official public API or Python SDK for Grok. Therefore, this
-engine serves as a placeholder and will return an error message if
-response generation is attempted.
+This module defines the `GrokEngine` class, which interacts with xAI's Grok API
+using an OpenAI-compatible client. It allows for generating responses from Grok
+based on provided prompts and conversation history.
 """
 import logging
 import openai
@@ -12,28 +11,31 @@ from src.main.message import Message
 
 
 class GrokEngine(AIEngine):
-    """A placeholder AI engine for xAI's Grok.
+    """AI engine for xAI's Grok, using an OpenAI-compatible API.
 
-    This class is intended to integrate Grok if an official API becomes available.
-    Currently, it logs warnings about the lack of an official API and cannot
-    generate actual responses.
+    This class interfaces with xAI's Grok API to generate text responses.
+    It uses an OpenAI-compatible client to make requests to the Grok API endpoint.
 
     Attributes:
         logger: Logger instance for this engine.
-        model_name (str): The model name specified for Grok (e.g., "grok-default").
+        model_name (str): The model name specified for Grok (e.g., "grok-3-latest").
+        client (openai.OpenAI): The OpenAI client configured for xAI's Grok API.
     """
     def __init__(self, api_key: str = None, model_name: str = "grok-3-latest"):
-        """Initializes the GrokEngine placeholder.
+        """Initializes the GrokEngine.
 
-        Logs information about the model name and the current placeholder status
-        due to the absence of an official Grok API/SDK.
+        Sets up the logger, validates the API key, and initializes the
+        OpenAI client to interact with xAI's Grok API.
 
         Args:
-            api_key (str, optional): An API key, if one were available for Grok.
-                                     Currently logged if provided but not used.
-                                     Defaults to None.
-            model_name (str, optional): The name of the Grok model.
+            api_key (str, optional): The API key for xAI's Grok API.
+                                     Defaults to None. If None, a ValueError
+                                     is raised.
+            model_name (str, optional): The name of the Grok model to use.
                                         Defaults to "grok-3-latest".
+
+        Raises:
+            ValueError: If `api_key` is not provided.
         """
         super().__init__(api_key, model_name) # model_name is passed to super
         self.logger = logging.getLogger(__name__ + ".GrokEngine")
@@ -48,20 +50,24 @@ class GrokEngine(AIEngine):
         )
 
     def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[Message]) -> str:
-        """Attempts to generate a response using Grok (currently a placeholder).
+        """Generates a response from Grok using the configured API.
 
-        Since there is no official public API for Grok, this method returns
-        an error message indicating that the functionality is not implemented.
+        Constructs a list of messages from the system prompt and conversation
+        history, then sends a request to the Grok API via the OpenAI client.
+        It handles successful responses by returning the generated text and
+        logs various API errors if they occur, returning an error message.
 
         Args:
-            role_name (str): The name of the assistant role in the conversation.
-            system_prompt (str): The system prompt to guide the AI's behavior.
-            conversation_history (list[Message]): A Message list
-                                                        containing the current
-                                                        conversation.
+            role_name (str): The name of the assistant role (e.g., "AI Assistant").
+                This is used to label messages from the AI in the API request.
+            system_prompt (str): The initial prompt that defines the AI's persona
+                or task.
+            conversation_history (list[Message]): A list of `Message` objects
+                representing the preceding conversation.
 
         Returns:
-            str: An error message stating that the Grok API is not implemented.
+            str: The generated text response from Grok, or an error message
+                 if an issue occurred during generation or API interaction.
         """
         messages = [{"role": "system", "content": system_prompt}]
         for msg in conversation_history:
@@ -100,12 +106,9 @@ class GrokEngine(AIEngine):
             return f"Error: An unexpected error occurred. Details: {e}"
 
     def requires_api_key(self) -> bool:
-        """Checks if this AI engine requires an API key for its operation.
-
-        While the current implementation is a placeholder, it's assumed that a
-        production Grok API would require an API key.
+        """Checks if this AI engine requires an API key.
 
         Returns:
-            bool: True, assuming a future Grok API would require an API key.
+            bool: True, as the Grok API requires an API key for authentication.
         """
         return True
