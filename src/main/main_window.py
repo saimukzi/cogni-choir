@@ -192,6 +192,122 @@ class CreateFakeMessageDialog(QDialog):
         return QApplication.translate("CreateFakeMessageDialog", text, disambiguation, n)
 
 
+class AddBotDialog(QDialog):
+    """A dialog for adding a new bot to a chatroom.
+
+    This dialog allows the user to specify the bot's name, select an AI engine,
+    optionally provide a model name, and set a system prompt for the bot.
+    It also validates the bot name for emptiness and uniqueness.
+    """
+    def __init__(self, existing_bot_names: list[str], parent=None):
+        """Initializes the AddBotDialog.
+
+        Args:
+            existing_bot_names: A list of names of bots that already exist
+                                in the current context, used for validation.
+            parent: The parent widget, if any.
+        """
+        super().__init__(parent)
+        self.existing_bot_names = existing_bot_names
+        self.setWindowTitle(self.tr("Add New Bot"))
+        self.setMinimumWidth(400) # Set a reasonable minimum width
+
+        main_layout = QVBoxLayout(self)
+        form_layout = QFormLayout()
+
+        # Bot Name
+        self.bot_name_label = QLabel(self.tr("Bot Name:"))
+        self.bot_name_input = QLineEdit()
+        form_layout.addRow(self.bot_name_label, self.bot_name_input)
+
+        # AI Engine
+        self.engine_label = QLabel(self.tr("AI Engine:"))
+        self.engine_combo = QComboBox()
+        # Populate with keys from ai_engines.ENGINE_TYPE_TO_CLASS_MAP
+        # Ensure ai_engines is imported at the top of the file
+        if hasattr(ai_engines, 'ENGINE_TYPE_TO_CLASS_MAP'):
+            self.engine_combo.addItems(ai_engines.ENGINE_TYPE_TO_CLASS_MAP.keys())
+        else:
+            # Fallback or error handling if import failed or map is not there
+            # This case should ideally not be hit if imports are correct
+            self.engine_combo.addItem("Error: Engines not loaded")
+        form_layout.addRow(self.engine_label, self.engine_combo)
+
+        # Model Name (Optional)
+        self.model_name_label = QLabel(self.tr("Model Name (Optional):"))
+        self.model_name_input = QLineEdit()
+        form_layout.addRow(self.model_name_label, self.model_name_input)
+
+        # System Prompt
+        self.system_prompt_label = QLabel(self.tr("System Prompt:"))
+        self.system_prompt_input = QTextEdit()
+        self.system_prompt_input.setMinimumHeight(100)
+        form_layout.addRow(self.system_prompt_label, self.system_prompt_input)
+
+        main_layout.addLayout(form_layout)
+
+        # Dialog Buttons
+        self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.button_box.accepted.connect(self.accept) # Connect to custom accept method
+        self.button_box.rejected.connect(self.reject)
+        main_layout.addWidget(self.button_box)
+
+    def accept(self):
+        """
+        Validates the bot name before accepting the dialog.
+
+        Checks if the bot name is empty or if it already exists.
+        If validation fails, a warning message is displayed, and the dialog
+        remains open. If validation passes, the dialog is accepted.
+        """
+        bot_name = self.bot_name_input.text().strip()
+        if not bot_name:
+            QMessageBox.warning(self, self.tr("Input Error"), self.tr("Bot name cannot be empty."))
+            return  # Keep dialog open
+
+        if bot_name in self.existing_bot_names:
+            QMessageBox.warning(self, self.tr("Input Error"), 
+                                self.tr("A bot named '{0}' already exists. Please choose a different name.").format(bot_name))
+            return  # Keep dialog open
+
+        super().accept() # All checks passed, proceed to close
+
+    def get_data(self) -> dict | None:
+        """Retrieves the data entered into the dialog.
+
+        Returns:
+            A dictionary containing the bot's configuration data if the dialog
+            was accepted (OK clicked), otherwise None. The dictionary includes:
+            - "bot_name": str
+            - "engine_type": str
+            - "model_name": str
+            - "system_prompt": str
+        """
+        if self.result() == QDialog.DialogCode.Accepted:
+            return {
+                "bot_name": self.bot_name_input.text(),
+                "engine_type": self.engine_combo.currentText(),
+                "model_name": self.model_name_input.text(),
+                "system_prompt": self.system_prompt_input.toPlainText()
+            }
+        return None
+
+    # Using QApplication.translate for robustness if this dialog becomes more complex
+    # or needs its own translation context.
+    def tr(self, text, disambiguation=None, n=-1) -> str:
+        """Translates text using the application's translator.
+
+        Args:
+            text: The text to translate.
+            disambiguation: Optional disambiguation string.
+            n: Optional number for plural forms.
+
+        Returns:
+            The translated string.
+        """
+        return QApplication.translate("AddBotDialog", text, disambiguation, n)
+
+
 class MainWindow(QMainWindow):
     """The main window of the chat application.
 
@@ -808,11 +924,15 @@ class MainWindow(QMainWindow):
 
 
     def _add_bot_to_chatroom(self):
-        """Handles adding a new bot to the selected chatroom.
+        """Handles adding a new bot to the selected chatroom using the AddBotDialog.
 
-        Prompts the user for the bot's name, system prompt, and AI engine type.
-        If all inputs are valid, creates the bot and adds it to the chatroom.
-        Updates the UI accordingly. Warns if API keys are missing for the chosen engine.
+        Opens the AddBotDialog to gather the bot's name, AI engine, model name (optional),
+        and system prompt. If the dialog is accepted and inputs are valid (e.g., non-empty
+        bot name, bot name doesn't already exist), it proceeds to create the bot.
+        The method then calls the `create_bot` factory function and adds the
+        resulting bot to the chatroom.
+        Updates the UI (bot list and response selector) accordingly.
+        Warns if an API key is missing for the chosen engine but still allows creation.
         """
         current_chatroom_item = self.chatroom_list_widget.currentItem()
         if not current_chatroom_item:
@@ -822,57 +942,65 @@ class MainWindow(QMainWindow):
         chatroom_name = current_chatroom_item.text()
         chatroom = self.chatroom_manager.get_chatroom(chatroom_name)
         if not chatroom: # Should not happen if item is selected
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Selected chatroom not found.")) # Should be translated
-            return
-
-        bot_name, ok_name = QInputDialog.getText(self, self.tr("Add Bot"), self.tr("Enter bot name (role):"))
-        if not (ok_name and bot_name.strip()): 
-            self.logger.debug(f"Add bot to chatroom '{chatroom_name}' cancelled or name was invalid (name: '{bot_name}').") # DEBUG - user cancelled
-            return
-        bot_name = bot_name.strip() 
-        
-        if chatroom.get_bot(bot_name):
-            self.logger.warning(f"Attempt to add bot with existing name '{bot_name}' to chatroom '{chatroom_name}'.") # WARNING - user action failed
-            QMessageBox.warning(self, self.tr("Error"), self.tr("A bot named '{0}' already exists in this chatroom.").format(bot_name))
-            return
-
-        system_prompt, ok_prompt = QInputDialog.getText(self, self.tr("Add Bot"), self.tr("Enter system prompt for {0}:").format(bot_name))
-        if not ok_prompt: 
-            self.logger.debug(f"Add bot '{bot_name}' to chatroom '{chatroom_name}' cancelled by user at system prompt input.") # DEBUG - user cancelled
-            return 
-
-        engine_type_list = list(ai_engines.ENGINE_TYPE_TO_CLASS_MAP.keys())
-        engine_type, ok_engine = QInputDialog.getItem(self, self.tr("Add Bot"), self.tr("Select AI engine for {0}:").format(bot_name), engine_type_list, 0, False)
-        if not ok_engine:
-            self.logger.debug(f"Add bot '{bot_name}' to chatroom '{chatroom_name}' cancelled by user at engine selection.") # DEBUG - user cancelled
+            QMessageBox.critical(self, self.tr("Error"), self.tr("Selected chatroom not found."))
             return
         
-        self.logger.info(f"Attempting to add bot '{bot_name}' with engine '{engine_type}' to chatroom '{chatroom_name}'.") # INFO - user action
+        existing_bot_names_in_chatroom = [bot.get_name() for bot in chatroom.list_bots()]
+        dialog = AddBotDialog(existing_bot_names=existing_bot_names_in_chatroom, parent=self)
 
-        api_key = self.api_key_manager.load_key(engine_type) 
-        # Do NOT log the api_key itself
-        if not api_key and engine_type in ai_engines.ENGINE_TYPE_TO_CLASS_MAP: 
-            self.logger.warning(f"API Key for {engine_type} not found when adding bot '{bot_name}'. Bot will be created but may not function.") # WARNING - API key missing
-            QMessageBox.warning(self, self.tr("Warning"), 
-                                self.tr("API Key for {0} not found. Please set it in Settings. Bot will be created but may not function.").format(engine_type))
+        if dialog.exec(): # This now uses the overridden accept method for validation
+            data = dialog.get_data()
+            if not data: # Safeguard, should not happen if accept validation passed
+                return
 
-        engine_config = {"engine_type": engine_type, "api_key": api_key}
+            # Bot name validation (emptiness, duplication) is now handled within AddBotDialog.accept()
+            bot_name = data["bot_name"] # Already stripped in dialog's get_data or accept
+            engine_type = data["engine_type"]
+            model_name = data["model_name"] # Already stripped
+            system_prompt = data["system_prompt"]
+            # Validation for bot_name (empty, duplicate) is now done in AddBotDialog.accept()
+            
+            # Check if the selected engine type requires an API key by looking at the class constructor
+            # This check is illustrative; a more robust check might involve inspecting constructor parameters
+            # or having a metadata attribute in engine classes.
+            engine_class = ai_engines.ENGINE_TYPE_TO_CLASS_MAP.get(engine_type)
+            requires_api_key = False # Default assumption
+            if engine_class:
+                import inspect
+                constructor_params = inspect.signature(engine_class.__init__).parameters
+                if 'api_key' in constructor_params: # A simple check if 'api_key' is an explicit param
+                    # Further check if it's not None or has no default value, or if the class has a specific attribute
+                    # For this example, we assume if api_key is in params, it might be needed.
+                    # A more reliable way would be an attribute on the engine class itself like `requires_api_key = True`
+                    if constructor_params['api_key'].default == inspect.Parameter.empty:
+                         requires_api_key = True
 
-        try:
-            # Use the create_bot factory function
-            new_bot = create_bot(bot_name=bot_name, system_prompt=system_prompt, engine_config=engine_config)
-        except ValueError as e:
-            self.logger.error(f"Error creating bot '{bot_name}' with engine '{engine_type}': {e}", exc_info=True)
-            QMessageBox.critical(self, self.tr("Error Creating Bot"), self.tr("Could not create bot: {0}").format(str(e)))
-            return
 
-        if chatroom.add_bot(new_bot): 
-            self.logger.info(f"Bot '{bot_name}' (engine: {engine_type}) added to chatroom '{chatroom_name}' successfully.") # INFO - user action success
-            self._update_bot_list(chatroom_name)
-            self._update_bot_response_selector() 
+            if requires_api_key and not api_key : # Check against the specific engine type
+                self.logger.warning(f"API Key for {engine_type} not found when adding bot '{bot_name}'. Bot will be created but may not function as expected.")
+                QMessageBox.warning(self, self.tr("API Key Missing"),
+                                    self.tr("API Key for {0} not found. Please set it in Settings. The bot will be created, but may not function as expected without it.").format(engine_type))
+
+            engine_config = {"engine_type": engine_type, "api_key": api_key if api_key else None}
+            if model_name:
+                engine_config["model_name"] = model_name
+
+            try:
+                new_bot = create_bot(bot_name=bot_name, system_prompt=system_prompt, engine_config=engine_config)
+            except ValueError as e:
+                self.logger.error(f"Error creating bot '{bot_name}' with engine '{engine_type}': {e}", exc_info=True)
+                QMessageBox.critical(self, self.tr("Error Creating Bot"), self.tr("Could not create bot: {0}").format(str(e)))
+                return
+
+            if chatroom.add_bot(new_bot):
+                self.logger.info(f"Bot '{bot_name}' (engine: {engine_type}, model: {model_name if model_name else 'default'}) added to chatroom '{chatroom_name}' successfully.")
+                self._update_bot_list(chatroom_name)
+                self._update_bot_response_selector()
+            else:
+                self.logger.error(f"Failed to add bot '{bot_name}' to chatroom '{chatroom_name}' for an unknown reason after initial checks.")
+                QMessageBox.critical(self, self.tr("Error"), self.tr("Could not add bot. An unexpected error occurred."))
         else:
-            self.logger.error(f"Failed to add bot '{bot_name}' to chatroom '{chatroom_name}' for an unknown reason after initial checks.") # ERROR - unexpected failure
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Could not add bot. An unexpected error occurred."))
+            self.logger.debug(f"Add bot to chatroom '{chatroom_name}' cancelled by user in dialog.")
 
 
     def _show_api_key_dialog(self):
