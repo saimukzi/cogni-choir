@@ -130,7 +130,7 @@ class TestChatroom(unittest.TestCase):
         # --- Scenario 1: Key required, not provided (Gemini) ---
         mock_api_key_manager_missing_gemini = MagicMock(spec=ApiKeyManager)
         mock_api_key_manager_missing_gemini.load_key.side_effect = lambda service_name: {
-            "AzureOpenAI": "azureopenai_test_key" # No Gemini key, NoKey key also missing (but not needed)
+            "AzureOpenAIEngine": "azureopenai_test_key" # No Gemini key, NoKey key also missing (but not needed)
         }.get(service_name)
         
         # Bot data for this specific test scenario
@@ -224,8 +224,8 @@ class TestChatroom(unittest.TestCase):
         # --- Scenario 2: All Keys provided / Not Required (original test logic adapted) ---
         mock_api_key_manager_all_keys = MagicMock(spec=ApiKeyManager)
         mock_api_key_manager_all_keys.load_key.side_effect = lambda service_name: {
-            "Gemini": "gemini_test_key_loaded",
-            "AzureOpenAI": "azureopenai_test_key_loaded",
+            "GeminiEngine": "gemini_test_key_loaded",
+            "AzureOpenAIEngine": "azureopenai_test_key_loaded",
             # NoKeyEngine doesn't need a key, so it doesn't matter if "NoKey" is here or not
         }.get(service_name)
 
@@ -447,7 +447,7 @@ class TestChatroomManager(unittest.TestCase):
         self.assertEqual(len(cloned_chatroom.get_messages()), 0)
         
         # Check that ApiKeyManager.load_key was called for the bot's engine type
-        self.mock_api_key_manager.load_key.assert_called_with("Gemini")
+        self.mock_api_key_manager.load_key.assert_called_with("GeminiEngine")
         
         # Check that the cloned chatroom's _save was called (by create_chatroom and add_bot)
         # create_chatroom for clone + add_bot for the cloned bot

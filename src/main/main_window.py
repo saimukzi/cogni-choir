@@ -964,22 +964,8 @@ class MainWindow(QMainWindow):
             # This check is illustrative; a more robust check might involve inspecting constructor parameters
             # or having a metadata attribute in engine classes.
             engine_class = ai_engines.ENGINE_TYPE_TO_CLASS_MAP.get(engine_type)
-            requires_api_key = False # Default assumption
-            if engine_class:
-                import inspect
-                constructor_params = inspect.signature(engine_class.__init__).parameters
-                if 'api_key' in constructor_params: # A simple check if 'api_key' is an explicit param
-                    # Further check if it's not None or has no default value, or if the class has a specific attribute
-                    # For this example, we assume if api_key is in params, it might be needed.
-                    # A more reliable way would be an attribute on the engine class itself like `requires_api_key = True`
-                    if constructor_params['api_key'].default == inspect.Parameter.empty:
-                         requires_api_key = True
 
-
-            if requires_api_key and not api_key : # Check against the specific engine type
-                self.logger.warning(f"API Key for {engine_type} not found when adding bot '{bot_name}'. Bot will be created but may not function as expected.")
-                QMessageBox.warning(self, self.tr("API Key Missing"),
-                                    self.tr("API Key for {0} not found. Please set it in Settings. The bot will be created, but may not function as expected without it.").format(engine_type))
+            api_key = self.api_key_manager.load_key(engine_type)
 
             engine_config = {"engine_type": engine_type, "api_key": api_key if api_key else None}
             if model_name:
