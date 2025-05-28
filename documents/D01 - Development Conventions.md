@@ -19,9 +19,8 @@ All python code should be documented in Google style.
 
 ## Forbidden python libraries
 
-The following python libraries are forbidden and MUST NOT be used:
-
-- google-generativeai: Deprecated, use google-genai instead.
+- Do not use google-generativeai.  google-generativeai is deprecated.  Use google-genai instead.
+- Do not use google.generativeai .  google.generativeai is deprecated.  Use google.genai instead.
 
 ## etc
 
