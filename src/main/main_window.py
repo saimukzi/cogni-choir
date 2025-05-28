@@ -367,22 +367,25 @@ class MainWindow(QMainWindow):
         self.chatroom_list_widget.currentItemChanged.connect(self._on_selected_chatroom_changed)
         # Attempt to set stylesheet for selected item clarity
         self.chatroom_list_widget.setStyleSheet("QListWidget::item:selected { background-color: #ADD8E6; color: black; }")
+        self.chatroom_list_widget.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection) # Added
+        self.chatroom_list_widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu) # Added
+        self.chatroom_list_widget.customContextMenuRequested.connect(self._show_chatroom_context_menu) # Added
         left_panel_layout.addWidget(self.chatroom_list_widget)
         
         chatroom_buttons_layout = QHBoxLayout()
         self.new_chatroom_button = QPushButton(self.tr("New Chatroom")) # Store as member for state updates
         self.new_chatroom_button.clicked.connect(self._create_chatroom)
-        self.rename_chatroom_button = QPushButton(self.tr("Rename Chatroom")) # Store as member
-        self.rename_chatroom_button.clicked.connect(self._rename_chatroom)
-        self.clone_chatroom_button = QPushButton(self.tr("Clone Chatroom")) 
-        self.clone_chatroom_button.clicked.connect(self._clone_selected_chatroom)
-        self.delete_chatroom_button = QPushButton(self.tr("Delete Chatroom")) # Store as member
-        self.delete_chatroom_button.clicked.connect(self._delete_chatroom)
+        # self.rename_chatroom_button = QPushButton(self.tr("Rename Chatroom")) # REMOVED
+        # self.rename_chatroom_button.clicked.connect(self._rename_chatroom) # REMOVED
+        # self.clone_chatroom_button = QPushButton(self.tr("Clone Chatroom")) # REMOVED
+        # self.clone_chatroom_button.clicked.connect(self._clone_selected_chatroom) # REMOVED
+        # self.delete_chatroom_button = QPushButton(self.tr("Delete Chatroom")) # REMOVED
+        # self.delete_chatroom_button.clicked.connect(self._delete_chatroom) # REMOVED
         
         chatroom_buttons_layout.addWidget(self.new_chatroom_button)
-        chatroom_buttons_layout.addWidget(self.rename_chatroom_button)
-        chatroom_buttons_layout.addWidget(self.clone_chatroom_button)
-        chatroom_buttons_layout.addWidget(self.delete_chatroom_button)
+        # chatroom_buttons_layout.addWidget(self.rename_chatroom_button) # REMOVED
+        # chatroom_buttons_layout.addWidget(self.clone_chatroom_button) # REMOVED
+        # chatroom_buttons_layout.addWidget(self.delete_chatroom_button) # REMOVED
         left_panel_layout.addLayout(chatroom_buttons_layout)
 
         # Bot management UI elements have been moved to the new right panel.
@@ -498,6 +501,62 @@ class MainWindow(QMainWindow):
             delete_action.triggered.connect(self._delete_selected_messages)
         menu.exec(self.message_display_area.mapToGlobal(position))
 
+    def _show_chatroom_context_menu(self, position: QPoint):
+        """Displays a context menu for chatroom items.
+
+        Args:
+            position: The position where the context menu was requested.
+        """
+        selected_items = self.chatroom_list_widget.selectedItems()
+        if not selected_items:
+            return
+
+        menu = QMenu(self)
+        num_selected = len(selected_items)
+
+        if num_selected == 1:
+            # Ensure currentItem is one of the selected_items, or set it.
+            # This is important because _rename_chatroom, _clone_selected_chatroom, _delete_chatroom
+            # currently rely on currentItem().
+            # item_at_pos = self.chatroom_list_widget.itemAt(position) # The item actually clicked
+            # if item_at_pos and item_at_pos in selected_items:
+            #    self.chatroom_list_widget.setCurrentItem(item_at_pos)
+            # elif selected_items: # Fallback if specific clicked item not easily determined or not in selection
+            #    self.chatroom_list_widget.setCurrentItem(selected_items[0])
+
+
+            rename_action = QAction(self.tr("Rename"), self)
+            rename_action.triggered.connect(self._rename_chatroom) # Relies on currentItem
+            menu.addAction(rename_action)
+
+            clone_action = QAction(self.tr("Clone"), self)
+            clone_action.triggered.connect(self._clone_selected_chatroom) # Relies on currentItem
+            menu.addAction(clone_action)
+            
+            menu.addSeparator()
+
+            delete_action = QAction(self.tr("Delete"), self)
+            delete_action.triggered.connect(self._delete_chatroom) # Relies on currentItem
+            menu.addAction(delete_action)
+
+        elif num_selected > 1:
+            # These actions will currently operate on self.chatroom_list_widget.currentItem()
+            # which might not be intuitive if multiple items are selected.
+            # The target methods _clone_selected_chatroom and _delete_chatroom
+            # will need to be updated to iterate over all selectedItems().
+            
+            clone_selected_action = QAction(self.tr("Clone Selected Chatrooms ({0})").format(num_selected), self)
+            clone_selected_action.triggered.connect(self._clone_selected_chatroom) # Needs update for multi-select
+            menu.addAction(clone_selected_action)
+
+            menu.addSeparator()
+
+            delete_selected_action = QAction(self.tr("Delete Selected Chatrooms ({0})").format(num_selected), self)
+            delete_selected_action.triggered.connect(self._delete_chatroom) # Needs update for multi-select
+            menu.addAction(delete_selected_action)
+
+        menu.exec(self.chatroom_list_widget.mapToGlobal(position))
+
 
     def _update_bot_panel_state(self, enabled: bool, chatroom_name: str | None = None):
         """Updates the enabled state of the bot management panel and its label.
@@ -529,9 +588,9 @@ class MainWindow(QMainWindow):
         are enabled only if a chatroom is currently selected in the list.
         """
         has_selection = bool(self.chatroom_list_widget.currentItem())
-        self.rename_chatroom_button.setEnabled(has_selection)
-        self.clone_chatroom_button.setEnabled(has_selection)
-        self.delete_chatroom_button.setEnabled(has_selection)
+        # self.rename_chatroom_button.setEnabled(has_selection) # REMOVED
+        # self.clone_chatroom_button.setEnabled(has_selection) # REMOVED
+        # self.delete_chatroom_button.setEnabled(has_selection) # REMOVED
 
 
     def _update_chatroom_list(self):
@@ -588,34 +647,59 @@ class MainWindow(QMainWindow):
 
 
     def _clone_selected_chatroom(self):
-        """Clones the currently selected chatroom.
+        """Clones the currently selected chatroom(s).
 
-        Prompts the user for confirmation. If successful, updates the
-        chatroom list and optionally selects the newly cloned chatroom.
-        Shows success or error messages accordingly.
+        If multiple chatrooms are selected, attempts to clone each one.
+        Updates the chatroom list and shows a summary message.
         """
-        current_item = self.chatroom_list_widget.currentItem()
-        if not current_item:
-            QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected to clone."))
+        selected_items = self.chatroom_list_widget.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom(s) selected to clone."))
             return
 
-        original_chatroom_name = current_item.text()
-        self.logger.info(f"Attempting to clone chatroom: {original_chatroom_name}")
-        cloned_chatroom = self.chatroom_manager.clone_chatroom(original_chatroom_name)
+        cloned_count = 0
+        attempted_count = len(selected_items)
+        last_cloned_name = None
+        # Store original names for the final message if only one was selected
+        original_single_selected_name = selected_items[0].text() if attempted_count == 1 else None
 
-        if cloned_chatroom:
-            self.logger.info(f"Chatroom '{original_chatroom_name}' cloned successfully as '{cloned_chatroom.name}'.")
-            self._update_chatroom_list()
-            # Optionally, find and select the new chatroom in the list
-            for i in range(self.chatroom_list_widget.count()):
-                if self.chatroom_list_widget.item(i).text() == cloned_chatroom.name:
-                    self.chatroom_list_widget.setCurrentRow(i)
-                    break
-            QMessageBox.information(self, self.tr("Success"), 
-                                    self.tr("Chatroom '{0}' cloned as '{1}'.").format(original_chatroom_name, cloned_chatroom.name))
-        else:
-            self.logger.error(f"Failed to clone chatroom '{original_chatroom_name}'.")
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Failed to clone chatroom '{0}'.").format(original_chatroom_name))
+
+        for item in selected_items:
+            original_chatroom_name = item.text()
+            self.logger.info(f"Attempting to clone chatroom: {original_chatroom_name}")
+            cloned_chatroom = self.chatroom_manager.clone_chatroom(original_chatroom_name)
+            if cloned_chatroom:
+                self.logger.info(f"Chatroom '{original_chatroom_name}' cloned successfully as '{cloned_chatroom.name}'.")
+                cloned_count += 1
+                last_cloned_name = cloned_chatroom.name # Keep track of the last one for single selection focus
+            else:
+                self.logger.error(f"Failed to clone chatroom '{original_chatroom_name}'.")
+                # Individual error message for each failure might be too noisy for multiple selections.
+                # Rely on the summary and logs.
+
+        self._update_chatroom_list()
+
+        if attempted_count == 1: # Single selection
+            if cloned_count == 1 and last_cloned_name and original_single_selected_name:
+                 # Try to select the newly cloned chatroom if it was a single clone
+                for i in range(self.chatroom_list_widget.count()):
+                    if self.chatroom_list_widget.item(i).text() == last_cloned_name:
+                        self.chatroom_list_widget.setCurrentRow(i)
+                        break
+                QMessageBox.information(self, self.tr("Success"),
+                                        self.tr("Chatroom '{0}' cloned as '{1}'.").format(original_single_selected_name, last_cloned_name))
+            elif original_single_selected_name: # Ensure it's not None
+                QMessageBox.critical(self, self.tr("Error"), self.tr("Failed to clone chatroom '{0}'.").format(original_single_selected_name))
+        else: # Multiple selections
+            if cloned_count == attempted_count:
+                QMessageBox.information(self, self.tr("Success"),
+                                        self.tr("Successfully cloned {0} chatroom(s).").format(cloned_count))
+            elif cloned_count > 0:
+                QMessageBox.warning(self, self.tr("Partial Success"),
+                                    self.tr("Successfully cloned {0} out of {1} selected chatrooms. See log for details.").format(cloned_count, attempted_count))
+            else:
+                QMessageBox.critical(self, self.tr("Error"),
+                                     self.tr("Failed to clone any of the selected {0} chatrooms. See log for details.").format(attempted_count))
 
 
     def _update_message_display(self):
@@ -912,32 +996,68 @@ class MainWindow(QMainWindow):
     def _delete_chatroom(self):
         """Handles deletion of the selected chatroom.
 
-        Prompts the user for confirmation. If confirmed, the chatroom is
-        deleted from the manager and its file is removed from disk. The
+        Prompts the user for confirmation. If confirmed, the chatroom(s) are
+        deleted from the manager and their file(s) are removed from disk. The
         UI is then updated.
         """
-        current_item = self.chatroom_list_widget.currentItem()
-        if not current_item:
-            QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected to delete."))
+        selected_items = self.chatroom_list_widget.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom(s) selected to delete."))
             return
 
-        name = current_item.text()
-        reply = QMessageBox.question(self, self.tr("Confirm Delete"), 
-                                     self.tr("Are you sure you want to delete chatroom '{0}'?").format(name),
+        num_selected = len(selected_items)
+        names_to_delete = [item.text() for item in selected_items]
+
+        # For single deletion, keep the old simple message
+        if num_selected == 1:
+            confirm_message = self.tr("Are you sure you want to delete chatroom '{0}'?").format(names_to_delete[0])
+        else: # For multiple deletions, list the names
+            confirm_message = self.tr("Are you sure you want to delete the following {0} chatroom(s)?\n\n- {1}").format(
+                num_selected, "\n- ".join(names_to_delete)
+            )
+        
+        reply = QMessageBox.question(self, self.tr("Confirm Deletion"), confirm_message,
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
 
         if reply == QMessageBox.StandardButton.Yes:
-            self.logger.info(f"Deleting chatroom '{name}'.")
-            self.chatroom_manager.delete_chatroom(name)
+            deleted_count = 0
+            for name in names_to_delete:
+                self.logger.info(f"Deleting chatroom '{name}'.")
+                if self.chatroom_manager.delete_chatroom(name): # delete_chatroom returns True on success, False on failure
+                    deleted_count += 1
+                else:
+                    # This case (delete_chatroom returns False) implies the chatroom wasn't found or couldn't be deleted.
+                    self.logger.warning(f"Failed to delete chatroom '{name}' during batch operation (it might have already been deleted or an error occurred).")
+            
             self._update_chatroom_list()
-            # Bot list will be cleared by _on_selected_chatroom_changed if no item is selected
-            # or updated if a new item gets selected.
-            # Explicitly clear if list becomes empty:
-            if self.chatroom_list_widget.count() == 0:
-                 self._update_bot_list(None)
-                 self._update_bot_panel_state(False)
+            # _update_chatroom_list will handle UI updates including bot list and panel if necessary.
+            # For instance, if the current selection is removed, _on_selected_chatroom_changed will eventually
+            # be triggered with a None current item, or a new current item.
+            # If the list becomes empty, _update_chatroom_list handles this by calling:
+            # self._update_bot_list(None)
+            # self._update_bot_panel_state(False)
+            # self._update_message_related_ui_state(False)
+
+            if num_selected == 1: # Message for single deletion
+                if deleted_count == 1:
+                    # Implicitly successful as no specific message for single success needed other than list update
+                    # QMessageBox.information(self, self.tr("Success"), self.tr("Chatroom '{0}' deleted.").format(names_to_delete[0])) # Optional: could be too noisy
+                    pass
+                else: # Should not happen if delete_chatroom was successful, but as a fallback
+                    QMessageBox.warning(self, self.tr("Deletion Failed"), self.tr("Could not delete chatroom '{0}'. It may have already been removed.").format(names_to_delete[0]))
+
+            else: # Messages for multiple deletions
+                if deleted_count == num_selected:
+                     QMessageBox.information(self, self.tr("Success"),
+                                            self.tr("Successfully deleted {0} chatroom(s).").format(deleted_count))
+                elif deleted_count > 0:
+                    QMessageBox.warning(self, self.tr("Partial Deletion"),
+                                         self.tr("Successfully deleted {0} out of {1} selected chatrooms. Some may have already been deleted or an error occurred.").format(deleted_count, num_selected))
+                else: # deleted_count == 0
+                     QMessageBox.critical(self, self.tr("Deletion Failed"),
+                                         self.tr("Failed to delete any of the selected {0} chatrooms. They may have already been deleted or an error occurred.").format(num_selected))
         else:
-            self.logger.debug(f"Deletion of chatroom '{name}' cancelled by user.") # DEBUG - user cancelled
+            self.logger.debug(f"Deletion of {num_selected} chatroom(s) cancelled by user.")
 
 
     def _update_bot_list(self, chatroom_name: str | None):
