@@ -1334,6 +1334,7 @@ def main():
     )
     logging.info("Application starting")
     app = QApplication(sys.argv)
+    app.setStyleSheet("QWidget { font-size: 12pt; }")
 
     translator = QTranslator()
     # Try to load system locale, fallback to zh_TW for testing, then to nothing
