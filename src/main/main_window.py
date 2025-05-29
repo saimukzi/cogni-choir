@@ -24,20 +24,12 @@ import os # For path construction
 import logging # For logging
 
 # Attempt to import from sibling modules
-try:
-    from .chatroom import Chatroom, ChatroomManager
-    from .ai_bots import Bot, AIEngine, create_bot # AIEngine and Bot remain in ai_bots, added create_bot
-    from .ai_engines import GeminiEngine, GrokEngine # Engines from new package
-    from .api_key_manager import ApiKeyManager
-    from .message import Message
-    from . import ai_engines
-except ImportError:
-    # Fallback for running script directly for testing
-    from chatroom import Chatroom, ChatroomManager
-    from ai_bots import Bot, AIEngine, create_bot # AIEngine and Bot remain in ai_bots, added create_bot
-    from ai_engines import GeminiEngine, GrokEngine # Engines from new package
-    from api_key_manager import ApiKeyManager
-    from message import Message
+from .chatroom import Chatroom, ChatroomManager
+from .ai_bots import Bot, AIEngine, create_bot # AIEngine and Bot remain in ai_bots, added create_bot
+from .ai_engines import GeminiEngine, GrokEngine # Engines from new package
+from .api_key_manager import ApiKeyManager
+from .message import Message
+from . import ai_engines
 
 
 class ApiKeyDialog(QDialog):
