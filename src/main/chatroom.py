@@ -372,23 +372,28 @@ class ChatroomManager:
         self.logger.info(f"Chatroom '{name}' created successfully. File: {chatroom.filepath}") # INFO
         return chatroom
 
-    def delete_chatroom(self, name: str):
+    def delete_chatroom(self, name: str) -> bool:
         """Deletes a chatroom and its corresponding file from disk.
 
         Args:
             name: The name of the chatroom to delete.
+        
+        Returns:
+            Returns True if the chatroom was successfully deleted, False otherwise.
         """
         chatroom = self.chatrooms.pop(name, None)
         if chatroom and chatroom.filepath and os.path.exists(chatroom.filepath):
             try:
                 os.remove(chatroom.filepath)
                 self.logger.info(f"Chatroom '{name}' and its file '{chatroom.filepath}' deleted successfully.") # INFO
+                return True
             except Exception as e:
                 self.logger.error(f"Error deleting file {chatroom.filepath} for chatroom '{name}': {e}", exc_info=True) # ERROR
         elif chatroom: 
              self.logger.info(f"Chatroom '{name}' removed from manager (file not found or path missing).") # INFO
         else: 
             self.logger.warning(f"Attempted to delete non-existent chatroom '{name}'.") # WARNING
+        return False
 
 
     def get_chatroom(self, name: str) -> Optional[Chatroom]:
