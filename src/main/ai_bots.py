@@ -28,7 +28,8 @@ class Bot:
         """Converts the bot's configuration to a dictionary.
 
         Returns:
-            A dictionary containing the bot's name, system prompt, engine type, and model name.
+            A dictionary containing the bot's name, system prompt,
+            engine type (class name of the engine), and model name.
         """
         engine_type = self.engine.__class__.__name__
         model_name = self.engine.model_name if hasattr(self.engine, 'model_name') else None

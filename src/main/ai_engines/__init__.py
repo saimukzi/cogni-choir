@@ -16,14 +16,14 @@ from .azure_openai_engine import AzureOpenAIEngine
 
 __all__ = [
     "GeminiEngine",
-    "OpenAIEngine",
+    # "OpenAIEngine", # Not currently enabled
     "GrokEngine",
     "AzureOpenAIEngine",
 ]
 
 ENGINE_TYPE_TO_CLASS_MAP = {
     "GeminiEngine": GeminiEngine,
-    # "OpenAIEngine": OpenAIEngine,
+    # "OpenAIEngine": OpenAIEngine, # Not currently enabled
     "GrokEngine": GrokEngine,
     "AzureOpenAIEngine": AzureOpenAIEngine,
 }

@@ -1,23 +1,15 @@
-import sys
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QListWidget, QPushButton, QLabel, QInputDialog, QMessageBox,
-    QListWidgetItem, QDialog, QComboBox, QLineEdit, QFormLayout,
-    QTextEdit, QSplitter, QAbstractItemView, QDialogButtonBox,
-    QMenu, QStyle, QSizePolicy # Added QMenu for context menu, QStyle, QSizePolicy
-)
-from PyQt6.QtGui import QAction
-from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint, QSize # Added QSize
-import os # For path construction
-import logging # For logging
+"""Dialog for creating and inserting a 'fake' message into a chatroom.
 
-# Attempt to import from sibling modules
-from .chatroom import Chatroom, ChatroomManager
-from .ai_bots import Bot, AIEngine, create_bot # AIEngine and Bot remain in ai_bots, added create_bot
-from .ai_engines import GeminiEngine, GrokEngine # Engines from new package
-from .api_key_manager import ApiKeyManager
-from .message import Message
-from . import ai_engines
+This module provides a QDialog subclass that allows users (primarily for
+development and testing purposes) to manually specify a sender (either "User"
+or an existing bot) and message content, then insert this message into the
+active chatroom.
+"""
+from PyQt6.QtWidgets import (
+    QApplication, QVBoxLayout, QLabel,
+    QDialog, QComboBox,
+    QTextEdit, QDialogButtonBox
+)
 
 
 class CreateFakeMessageDialog(QDialog):

@@ -1,22 +1,10 @@
-import sys
+"""Dialog for adding a new AI bot to a chatroom."""
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QListWidget, QPushButton, QLabel, QInputDialog, QMessageBox,
-    QListWidgetItem, QDialog, QComboBox, QLineEdit, QFormLayout,
-    QTextEdit, QSplitter, QAbstractItemView, QDialogButtonBox,
-    QMenu, QStyle, QSizePolicy # Added QMenu for context menu, QStyle, QSizePolicy
+    QApplication, QVBoxLayout, QLabel, QMessageBox,
+    QDialog, QComboBox, QLineEdit, QFormLayout,
+    QTextEdit, QDialogButtonBox
 )
-from PyQt6.QtGui import QAction
-from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint, QSize # Added QSize
-import os # For path construction
-import logging # For logging
-
 # Attempt to import from sibling modules
-from .chatroom import Chatroom, ChatroomManager
-from .ai_bots import Bot, AIEngine, create_bot # AIEngine and Bot remain in ai_bots, added create_bot
-from .ai_engines import GeminiEngine, GrokEngine # Engines from new package
-from .api_key_manager import ApiKeyManager
-from .message import Message
 from . import ai_engines
 
 class AddBotDialog(QDialog):
@@ -85,7 +73,8 @@ class AddBotDialog(QDialog):
 
         Checks if the bot name is empty or if it already exists.
         If validation fails, a warning message is displayed, and the dialog
-        remains open. If validation passes, the dialog is accepted.
+        remains open. If validation passes, `super().accept()` is called to
+        close the dialog.
         """
         bot_name = self.bot_name_input.text().strip()
         if not bot_name:

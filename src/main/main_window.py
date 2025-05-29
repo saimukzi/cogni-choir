@@ -14,21 +14,21 @@ import sys
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QPushButton, QLabel, QInputDialog, QMessageBox,
-    QListWidgetItem, QDialog, QComboBox, QLineEdit, QFormLayout,
-    QTextEdit, QSplitter, QAbstractItemView, QDialogButtonBox,
+    QListWidgetItem, QComboBox, QLineEdit,
+    QSplitter, QAbstractItemView,
     QMenu, QStyle, QSizePolicy # Added QMenu for context menu, QStyle, QSizePolicy
 )
 from PyQt6.QtGui import QAction
-from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint, QSize # Added QSize
+from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint # Added QSize
 import os # For path construction
 import logging # For logging
 
 # Attempt to import from sibling modules
 from .chatroom import Chatroom, ChatroomManager
-from .ai_bots import Bot, AIEngine, create_bot # AIEngine and Bot remain in ai_bots, added create_bot
+from .ai_bots import Bot, create_bot # AIEngine and Bot remain in ai_bots, added create_bot
 from .ai_engines import GeminiEngine, GrokEngine # Engines from new package
 from .api_key_manager import ApiKeyManager
-from .message import Message
+# from .message import Message # Not directly used by MainWindow
 from . import ai_engines
 from .add_bot_dialog import AddBotDialog
 from .create_fake_message_dialog import CreateFakeMessageDialog

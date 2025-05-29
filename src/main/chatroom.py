@@ -13,9 +13,10 @@ import os
 import json
 import re
 import glob
-from typing import Optional, Union # For type hints
+from typing import Optional # For type hints
 
 from .ai_bots import Bot # Keep this for type hinting and Bot.to_dict()
+# create_bot is imported locally in methods that use it.
 from .message import Message
 
 DATA_DIR = os.path.join("data", "chatrooms")

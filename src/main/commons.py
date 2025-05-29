@@ -19,7 +19,7 @@ def read_str(filepath : str) -> str:
     """Reads the content of a file and returns it as a string.
 
     Args:
-        filepath (str): The path to the file.
+        filepath: str. The path to the file.
         
     Returns:
         str: The content of the file as a string.

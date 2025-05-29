@@ -1,9 +1,17 @@
+"""Unit tests for Chatroom and ChatroomManager classes.
+
+This module tests the core functionalities of chatrooms, including managing
+bots and messages, serialization (to_dict, from_dict), and persistence.
+It also tests the ChatroomManager for operations like creating, loading,
+deleting, renaming, and cloning chatrooms, often using mocks for file
+operations and API key management.
+"""
 import unittest
 from unittest.mock import patch, mock_open, MagicMock
 import sys
 import logging # Added import for logging
 import os
-import json
+# import json # json.load is patched directly where used
 import time # For message timestamp tests
 
 # Adjusting sys.path for direct imports
@@ -12,13 +20,15 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 from src.main.chatroom import Chatroom, ChatroomManager, _sanitize_filename, DATA_DIR
 from src.main.ai_bots import Bot # Bot is still in ai_bots
 from src.main.ai_base import AIEngine # Import AIEngine from ai_base for spec
-from src.main.ai_engines import GeminiEngine, GrokEngine, AzureOpenAIEngine # Engines from new package, GrokEngine added
+from src.main.ai_engines import GeminiEngine, AzureOpenAIEngine # Engines from new package
 from src.main.message import Message
 from src.main.api_key_manager import ApiKeyManager
 
 
 class TestChatroom(unittest.TestCase):
+    """Tests for the Chatroom class."""
     def setUp(self):
+        """Sets up a Chatroom instance with a mock manager for each test."""
         self.mock_manager = MagicMock(spec=ChatroomManager)
         self.mock_manager.api_key_manager = MagicMock(spec=ApiKeyManager) # Mock ApiKeyManager on the mock manager
         
@@ -29,6 +39,7 @@ class TestChatroom(unittest.TestCase):
         self.dummy_engine = GeminiEngine(api_key="test_key") 
 
     def test_initialization(self):
+        """Tests the initial state of a newly created Chatroom."""
         self.assertEqual(self.chatroom.name, "Test Room") # Use property
         self.assertEqual(len(self.chatroom.list_bots()), 0)
         self.assertEqual(len(self.chatroom.get_messages()), 0)
@@ -38,6 +49,7 @@ class TestChatroom(unittest.TestCase):
     #     pass 
 
     def test_add_get_list_remove_bot(self):
+        """Tests adding, retrieving, listing, and removing bots from a chatroom."""
         bot1 = Bot("Bot1", "System prompt 1", self.dummy_engine)
         bot2 = Bot("Bot2", "System prompt 2", self.dummy_engine)
 
@@ -67,6 +79,7 @@ class TestChatroom(unittest.TestCase):
         self.mock_manager._notify_chatroom_updated.assert_called_with(self.chatroom)
 
     def test_add_get_messages(self):
+        """Tests adding messages to the chatroom and retrieving them."""
         msg1 = self.chatroom.add_message("User1", "Hello")
         self.assertIsInstance(msg1, Message)
         self.assertEqual(len(self.chatroom.get_messages()), 1)
@@ -100,6 +113,19 @@ class TestChatroom(unittest.TestCase):
 
     @patch.object(logging.getLogger('src.main.chatroom.Chatroom'), 'warning')
     def test_chatroom_save_load_cycle(self, mock_logger_warning):
+        """Tests the Chatroom to_dict and from_dict methods (serialization/deserialization).
+        
+        This comprehensive test covers scenarios including:
+        - Bots with different AI engine types (Gemini, AzureOpenAI, and a custom NoKeyEngine).
+        - Correct serialization of bot details (name, prompt, engine type, model name).
+        - Deserialization (`from_dict`) behavior when API keys are available, partially
+          available, or missing for bots that require them, verifying that appropriate
+          warnings are logged.
+        - Ensures messages are correctly serialized and deserialized.
+        - Verifies that bots with unsupported engine types (like the test's NoKeyEngine
+          which isn't in the main application's engine map) are not loaded and
+          trigger appropriate warnings.
+        """
         # Define NoKeyEngine (can be an inner class or defined in the test module)
         class NoKeyEngine(AIEngine): # Make sure AIEngine is imported
             def __init__(self, api_key: str = None, model_name: str = "no-key-model"):
@@ -291,7 +317,15 @@ class TestChatroom(unittest.TestCase):
 
 
 class TestChatroomManager(unittest.TestCase):
+    """Tests for the ChatroomManager class."""
     def setUp(self):
+        """Sets up a ChatroomManager instance with a mock ApiKeyManager.
+        
+        Also ensures the test data directory for chatroom files is clean.
+        The _load_chatrooms_from_disk method is patched during manager
+        initialization for most tests to prevent actual file system access unless
+        specifically testing that method.
+        """
         self.mock_api_key_manager = MagicMock(spec=ApiKeyManager)
         # Prevent _load_chatrooms_from_disk from running in __init__ for most tests
         with patch.object(ChatroomManager, '_load_chatrooms_from_disk', lambda self: None):
@@ -305,6 +339,7 @@ class TestChatroomManager(unittest.TestCase):
                     os.remove(os.path.join(self.test_data_dir_path, f))
     
     def tearDown(self):
+        """Cleans up any test chatroom files created during tests."""
         if os.path.exists(self.test_data_dir_path):
             for f in os.listdir(self.test_data_dir_path):
                 if f.startswith("test_") and f.endswith(".json"): # Be specific
@@ -315,6 +350,7 @@ class TestChatroomManager(unittest.TestCase):
     @patch('src.main.chatroom.json.load')
     @patch('src.main.chatroom.Chatroom.from_dict') # Mock the class method
     def test_load_chatrooms_from_disk(self, mock_chatroom_from_dict, mock_json_load, mock_open_file, mock_glob_glob):
+        """Tests the loading of chatrooms from disk (using mocks for file operations)."""
         # Setup mocks
         dummy_filepath1 = os.path.join(DATA_DIR, "test_room1.json")
         dummy_filepath2 = os.path.join(DATA_DIR, "test_room2.json")
@@ -346,6 +382,7 @@ class TestChatroomManager(unittest.TestCase):
 
     @patch('src.main.chatroom.Chatroom._save')
     def test_create_chatroom_saves_and_notifies(self, mock_chatroom_save):
+        """Tests that creating a chatroom correctly initializes it, saves it, and notifies."""
         room_name = "test_new_room_save"
         chatroom = self.manager.create_chatroom(room_name)
         
@@ -359,6 +396,7 @@ class TestChatroomManager(unittest.TestCase):
     @patch('src.main.chatroom.os.remove')
     @patch('src.main.chatroom.os.path.exists', return_value=True) # Assume file exists
     def test_delete_chatroom_removes_file(self, mock_path_exists, mock_os_remove):
+        """Tests that deleting a chatroom also removes its corresponding file."""
         room_name = "test_room_to_delete"
         # Create a dummy chatroom and add to manager for deletion
         dummy_chatroom = Chatroom(room_name)
@@ -374,6 +412,7 @@ class TestChatroomManager(unittest.TestCase):
     @patch('src.main.chatroom.Chatroom._save')
     @patch('src.main.chatroom.os.path.exists', return_value=True) # Assume old file exists
     def test_rename_chatroom_moves_file_and_saves(self, mock_path_exists, mock_chatroom_save, mock_os_remove):
+        """Tests that renaming a chatroom updates its name, filepath, saves the new file, and deletes the old file."""
         old_name = "test_old_room_name"
         new_name = "test_new_room_name"
         
@@ -409,6 +448,7 @@ class TestChatroomManager(unittest.TestCase):
         mock_chatroom_save.assert_called_once() # Chatroom._save on the renamed chatroom object
 
     def test_clone_chatroom(self):
+        """Tests cloning a chatroom, ensuring bots are copied but messages are not."""
         original_room_name = "test_original_clone"
         
         # Setup original chatroom
@@ -455,6 +495,7 @@ class TestChatroomManager(unittest.TestCase):
 
 
     def test_list_chatrooms_returns_values(self):
+        """Tests that list_chatrooms returns a list of Chatroom objects, not just names."""
         # This test is adjusted because the original test_list_chatrooms
         # was based on list_chatrooms returning names, now it returns Chatroom objects.
         self.assertEqual(len(self.manager.list_chatrooms()), 0) 

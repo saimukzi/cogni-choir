@@ -1,3 +1,9 @@
+"""Unit tests for the Message class.
+
+This module tests the creation and representation of Message objects,
+including timestamp handling (automatic and manual), string formatting
+for display, and conversion to different formats like history tuples.
+"""
 import unittest
 import time
 import datetime
@@ -11,7 +17,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 from src.main.message import Message
 
 class TestMessage(unittest.TestCase):
+    """Tests for the Message class."""
     def test_message_creation_auto_timestamp(self):
+        """Tests Message creation with an automatically generated timestamp."""
         sender = "User1"
         content = "Hello, world!"
         before_creation = time.time()
@@ -24,6 +32,7 @@ class TestMessage(unittest.TestCase):
         self.assertTrue(before_creation <= msg.timestamp <= after_creation)
 
     def test_message_creation_manual_timestamp(self):
+        """Tests Message creation with a manually provided timestamp."""
         sender = "User2"
         content = "Another message"
         timestamp = time.time() - 1000  # A specific timestamp
@@ -34,6 +43,7 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(msg.timestamp, timestamp)
 
     def test_message_to_display_string(self):
+        """Tests the string representation of a Message for display and __str__."""
         sender = "User3"
         content = "Test display string"
         # Use a fixed timestamp for predictable string output
@@ -45,6 +55,7 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(str(msg), expected_str) # Also test __str__
 
     def test_message_to_history_tuple(self):
+        """Tests the conversion of a Message to a (sender, content) tuple."""
         sender = "User4"
         content = "History tuple test"
         msg = Message(sender, content)

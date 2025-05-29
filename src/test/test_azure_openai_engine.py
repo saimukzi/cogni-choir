@@ -1,3 +1,10 @@
+"""Unit tests for the AzureOpenAIEngine class.
+
+This module tests the AzureOpenAIEngine's interaction with the Azure OpenAI API,
+focusing on initialization (including reading endpoint/model from files),
+response generation under normal and error conditions (mocked API calls),
+and API key requirements.
+"""
 import os # Import os module
 import unittest
 from unittest.mock import patch, MagicMock
@@ -12,9 +19,22 @@ import logging
 
 
 class TestAzureOpenAIEngine(unittest.TestCase):
+    """Tests for the AzureOpenAIEngine class."""
 
     @patch('src.main.ai_engines.azure_openai_engine.openai.AzureOpenAI')
     def setUp(self, MockAzureOpenAI):
+        """Sets up the test environment before each test method.
+
+        This involves:
+        - Disabling logging to keep test output clean.
+        - Defining common test data (API key, model name, sample conversation histories).
+        - Mocking the `openai.AzureOpenAI` client that the engine uses.
+        - Mocking `commons.read_str` which the engine uses to read Azure endpoint
+          and deployment name from files, to return predefined test values.
+        - Initializing an `AzureOpenAIEngine` instance with these mocks.
+        - Verifying that `commons.read_str` and the `AzureOpenAI` client
+          constructor were called as expected during engine initialization.
+        """
         # It's good practice to disable logging during tests unless specifically testing log output
         logging.disable(logging.CRITICAL)
         self.api_key = "test_api_key"
@@ -95,13 +115,19 @@ class TestAzureOpenAIEngine(unittest.TestCase):
 
 
     def tearDown(self):
+        """Cleans up the test environment after each test method.
+        
+        Re-enables logging and stops all active patches.
+        """
         logging.disable(logging.NOTSET) # Re-enable logging
         patch.stopall() # Stop any patches started with patch.object or in setUp
 
     def test_requires_api_key(self):
+        """Tests that the engine correctly reports it requires an API key."""
         self.assertTrue(self.engine.requires_api_key())
 
     def test_generate_response_success(self):
+        """Tests successful response generation with a simple conversation history."""
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message = MagicMock()
@@ -121,6 +147,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         )
 
     def test_generate_response_no_choices(self):
+        """Tests response generation when the API returns no choices."""
         mock_response = MagicMock()
         mock_response.choices = [] # Simulate no choices
         self.mock_openai_client.chat.completions.create.return_value = mock_response
@@ -138,6 +165,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         )
 
     def test_generate_response_api_connection_error(self):
+        """Tests error handling for openai.APIConnectionError during response generation."""
         self.mock_openai_client.chat.completions.create.side_effect = openai.APIConnectionError(request=MagicMock())
         
         response = self.engine.generate_response(
@@ -146,6 +174,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         self.assertIn("Error: Could not connect to Azure OpenAI API.", response)
 
     def test_generate_response_rate_limit_error(self):
+        """Tests error handling for openai.RateLimitError during response generation."""
         self.mock_openai_client.chat.completions.create.side_effect = openai.RateLimitError(message="Rate limit exceeded", response=MagicMock(), body=None)
         
         response = self.engine.generate_response(
@@ -154,6 +183,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         self.assertIn("Error: Azure OpenAI API rate limit exceeded.", response)
 
     def test_generate_response_authentication_error(self):
+        """Tests error handling for openai.AuthenticationError during response generation."""
         self.mock_openai_client.chat.completions.create.side_effect = openai.AuthenticationError(message="Authentication failed", response=MagicMock(), body=None)
         
         response = self.engine.generate_response(
@@ -162,6 +192,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         self.assertIn("Error: Azure OpenAI API authentication failed.", response)
 
     def test_generate_response_api_error(self):
+        """Tests error handling for a generic openai.APIError during response generation."""
         # Updated APIError instantiation to include 'body'
         self.mock_openai_client.chat.completions.create.side_effect = openai.APIError("Test API Error", request=MagicMock(), body={})
         
@@ -171,6 +202,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         self.assertIn("Error: An unexpected error occurred with the Azure OpenAI API.", response)
 
     def test_generate_response_unexpected_error(self):
+        """Tests error handling for an unexpected Exception during response generation."""
         self.mock_openai_client.chat.completions.create.side_effect = Exception("Some unexpected error")
         
         response = self.engine.generate_response(

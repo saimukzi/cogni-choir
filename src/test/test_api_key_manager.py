@@ -1,3 +1,10 @@
+"""Unit tests for the ApiKeyManager class.
+
+This module tests the ApiKeyManager's functionality in both keyring mode
+(when keyring is available and functional) and fallback mode (using a JSON file).
+It covers saving, loading, and deleting API keys, as well as error handling
+and initialization messages.
+"""
 import unittest
 from unittest.mock import patch, MagicMock
 import sys
@@ -32,7 +39,12 @@ from src.main.api_key_manager import ApiKeyManager, SERVICE_NAME_PREFIX
 
 
 class TestApiKeyManager(unittest.TestCase):
+    """Tests for the ApiKeyManager class."""
     def setUp(self):
+        """Sets up a temporary directory and file path for fallback storage testing.
+        
+        Ensures the test directory exists and cleans up any old test files before each test.
+        """
         self.test_fallback_dir = os.path.join(os.path.dirname(__file__), "test_data_temp")
         self.test_fallback_file_path = os.path.join(self.test_fallback_dir, "test_api_keys.json")
         
@@ -58,6 +70,12 @@ class TestApiKeyManager(unittest.TestCase):
 
 
     def _get_manager_in_fallback_mode(self) -> ApiKeyManager:
+        """Ensures ApiKeyManager is initialized in fallback mode for testing.
+        
+        This is achieved by patching 'keyring.get_password' to simulate a
+        NoKeyringError during the ApiKeyManager's initialization. It also
+        redirects the fallback file path to a test-specific location.
+        """
         # This helper method will ensure ApiKeyManager is initialized in fallback mode
         # It patches 'keyring.get_password' to simulate NoKeyringError during __init__
         with patch('keyring.get_password', side_effect=keyring.errors.NoKeyringError if KEYRING_AVAILABLE else NoKeyringError):
@@ -74,6 +92,7 @@ class TestApiKeyManager(unittest.TestCase):
             return manager
 
     def test_save_load_delete_key_fallback(self):
+        """Tests saving, loading, and deleting keys in fallback (JSON file) mode."""
         manager = self._get_manager_in_fallback_mode()
         self.assertFalse(manager.use_keyring) # Ensure it's in fallback
 
@@ -121,6 +140,7 @@ class TestApiKeyManager(unittest.TestCase):
     @patch('sys.stderr', new_callable=io.StringIO)
     @patch('keyring.get_password', side_effect=keyring.errors.NoKeyringError)
     def test_keyring_initialization_message_no_keyring(self, mock_get_password, mock_stderr):
+        """Tests that the correct message is printed to stderr if keyring is not found."""
         ApiKeyManager()
         self.assertIn("Failed to initialize keyring. Using fallback JSON file for API keys:", mock_stderr.getvalue())
 
@@ -128,10 +148,12 @@ class TestApiKeyManager(unittest.TestCase):
     @patch('sys.stderr', new_callable=io.StringIO)
     @patch('keyring.get_password', side_effect=Exception("Some other keyring error")) # Generic Exception
     def test_keyring_initialization_message_other_error(self, mock_get_password, mock_stderr):
+        """Tests that the correct message is printed to stderr if keyring access fails with a generic error."""
         ApiKeyManager()
         self.assertIn("Could not access keyring due to Exception. Using fallback JSON file for API keys:", mock_stderr.getvalue())
 
     def test_data_directory_creation_fallback(self):
+        """Tests that the data directory for fallback storage is created if it doesn't exist."""
         # Remove the test_fallback_dir to test its creation
         if os.path.exists(self.test_fallback_file_path):
             os.remove(self.test_fallback_file_path)
@@ -151,6 +173,7 @@ class TestApiKeyManager(unittest.TestCase):
     @patch('keyring.get_password')
     @patch('keyring.delete_password')
     def test_keyring_mode_operations(self, mock_delete_password, mock_get_password, mock_set_password):
+        """Tests saving, loading, and deleting keys when using keyring (via mocks)."""
         # Force manager to think keyring is available and working
         with patch.object(ApiKeyManager, '__init__', lambda self: None): # Bypass original __init__
             manager = ApiKeyManager()
@@ -184,6 +207,11 @@ class TestApiKeyManager(unittest.TestCase):
         mock_get_password.assert_called_once_with(expected_keyring_servicename, service_name)
 
     def test_empty_service_or_key(self):
+        """Tests handling of empty service names or API keys.
+        
+        Verifies that saving with an empty service name or key prints an error
+        and that loading an empty service name returns None.
+        """
         manager = self._get_manager_in_fallback_mode() # Fallback mode is fine for this
         with patch('sys.stderr', new_callable=io.StringIO) as mock_stderr:
             manager.save_key("", "some_key")
