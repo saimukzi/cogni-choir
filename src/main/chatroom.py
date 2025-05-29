@@ -88,21 +88,26 @@ class Chatroom:
             self.manager._notify_chatroom_updated(self)
         return True
 
-    def remove_bot(self, bot_name: str):
+    def remove_bot(self, bot_name: str) -> bool:
         """Removes a bot from the chatroom.
 
         Notifies the manager (if any) if a bot was successfully removed.
 
         Args:
             bot_name: The name of the bot to remove.
+        
+        Returns:
+            True if the bot was removed, False otherwise.
         """
         if bot_name in self.bots:
             del self.bots[bot_name]
             self.logger.info(f"Bot '{bot_name}' removed from chatroom '{self.name}'.") # INFO
             if self.manager:
                 self.manager._notify_chatroom_updated(self)
+            return True
         else:
             self.logger.warning(f"Attempted to remove non-existent bot '{bot_name}' from chatroom '{self.name}'.") # WARNING
+        return False
 
     def get_bot(self, bot_name: str) -> Bot | None:
         """Retrieves a bot from the chatroom by its name.
