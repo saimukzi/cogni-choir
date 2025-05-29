@@ -2,16 +2,16 @@
 
 ## Branch Naming
 
-Branches should follow the pattern: `type/YYYYMMDD-descriptive-name`
+Branches should follow the pattern: `YYYYMMDD/type/descriptive-name`
 
 -   **type**: Standard commit type (e.g., `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`).
 -   **YYYYMMDD**: The date of branch creation.
 -   **descriptive-name**: A short, hyphenated description of the branch's purpose.
 
 **Examples:**
--   `feat/20231027-user-authentication`
--   `fix/20231028-api-key-bug`
--   `docs/20231029-update-readme`
+-   `20231027/feat/user-authentication`
+-   `20231028/fix/api-key-bug`
+-   `20231029/docs/update-readme`
 
 ## Documentation
 
