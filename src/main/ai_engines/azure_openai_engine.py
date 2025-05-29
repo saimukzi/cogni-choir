@@ -13,7 +13,7 @@ import os
 import openai
 from ..ai_base import AIEngine
 from .. import commons
-from src.main.message import Message
+from ..message import Message
 
 
 class AzureOpenAIEngine(AIEngine):

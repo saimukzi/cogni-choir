@@ -7,7 +7,7 @@ based on provided prompts and conversation history.
 import logging
 import openai
 from ..ai_base import AIEngine # Use relative import from new location
-from src.main.message import Message
+from ..message import Message
 
 
 class GrokEngine(AIEngine):

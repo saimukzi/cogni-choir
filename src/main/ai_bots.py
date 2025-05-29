@@ -2,7 +2,7 @@
 import logging # For logging
 from .ai_base import AIEngine # Import AIEngine from its new location
 from . import ai_engines # Import the ai_engines package to access ENGINE_TYPE_TO_CLASS_MAP
-from src.main.message import Message
+from .message import Message
 
 # Bot class and create_bot function remain here.
 # AIEngine class has been moved to ai_base.py

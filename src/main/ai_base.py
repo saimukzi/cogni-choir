@@ -1,6 +1,6 @@
 """This module defines the abstract base class for AI engines."""
 import abc
-from src.main.message import Message
+from .message import Message
 
 class AIEngine(abc.ABC):
     """Abstract base class for AI engines.

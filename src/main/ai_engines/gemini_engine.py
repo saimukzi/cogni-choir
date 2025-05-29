@@ -13,7 +13,7 @@ from google import genai # google.genai from python package google-genai
 
 from ..ai_base import AIEngine # Use relative import to access AIEngine from its new location
 from ..commons import EscapeException
-from src.main.message import Message
+from ..message import Message
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 
 class GeminiEngine(AIEngine):
