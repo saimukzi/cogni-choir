@@ -126,6 +126,7 @@ class MainWindow(QMainWindow):
         right_panel_layout = QVBoxLayout(right_panel_widget)
 
         self.message_display_area = QListWidget()
+        self.message_display_area.setWordWrap(True) # Enable word wrap
         self.message_display_area.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.message_display_area.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.message_display_area.customContextMenuRequested.connect(self._show_message_context_menu)
@@ -443,7 +444,7 @@ class MainWindow(QMainWindow):
             if chatroom:
                 # Ensure sorted display by timestamp
                 for message in sorted(chatroom.get_messages(), key=lambda m: m.timestamp):
-                    item = QListWidgetItem(message.to_display_string())
+                    item = QListWidgetItem(message.to_display_string()+'\n') # Use to_display_string for formatting
                     item.setData(Qt.ItemDataRole.UserRole, message.timestamp) # Store timestamp
                     self.message_display_area.addItem(item)
 
