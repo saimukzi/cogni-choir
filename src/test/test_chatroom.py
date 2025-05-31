@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 from src.main.chatroom import Chatroom, ChatroomManager, _sanitize_filename, DATA_DIR
 from src.main.ai_bots import Bot # Bot is still in ai_bots
 from src.main.ai_base import AIEngine # Import AIEngine from ai_base for spec
-from src.main.ai_engines import GeminiEngine, AzureOpenAIEngine # Engines from new package
+from src.main.ai_engines import GeminiEngine, AzureOpenAIEngine, GrokEngine
 from src.main.message import Message
 from src.main.api_key_manager import ApiKeyManager
 

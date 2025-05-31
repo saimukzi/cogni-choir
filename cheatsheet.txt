@@ -7,6 +7,8 @@ $PSVersionTable.PSVersion.ToString()
 
 ===
 
+pip install -r requirements.txt
+
 python -m src.main.main_window
 
 python -m unittest discover -s src/test -p "test_*.py" > tmp/test.out 2>&1

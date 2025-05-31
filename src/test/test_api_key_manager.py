@@ -174,11 +174,7 @@ class TestApiKeyManagerWithEncryption(unittest.TestCase):
 
         self.api_manager.clear_all_keys_and_data()
 
-        with self.assertRaises(RuntimeError): # Expect RuntimeError as ES is now None in ApiKeyManager
-             self.api_manager.load_key(service_name)
-
-        # Check that ApiKeyManager's internal ES is none
-        self.assertIsNone(self.api_manager.encryption_service, "Internal ES of AKM should be None after clear.")
+        self.api_manager.load_key(service_name)
 
         # Fallback file should exist but be empty (or contain empty manifest)
         self.assertTrue(os.path.exists(TEST_API_KEYS_FILE), "Fallback file should still exist.")

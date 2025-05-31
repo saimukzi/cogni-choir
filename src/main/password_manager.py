@@ -4,6 +4,8 @@ import hashlib
 import binascii
 import hmac
 
+DEFAULT_MASTER_KEY_FILE = os.path.join("data", "master_key.json")
+
 class PasswordManager:
     """Manages the lifecycle of a master password for the application.
 
@@ -13,21 +15,19 @@ class PasswordManager:
     hashes using `hmac.compare_digest`.
 
     Attributes:
-        MASTER_KEY_FILE (str): Path to the file where the master key hash and
-            salt are stored. Defaults to "data/master_key.json".
         hashed_password (Optional[bytes]): The hashed master password, loaded
             from `MASTER_KEY_FILE` or None if not set.
         salt (Optional[bytes]): The salt used for hashing, loaded from
             `MASTER_KEY_FILE` or None if not set.
     """
-    MASTER_KEY_FILE = os.path.join("data", "master_key.json")
 
-    def __init__(self):
+    def __init__(self, master_key_file: str = DEFAULT_MASTER_KEY_FILE):
         """Initializes the PasswordManager instance.
 
         Sets initial `hashed_password` and `salt` to None, then attempts to
         load existing master key data from the `MASTER_KEY_FILE`.
         """
+        self._master_key_file = master_key_file
         self.hashed_password: bytes | None = None
         self.salt: bytes | None = None
         self._load_master_key_data()
@@ -41,8 +41,8 @@ class PasswordManager:
         and printing an error message.
         """
         try:
-            if os.path.exists(self.MASTER_KEY_FILE):
-                with open(self.MASTER_KEY_FILE, 'r') as f:
+            if os.path.exists(self._master_key_file):
+                with open(self._master_key_file, 'r') as f:
                     data = json.load(f)
                     self.hashed_password = binascii.unhexlify(data['hashed_password'])
                     self.salt = binascii.unhexlify(data['salt'])
@@ -64,19 +64,19 @@ class PasswordManager:
         `MASTER_KEY_FILE` is deleted if it exists. Handles potential `IOError`
         or `OSError` during file operations.
         """
-        os.makedirs(os.path.dirname(self.MASTER_KEY_FILE), exist_ok=True)
+        os.makedirs(os.path.dirname(self._master_key_file), exist_ok=True)
         try:
             if self.hashed_password and self.salt:
                 data = {
                     'hashed_password': binascii.hexlify(self.hashed_password).decode('utf-8'),
                     'salt': binascii.hexlify(self.salt).decode('utf-8'),
                 }
-                with open(self.MASTER_KEY_FILE, 'w') as f:
+                with open(self._master_key_file, 'w') as f:
                     json.dump(data, f)
             else:
-                if os.path.exists(self.MASTER_KEY_FILE):
+                if os.path.exists(self._master_key_file):
                     try:
-                        os.remove(self.MASTER_KEY_FILE)
+                        os.remove(self._master_key_file)
                     except OSError as e:
                         print(f"Error removing master key file: {e}")
         except IOError as e: # Covers file open/write errors
@@ -161,7 +161,7 @@ class PasswordManager:
             bool: True if both `hashed_password` and `salt` are not `None`,
                   False otherwise.
         """
-        return self.hashed_password is not None and self.salt is not None
+        return (self.hashed_password is not None) and (self.salt is not None)
 
     def change_master_password(self, old_password: str, new_password: str) -> bool:
         """Changes the master password after verifying the old one.
@@ -242,7 +242,7 @@ if __name__ == '__main__':
     print("\nPerforming final cleanup...")
     pm.clear_master_password() # Ensure the master_key.json is deleted by the manager
 
-    data_dir = os.path.dirname(PasswordManager.MASTER_KEY_FILE)
+    data_dir = os.path.dirname(DEFAULT_MASTER_KEY_FILE)
     gitkeep_file = os.path.join(data_dir, ".gitkeep")
 
     if os.path.exists(gitkeep_file):
@@ -254,12 +254,12 @@ if __name__ == '__main__':
 
     # master_key.json should have been deleted by pm.clear_master_password()
     # but check and remove if it still exists for any reason.
-    if os.path.exists(PasswordManager.MASTER_KEY_FILE):
-        print(f"Warning: {PasswordManager.MASTER_KEY_FILE} still exists after clear. Attempting removal again.")
+    if os.path.exists(DEFAULT_MASTER_KEY_FILE):
+        print(f"Warning: {DEFAULT_MASTER_KEY_FILE} still exists after clear. Attempting removal again.")
         try:
-            os.remove(PasswordManager.MASTER_KEY_FILE)
+            os.remove(DEFAULT_MASTER_KEY_FILE)
         except OSError as e:
-            print(f"Error removing {PasswordManager.MASTER_KEY_FILE} during cleanup: {e}")
+            print(f"Error removing {DEFAULT_MASTER_KEY_FILE} during cleanup: {e}")
 
     if os.path.exists(data_dir):
         try:
@@ -275,11 +275,10 @@ if __name__ == '__main__':
         print(f"Directory {data_dir} does not exist or was already removed.")
 
     print("Cleanup process finished.")
-        print("No master password set. Setting one now.")
-        pm.set_master_password("StrongPassword123!")
-        print("Master password set.")
-    else:
-        print("Master password already set.")
+
+    print("No master password set. Setting one now.")
+    pm.set_master_password("StrongPassword123!")
+    print("Master password set.")
 
     print("\nVerifying master password:")
     if pm.verify_master_password("StrongPassword123!"):
@@ -317,7 +316,7 @@ if __name__ == '__main__':
     print("\nPerforming final cleanup...")
     pm.clear_master_password() # Ensure the master_key.json is deleted by the manager
 
-    data_dir = os.path.dirname(PasswordManager.MASTER_KEY_FILE)
+    data_dir = os.path.dirname(DEFAULT_MASTER_KEY_FILE)
     gitkeep_file = os.path.join(data_dir, ".gitkeep")
 
     if os.path.exists(gitkeep_file):
@@ -329,12 +328,12 @@ if __name__ == '__main__':
 
     # master_key.json should have been deleted by pm.clear_master_password()
     # but check and remove if it still exists for any reason.
-    if os.path.exists(PasswordManager.MASTER_KEY_FILE):
-        print(f"Warning: {PasswordManager.MASTER_KEY_FILE} still exists after clear. Attempting removal again.")
+    if os.path.exists(DEFAULT_MASTER_KEY_FILE):
+        print(f"Warning: {DEFAULT_MASTER_KEY_FILE} still exists after clear. Attempting removal again.")
         try:
-            os.remove(PasswordManager.MASTER_KEY_FILE)
+            os.remove(DEFAULT_MASTER_KEY_FILE)
         except OSError as e:
-            print(f"Error removing {PasswordManager.MASTER_KEY_FILE} during cleanup: {e}")
+            print(f"Error removing {DEFAULT_MASTER_KEY_FILE} during cleanup: {e}")
 
     if os.path.exists(data_dir):
         try:

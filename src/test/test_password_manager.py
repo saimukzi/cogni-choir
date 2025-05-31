@@ -14,9 +14,7 @@ DATA_DIR = "data"
 class TestPasswordManager(unittest.TestCase):
 
     def setUp(self):
-        self.pm = PasswordManager()
-        # Override the master key file path for testing
-        self.pm.MASTER_KEY_FILE = TEST_MASTER_KEY_FILE
+        self._cleanup_test_file() # Ensure specific test file is gone before test
 
         # Ensure data directory exists before each test, as PasswordManager expects to write into it.
         if not os.path.exists(DATA_DIR):
@@ -27,7 +25,8 @@ class TestPasswordManager(unittest.TestCase):
                 if not os.path.isdir(DATA_DIR):
                     raise RuntimeError(f"Failed to create data directory {DATA_DIR} for tests: {e}")
 
-        self._cleanup_test_file() # Ensure specific test file is gone before test
+        # Override the master key file path for testing
+        self.pm = PasswordManager(TEST_MASTER_KEY_FILE)
 
     def tearDown(self):
         self._cleanup_test_file()
@@ -90,8 +89,7 @@ class TestPasswordManager(unittest.TestCase):
         # Ensure data is saved before creating a new instance
         self.assertTrue(os.path.exists(TEST_MASTER_KEY_FILE))
 
-        pm2 = PasswordManager()
-        pm2.MASTER_KEY_FILE = TEST_MASTER_KEY_FILE # Point to the same test file
+        pm2 = PasswordManager(TEST_MASTER_KEY_FILE)
 
         self.assertTrue(pm2.has_master_password(), "New instance should load persisted master password.")
         self.assertTrue(pm2.verify_master_password("persistpass"), "New instance should verify persisted password.")
