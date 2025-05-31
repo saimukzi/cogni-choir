@@ -1,7 +1,7 @@
 # CogniChoir
 /data
 /assets
-/app.log
+*.log
 
 # Python
 *.pyc
