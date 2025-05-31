@@ -134,9 +134,9 @@ class MainWindow(QMainWindow):
 
         # Message Actions Layout (for delete and fake message buttons)
         message_actions_layout = QHBoxLayout()
-        self.delete_message_button = QPushButton(self.tr("Delete Selected Message(s)"))
-        self.delete_message_button.clicked.connect(self._delete_selected_messages)
-        message_actions_layout.addWidget(self.delete_message_button)
+        # self.delete_message_button = QPushButton(self.tr("Delete Selected Message(s)"))
+        # self.delete_message_button.clicked.connect(self._delete_selected_messages)
+        # message_actions_layout.addWidget(self.delete_message_button)
         
         self.create_fake_message_button = QPushButton(self.tr("Create Fake Message"))
         self.create_fake_message_button.clicked.connect(self._show_create_fake_message_dialog)
@@ -205,7 +205,7 @@ class MainWindow(QMainWindow):
         self.bot_response_selector.setEnabled(enabled)
         
         # Specific state for delete button
-        self.delete_message_button.setEnabled(enabled and bool(self.message_display_area.selectedItems()))
+        # self.delete_message_button.setEnabled(enabled and bool(self.message_display_area.selectedItems()))
         # Specific state for trigger bot response button
         self.trigger_bot_response_button.setEnabled(enabled and bool(self.bot_response_selector.currentText()))
         # Specific state for create fake message button
