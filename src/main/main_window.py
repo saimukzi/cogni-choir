@@ -212,15 +212,9 @@ class MainWindow(QMainWindow):
         Args:
             enabled: True to enable the UI elements, False to disable them.
         """
-        self.message_input_area.setEnabled(enabled)
+        # Instead of disabling, set read-only for message_input_area
+        self.message_input_area.setReadOnly(not enabled)
         self.send_message_button.setEnabled(enabled)
-        # self.bot_response_selector.setEnabled(enabled)
-        
-        # Specific state for delete button
-        # self.delete_message_button.setEnabled(enabled and bool(self.message_display_area.selectedItems()))
-        # Specific state for trigger bot response button
-        # self.trigger_bot_response_button.setEnabled(enabled and bool(self.bot_response_selector.currentText()))
-        # Specific state for create fake message button
         self.create_fake_message_button.setEnabled(enabled)
 
         if not enabled:
@@ -309,7 +303,13 @@ class MainWindow(QMainWindow):
             enabled: True to enable the bot panel, False to disable it.
             chatroom_name: The name of the currently selected chatroom, if any.
         """
-        self.bot_list_widget.setEnabled(enabled)
+        # Instead of disabling, set selection mode to NoSelection when not enabled
+        if enabled:
+            self.bot_list_widget.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+            self.bot_list_widget.setFocusPolicy(Qt.FocusPolicy.StrongFocus) # Allow focus for keyboard navigation
+        else:
+            self.bot_list_widget.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+            self.bot_list_widget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.add_bot_button.setEnabled(enabled)
         # self.remove_bot_button.setEnabled(enabled and bool(self.bot_list_widget.currentItem())) # REMOVED
         
