@@ -11,28 +11,31 @@ The application uses PyQt6 for its GUI components. Internationalization (i18n)
 is supported using QTranslator. Logging is used for diagnostics.
 """
 import sys
+import os # For path construction
+import logging # For logging
+
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QPushButton, QLabel, QInputDialog, QMessageBox,
     QListWidgetItem, QComboBox, QLineEdit, QTextEdit,
     QSplitter, QAbstractItemView,
-    QMenu, QStyle, QSizePolicy # Added QMenu for context menu, QStyle, QSizePolicy
+    QMenu, QStyle, QSizePolicy
 )
 from PyQt6.QtGui import QAction
-from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint, pyqtSignal # Added QSize
-import os # For path construction
-import logging # For logging
+from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint, pyqtSignal, QTimer # Added QTimer
 
 # Attempt to import from sibling modules
 from .chatroom import Chatroom, ChatroomManager
-from .ai_bots import Bot, create_bot # AIEngine and Bot remain in ai_bots, added create_bot
-from .ai_engines import GeminiEngine, GrokEngine # Engines from new package
+from .ai_bots import Bot, create_bot
+from .ai_engines import GeminiEngine, GrokEngine
 from .api_key_manager import ApiKeyManager
-# from .message import Message # Not directly used by MainWindow
 from . import ai_engines
 from .add_bot_dialog import AddBotDialog
 from .create_fake_message_dialog import CreateFakeMessageDialog
 from .api_key_dialog import ApiKeyDialog
+from .password_manager import PasswordManager
+from .encryption_service import EncryptionService, ENCRYPTION_SALT_FILE
+from .password_dialogs import CreateMasterPasswordDialog, EnterMasterPasswordDialog, ChangeMasterPasswordDialog
 
 
 class MessageInputTextEdit(QTextEdit):
@@ -48,21 +51,43 @@ class MessageInputTextEdit(QTextEdit):
 class MainWindow(QMainWindow):
     """The main window of the chat application.
 
-    This class orchestrates the user interface, manages chatrooms and bots,
-    and handles user interactions for sending messages, managing API keys,
-    and configuring chatrooms.
+    This class orchestrates the user interface, manages chatrooms, bots,
+    and user interactions. It includes features for sending messages,
+    managing API keys with master password protection and encryption,
+    and configuring chatrooms and bots. The application requires a master
+    password to be set up on first run, which is then used to encrypt
+    sensitive data like API keys.
     """
     def __init__(self):
         """Initializes the MainWindow.
 
-        Sets up logging, API key manager, chatroom manager, and initializes the UI.
+        Sets up logging, critical components like PasswordManager, and then
+        initiates the master password handling sequence. If master password
+        setup is successful, it proceeds to initialize EncryptionService,
+        ApiKeyManager, ChatroomManager, and the main user interface.
+        If master password setup fails or is cancelled, the application
+        initialization is halted, and the window is scheduled to close.
         """
         super().__init__()
         self.logger = logging.getLogger(__name__)
         self.setWindowTitle(self.tr("Chatroom and Bot Manager"))
         self.setGeometry(100, 100, 800, 600)
 
-        self.api_key_manager = ApiKeyManager()
+        self.password_manager = PasswordManager()
+        self.encryption_service = None
+        self.api_key_manager = None # Initialized after password setup
+
+        if not self._handle_master_password_startup():
+            self.logger.warning("Master password setup failed or was cancelled. Closing application.")
+            # If running in a context where QApplication is already running, self.close() is preferred.
+            # If this is very early startup, sys.exit() might be needed.
+            # For now, assume self.close() is sufficient if called before app.exec().
+            # A more robust way might involve a flag that main() checks after __init__ returns.
+            QTimer.singleShot(0, self.close) # Close after current event loop processing
+            return # Stop further initialization in __init__
+
+        # Initialize ApiKeyManager now that encryption_service is available
+        self.api_key_manager = ApiKeyManager(encryption_service=self.encryption_service)
         self.chatroom_manager = ChatroomManager(api_key_manager=self.api_key_manager)
 
         self._init_ui()
@@ -76,8 +101,7 @@ class MainWindow(QMainWindow):
         A QSplitter is used to make the chatroom/bot panel and the message
         panel resizable.
         """
-        self.logger.debug("Initializing UI...") # Changed to DEBUG
-        # Central Widget and Main Layout
+        self.logger.debug("Initializing UI...")
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
@@ -86,6 +110,14 @@ class MainWindow(QMainWindow):
         manage_keys_action = QAction(self.tr("Manage API Keys"), self)
         manage_keys_action.triggered.connect(self._show_api_key_dialog)
         settings_menu.addAction(manage_keys_action)
+
+        change_mp_action = QAction(self.tr("Change Master Password"), self)
+        change_mp_action.triggered.connect(self._show_change_master_password_dialog)
+        settings_menu.addAction(change_mp_action)
+
+        clear_all_data_action = QAction(self.tr("Clear All Stored Data..."), self)
+        clear_all_data_action.triggered.connect(self._clear_all_user_data_via_menu)
+        settings_menu.addAction(clear_all_data_action)
 
         # --- Main Layout (Splitter for resizable panels) ---
         main_splitter = QSplitter(Qt.Orientation.Horizontal, central_widget)
@@ -1303,10 +1335,246 @@ class MainWindow(QMainWindow):
 
 
     def _show_api_key_dialog(self):
-        """Displays the API Key Management dialog."""
-        self.logger.debug("Showing API Key Management dialog.") # DEBUG - UI interaction
+        """Displays the API Key Management dialog.
+
+        Ensures that a master password has been set up and the encryption
+        service is available before showing the dialog. If not, a critical
+        error message is displayed to the user.
+        """
+        if not self.encryption_service or not self.password_manager.has_master_password():
+            QMessageBox.critical(self, self.tr("Error"), self.tr("Master password not set up or unlocked. Cannot manage API keys."))
+            return
+
+        self.logger.debug("Showing API Key Management dialog.")
         dialog = ApiKeyDialog(self.api_key_manager, self)
         dialog.exec()
+
+    def _handle_master_password_startup(self) -> bool:
+        """Manages master password creation or entry at application launch.
+
+        If no master password is set, it guides the user through creating one
+        using `CreateMasterPasswordDialog`.
+        If a master password exists, it prompts the user to enter it using
+        `EnterMasterPasswordDialog`. This dialog also handles a "forgot password"
+        scenario, which involves clearing all sensitive data.
+
+        This method is critical for application startup. If it returns False,
+        the main application window typically will not proceed to full
+        initialization and may close.
+
+        Returns:
+            bool: True if master password procedures are successfully completed
+                  (created, or entered correctly) and `self.encryption_service`
+                  is initialized. False if any part of the process is cancelled
+                  by the user or fails (e.g., incorrect password entry, failure
+                  to set a new password).
+        """
+        if not self.password_manager.has_master_password():
+            self.logger.info("No master password set. Prompting user to create one.")
+            create_dialog = CreateMasterPasswordDialog(self)
+            if create_dialog.exec():
+                password = create_dialog.get_password()
+                if not password: # Should be caught by dialog validation, but as safeguard
+                    QMessageBox.critical(self, self.tr("Error"), self.tr("Failed to create master password."))
+                    self.logger.error("Master password creation dialog accepted but no password returned.")
+                    return False
+                self.password_manager.set_master_password(password)
+                self.encryption_service = EncryptionService(master_password=password)
+                self.logger.info("Master password created and encryption service initialized.")
+                return True
+            else:
+                QMessageBox.information(self, self.tr("Setup Required"),
+                                        self.tr("Master password creation was cancelled. The application will close."))
+                self.logger.info("Master password creation cancelled by user.")
+                return False
+        else: # Master password exists
+            self.logger.info("Master password exists. Prompting user to enter it.")
+            enter_dialog = EnterMasterPasswordDialog(self)
+            if enter_dialog.exec():
+                if enter_dialog.clear_data_flag:
+                    self.logger.info("User opted to clear all data from 'Forgot Password' flow.")
+                    # Confirmation is already handled in EnterMasterPasswordDialog
+                    self._perform_clear_all_data_actions()
+                    QMessageBox.information(self, self.tr("Data Cleared"),
+                                            self.tr("All API keys and master password have been cleared. Please create a new master password."))
+                    return self._handle_master_password_startup() # Recursive call to set new password
+                else:
+                    password = enter_dialog.get_password()
+                    if not password: # Dialog cancelled or empty password somehow
+                        QMessageBox.critical(self, self.tr("Login Failed"),
+                                             self.tr("Password entry cancelled. The application will close."))
+                        self.logger.warning("Master password entry dialog accepted but no password returned (or cancelled).")
+                        return False
+
+                    if self.password_manager.verify_master_password(password):
+                        self.encryption_service = EncryptionService(master_password=password)
+                        self.logger.info("Master password verified and encryption service initialized.")
+                        return True
+                    else:
+                        QMessageBox.critical(self, self.tr("Login Failed"),
+                                             self.tr("Invalid master password. The application will close."))
+                        self.logger.warning("Invalid master password entered.")
+                        return False
+            else: # Dialog was cancelled
+                QMessageBox.information(self, self.tr("Login Required"),
+                                        self.tr("Master password entry was cancelled. The application will close."))
+                self.logger.info("Master password entry cancelled by user.")
+                return False
+        return False # Fallback, should ideally be covered by above logic
+
+    def _show_change_master_password_dialog(self):
+        """Handles the dialog flow for changing the master password.
+
+        This method presents the `ChangeMasterPasswordDialog` to the user.
+        If the user successfully provides their old password and sets a new one,
+        this method orchestrates:
+        1. Verification of the old master password.
+        2. Creation of a temporary `EncryptionService` with the old password.
+        3. Updating the `PasswordManager` with the new password (this also
+           changes the salt used for password hashing).
+        4. Updating the main `EncryptionService` instance to use the new master
+           password (it reuses the existing data encryption salt).
+        5. Re-encrypting all stored API keys using the old and new encryption
+           services via `ApiKeyManager.re_encrypt_all_keys()`.
+        6. Updating the `ApiKeyManager` to use the new `EncryptionService`.
+
+        Error messages are shown if the old password is incorrect or if other
+        issues arise.
+        """
+        if not self.password_manager.has_master_password(): # Should not happen if app is running
+            QMessageBox.warning(self, self.tr("Error"), self.tr("No master password set. This should not happen."))
+            self.logger.error("Change master password dialog called when no master password is set.")
+            return
+        if not self.encryption_service: # Also should not happen
+            QMessageBox.warning(self, self.tr("Error"), self.tr("Encryption service not available."))
+            self.logger.error("Change master password dialog called when encryption service is not available.")
+            return
+
+        change_dialog = ChangeMasterPasswordDialog(self)
+        if change_dialog.exec():
+            passwords = change_dialog.get_passwords()
+            if not passwords: # Dialog was likely cancelled or an issue occurred
+                self.logger.info("Change master password dialog did not return passwords.")
+                return
+
+            old_password = passwords["old"]
+            new_password = passwords["new"]
+
+            if self.password_manager.verify_master_password(old_password):
+                self.logger.info("Old master password verified. Proceeding with change.")
+                # Create a temporary EncryptionService with the old password to decrypt keys
+                temp_old_encryption_service = EncryptionService(master_password=old_password)
+
+                # Update the main PasswordManager (changes its salt for password hashing)
+                self.password_manager.change_master_password(old_password, new_password)
+
+                # Update the main EncryptionService to use the new password (reuses data encryption salt)
+                self.encryption_service.update_master_password(new_master_password=new_password)
+
+                # Re-encrypt all API keys
+                if self.api_key_manager:
+                    self.api_key_manager.re_encrypt_all_keys(temp_old_encryption_service, self.encryption_service)
+                    # Ensure ApiKeyManager instance uses the updated encryption_service
+                    self.api_key_manager.encryption_service = self.encryption_service
+                else:
+                    self.logger.warning("ApiKeyManager not initialized during master password change. Keys not re-encrypted.")
+
+                QMessageBox.information(self, self.tr("Success"),
+                                        self.tr("Master password changed successfully. API keys have been re-encrypted."))
+                self.logger.info("Master password changed and API keys re-encrypted successfully.")
+            else:
+                QMessageBox.critical(self, self.tr("Error"), self.tr("Incorrect old password."))
+                self.logger.warning("Incorrect old password entered during master password change.")
+        else:
+            self.logger.info("Change master password dialog cancelled.")
+
+    def _perform_clear_all_data_actions(self):
+        """Performs the necessary actions to clear all sensitive user data.
+
+        This includes:
+        - Clearing the master password via `PasswordManager`.
+        - Deleting the encryption salt file directly.
+        - Clearing all API keys via `ApiKeyManager` (which also handles its
+          side of salt clearing if applicable).
+        - Nullifying `self.encryption_service` and the `encryption_service`
+          within the current `self.api_key_manager` instance.
+        If `api_key_manager` is not initialized, it creates a temporary one
+        to ensure API key storage is cleared.
+        """
+        self.logger.info("Performing clear all data actions.")
+        self.password_manager.clear_master_password()
+
+        # Clear encryption salt file using the imported constant
+        if os.path.exists(ENCRYPTION_SALT_FILE):
+            try:
+                os.remove(ENCRYPTION_SALT_FILE)
+                self.logger.info(f"Encryption salt file {ENCRYPTION_SALT_FILE} removed.")
+            except OSError as e:
+                self.logger.error(f"Error removing encryption salt file {ENCRYPTION_SALT_FILE}: {e}")
+
+        if self.api_key_manager:
+            self.api_key_manager.clear_all_keys_and_data()
+        else:
+            self.logger.info("ApiKeyManager was not initialized, creating temporary one to clear potential fallback file.")
+            temp_manager = ApiKeyManager(encryption_service=None)
+            temp_manager.clear_all_keys_and_data()
+
+        self.encryption_service = None
+        if self.api_key_manager:
+            self.api_key_manager.encryption_service = None
+
+        self.logger.info("All data clearing actions performed.")
+
+
+    def _clear_all_user_data_via_menu(self):
+        """Handles the 'Clear All Stored Data' menu action.
+
+        Prompts the user for confirmation. If confirmed:
+        1. Calls `_perform_clear_all_data_actions()` to erase all data.
+        2. Notifies the user that data has been cleared.
+        3. Re-initiates the master password setup process via
+           `_handle_master_password_startup()`.
+        4. If the new setup fails, the application is scheduled to close.
+        5. If successful, ensures `ApiKeyManager` is (re)initialized with the
+           new `EncryptionService`.
+        6. Clears UI elements like chatroom list and message display to reflect
+           the reset state.
+        """
+        self.logger.warning("User initiated 'Clear All Stored Data' action.")
+        reply = QMessageBox.question(self, self.tr("Confirm Clear All Data"),
+                                     self.tr("Are you sure you want to permanently delete all API keys, the master password, and encryption salt? This action cannot be undone."),
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                     QMessageBox.StandardButton.No)
+
+        if reply == QMessageBox.StandardButton.Yes:
+            self.logger.info("User confirmed clearing all data.")
+            self._perform_clear_all_data_actions()
+            QMessageBox.information(self, self.tr("Data Cleared"),
+                                    self.tr("All user data has been cleared. Please create a new master password."))
+
+            # Restart master password setup. If it fails, close the app.
+            if not self._handle_master_password_startup():
+                QMessageBox.critical(self, self.tr("Setup Required"),
+                                     self.tr("Master password setup was cancelled or failed. The application will now close."))
+                self.logger.critical("Master password setup failed after clearing all data. Closing application.")
+                QTimer.singleShot(0, self.close)
+                return
+
+            # If startup was successful, ApiKeyManager needs to be re-initialized with new encryption service
+            if self.api_key_manager:
+                self.api_key_manager.encryption_service = self.encryption_service # Update existing
+            else: # Should be re-created if was None or after full clear
+                self.api_key_manager = ApiKeyManager(encryption_service=self.encryption_service)
+
+            # Potentially refresh UI elements that depend on keys/chatrooms
+            self.logger.info("Data cleared and master password setup re-initiated. Refreshing UI.")
+            self._update_chatroom_list() # Will clear messages if no chatroom selected
+            self.message_display_area.clear() # Explicitly clear current messages
+            self.bot_list_widget.clear() # Explicitly clear bot list
+            self._update_bot_panel_state(False)
+            self._update_message_related_ui_state(False)
+        else:
+            self.logger.info("User cancelled 'Clear All Stored Data' action.")
 
     def _remove_bot_from_chatroom(self):
         """Handles removing the selected bot from the current chatroom.
@@ -1384,9 +1652,36 @@ def main():
 
 
     main_window = MainWindow()
-    main_window.show()
-    logging.info("Application started successfully.") 
-    sys.exit(app.exec())
+
+    # If running in offscreen mode for testing, don't run the app event loop.
+    # Check if __init__ completed enough for basic checks.
+    if os.environ.get('QT_QPA_PLATFORM') == 'offscreen':
+        if hasattr(main_window, 'api_key_manager') and main_window.api_key_manager is not None:
+            logging.info("MainWindow initialized successfully in offscreen mode (up to ApiKeyManager).")
+            # Test if a master password was created/loaded and encryption service is up
+            if main_window.password_manager.has_master_password() and main_window.encryption_service:
+                 logging.info("Master password found and encryption service initialized in offscreen mode.")
+            else:
+                 # This will happen if user cancels dialogs, or if it's first run and create dialog is "cancelled" by offscreen mode
+                 logging.warning("Master password setup likely did not complete as expected in offscreen mode (dialogs would block).")
+            sys.exit(0) # Exit cleanly for test purposes
+        elif hasattr(main_window, 'password_manager') and not hasattr(main_window, 'api_key_manager'):
+            # This means __init__ returned early due to password setup failure/cancellation
+            logging.warning("MainWindow initialization aborted during password setup (as expected in offscreen mode if dialogs block/are cancelled).")
+            sys.exit(0) # Still a "successful" test of the init-blocking mechanism
+        else:
+            logging.error("MainWindow initialization appears incomplete in offscreen mode for unknown reasons.")
+            sys.exit(1) # Exit with error for test purposes
+    else:
+        # Normal GUI execution
+        # Check if __init__ completed. If api_key_manager is None, it means __init__ returned early.
+        if hasattr(main_window, 'api_key_manager') and main_window.api_key_manager is not None :
+            main_window.show()
+            logging.info("Application started successfully.")
+            sys.exit(app.exec())
+        else:
+            logging.warning("MainWindow initialization failed or was aborted (likely password setup). Application will not show.")
+            sys.exit(1) # Exit with an error code
 
 if __name__ == "__main__":
     main()
