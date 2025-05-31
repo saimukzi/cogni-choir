@@ -15,7 +15,7 @@ import json
 import os
 import sys
 
-SERVICE_NAME_PREFIX = "MyChatApp"
+SERVICE_NAME_PREFIX = "CogniChoir"
 
 class ApiKeyManager:
     """Manages API keys using keyring or a fallback JSON file.
