@@ -155,15 +155,15 @@ class MainWindow(QMainWindow):
         right_panel_layout.addLayout(message_input_layout)
 
         # Bot Response Area
-        bot_response_layout = QHBoxLayout()
-        bot_response_label = QLabel(self.tr("Select Bot to Respond:"))
-        bot_response_layout.addWidget(bot_response_label)
-        self.bot_response_selector = QComboBox()
-        bot_response_layout.addWidget(self.bot_response_selector)
-        self.trigger_bot_response_button = QPushButton(self.tr("Get Bot Response"))
-        self.trigger_bot_response_button.clicked.connect(self._trigger_bot_response)
-        bot_response_layout.addWidget(self.trigger_bot_response_button)
-        right_panel_layout.addLayout(bot_response_layout)
+        # bot_response_layout = QHBoxLayout()
+        # bot_response_label = QLabel(self.tr("Select Bot to Respond:"))
+        # bot_response_layout.addWidget(bot_response_label)
+        # self.bot_response_selector = QComboBox()
+        # bot_response_layout.addWidget(self.bot_response_selector)
+        # self.trigger_bot_response_button = QPushButton(self.tr("Get Bot Response"))
+        # self.trigger_bot_response_button.clicked.connect(self._trigger_bot_response)
+        # bot_response_layout.addWidget(self.trigger_bot_response_button)
+        # right_panel_layout.addLayout(bot_response_layout)
 
         main_splitter.addWidget(right_panel_widget)
 
@@ -202,18 +202,18 @@ class MainWindow(QMainWindow):
         """
         self.message_input_area.setEnabled(enabled)
         self.send_message_button.setEnabled(enabled)
-        self.bot_response_selector.setEnabled(enabled)
+        # self.bot_response_selector.setEnabled(enabled)
         
         # Specific state for delete button
         # self.delete_message_button.setEnabled(enabled and bool(self.message_display_area.selectedItems()))
         # Specific state for trigger bot response button
-        self.trigger_bot_response_button.setEnabled(enabled and bool(self.bot_response_selector.currentText()))
+        # self.trigger_bot_response_button.setEnabled(enabled and bool(self.bot_response_selector.currentText()))
         # Specific state for create fake message button
         self.create_fake_message_button.setEnabled(enabled)
 
         if not enabled:
             self.message_display_area.clear()
-            self.bot_response_selector.clear()
+            # self.bot_response_selector.clear()
 
     def _show_message_context_menu(self, position: QPoint):
         """Displays a context menu for messages in the message display area.
@@ -364,13 +364,13 @@ class MainWindow(QMainWindow):
             self._update_bot_list(selected_chatroom_name) 
             self._update_bot_panel_state(True, selected_chatroom_name)
             self._update_message_display()
-            self._update_bot_response_selector() 
+            # self._update_bot_response_selector() 
             self._update_message_related_ui_state(True)
         else:
             self._update_bot_list(None)
             self._update_bot_panel_state(False)
             self._update_message_display() 
-            self._update_bot_response_selector() 
+            # self._update_bot_response_selector() 
             self._update_message_related_ui_state(False)
 
 
@@ -538,26 +538,26 @@ class MainWindow(QMainWindow):
         self._update_message_display()
         self.message_input_area.clear()
 
-    def _update_bot_response_selector(self):
-        """Updates the bot response selector combo box.
+    # def _update_bot_response_selector(self):
+    #     """Updates the bot response selector combo box.
 
-        Populates the combo box with the names of bots from the currently
-        selected chatroom. The "Get Bot Response" button is enabled only
-        if there are bots in the selector.
-        """
-        self.bot_response_selector.clear()
-        current_chatroom_item = self.chatroom_list_widget.currentItem()
-        if not current_chatroom_item:
-            return
+    #     Populates the combo box with the names of bots from the currently
+    #     selected chatroom. The "Get Bot Response" button is enabled only
+    #     if there are bots in the selector.
+    #     """
+    #     self.bot_response_selector.clear()
+    #     current_chatroom_item = self.chatroom_list_widget.currentItem()
+    #     if not current_chatroom_item:
+    #         return
 
-        chatroom_name = current_chatroom_item.text()
-        chatroom = self.chatroom_manager.get_chatroom(chatroom_name)
-        if chatroom:
-            for bot in chatroom.list_bots():
-                self.bot_response_selector.addItem(bot.get_name())
+    #     chatroom_name = current_chatroom_item.text()
+    #     chatroom = self.chatroom_manager.get_chatroom(chatroom_name)
+    #     if chatroom:
+    #         for bot in chatroom.list_bots():
+    #             self.bot_response_selector.addItem(bot.get_name())
         
-        # Disable trigger button if no bots are available
-        self.trigger_bot_response_button.setEnabled(self.bot_response_selector.count() > 0)
+    #     # Disable trigger button if no bots are available
+    #     # self.trigger_bot_response_button.setEnabled(self.bot_response_selector.count() > 0)
 
 
     def _trigger_bot_response(self, bot_name_override: str | None = None):
@@ -590,22 +590,22 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, self.tr("Error"), self.tr("Selected chatroom not found."))
             return
 
-        if self.bot_response_selector.count() == 0:
-            self.logger.warning(f"Trigger bot response: No bots in chatroom '{chatroom_name}'.")
-            QMessageBox.warning(self, self.tr("Warning"), self.tr("Selected chatroom has no bots to respond."))
-            return
+        # if self.bot_response_selector.count() == 0:
+        #     self.logger.warning(f"Trigger bot response: No bots in chatroom '{chatroom_name}'.")
+        #     QMessageBox.warning(self, self.tr("Warning"), self.tr("Selected chatroom has no bots to respond."))
+        #     return
 
         selected_bot_name_to_use = bot_name_override
-        if not selected_bot_name_to_use:  # Fallback to combo box if no override
-            if self.bot_response_selector.count() == 0: # Should be redundant due to above check but good for safety
-                self.logger.warning(f"Trigger bot response: No bots in chatroom '{chatroom_name}' (selector empty).")
-                QMessageBox.warning(self, self.tr("Warning"), self.tr("Selected chatroom has no bots to respond."))
-                return
-            selected_bot_name_to_use = self.bot_response_selector.currentText()
-            if not selected_bot_name_to_use:
-                self.logger.warning("Trigger bot response: No bot selected in dropdown.")
-                QMessageBox.warning(self, self.tr("Warning"), self.tr("No bot selected to respond."))
-                return
+        # if not selected_bot_name_to_use:  # Fallback to combo box if no override
+        #     if self.bot_response_selector.count() == 0: # Should be redundant due to above check but good for safety
+        #         self.logger.warning(f"Trigger bot response: No bots in chatroom '{chatroom_name}' (selector empty).")
+        #         QMessageBox.warning(self, self.tr("Warning"), self.tr("Selected chatroom has no bots to respond."))
+        #         return
+        #     selected_bot_name_to_use = self.bot_response_selector.currentText()
+        #     if not selected_bot_name_to_use:
+        #         self.logger.warning("Trigger bot response: No bot selected in dropdown.")
+        #         QMessageBox.warning(self, self.tr("Warning"), self.tr("No bot selected to respond."))
+        #         return
         
         bot = chatroom.get_bot(selected_bot_name_to_use)
         if not bot:
@@ -636,9 +636,9 @@ class MainWindow(QMainWindow):
         original_button_text = None
         is_main_button_trigger = not bot_name_override # True if triggered by the main UI button
         if is_main_button_trigger:
-            original_button_text = self.trigger_bot_response_button.text()
-            self.trigger_bot_response_button.setText(self.tr("Waiting for AI..."))
-            self.trigger_bot_response_button.setEnabled(False)
+            # original_button_text = self.trigger_bot_response_button.text()
+            # self.trigger_bot_response_button.setText(self.tr("Waiting for AI..."))
+            # self.trigger_bot_response_button.setEnabled(False)
             QApplication.processEvents()
 
         try:
@@ -658,8 +658,8 @@ class MainWindow(QMainWindow):
             chatroom.add_message("System", self.tr("Error during bot response for '{0}': {1}").format(selected_bot_name_to_use, str(e)))
             self._update_message_display()
         finally:
-            if is_main_button_trigger and original_button_text is not None:
-                self.trigger_bot_response_button.setText(original_button_text)
+            # if is_main_button_trigger and original_button_text is not None:
+            #     self.trigger_bot_response_button.setText(original_button_text)
             # The message related UI state should be updated regardless of which button triggered
             self._update_message_related_ui_state(bool(self.chatroom_list_widget.currentItem()))
 
@@ -980,7 +980,7 @@ class MainWindow(QMainWindow):
             self.chatroom_manager._notify_chatroom_updated(chatroom)
 
             self._update_bot_list(chatroom_name)
-            self._update_bot_response_selector()
+            # self._update_bot_response_selector()
         else:
             self.logger.debug(f"Edit bot '{bot_name_to_edit}' cancelled.")
 
@@ -1070,7 +1070,7 @@ class MainWindow(QMainWindow):
 
         if cloned_count > 0:
             self._update_bot_list(chatroom_name)
-            self._update_bot_response_selector()
+            # self._update_bot_response_selector()
             # chatroom.add_bot should call _notify_chatroom_updated, so an explicit call here might be redundant
             # but ensures saving if multiple bots are added in a loop and add_bot is not immediately saving.
             self.chatroom_manager._notify_chatroom_updated(chatroom) 
@@ -1134,7 +1134,7 @@ class MainWindow(QMainWindow):
         
         if deleted_count > 0:
             self._update_bot_list(chatroom_name)
-            self._update_bot_response_selector()
+            # self._update_bot_response_selector()
             # Chatroom.remove_bot is expected to call _notify_chatroom_updated.
             # If it doesn't, an explicit call here would be:
             # self.chatroom_manager._notify_chatroom_updated(chatroom)
@@ -1281,7 +1281,7 @@ class MainWindow(QMainWindow):
             if chatroom.add_bot(new_bot):
                 self.logger.info(f"Bot '{bot_name}' (engine: {engine_type}, model: {model_name if model_name else 'default'}) added to chatroom '{chatroom_name}' successfully.")
                 self._update_bot_list(chatroom_name)
-                self._update_bot_response_selector()
+                # self._update_bot_response_selector()
             else:
                 self.logger.error(f"Failed to add bot '{bot_name}' to chatroom '{chatroom_name}' for an unknown reason after initial checks.")
                 QMessageBox.critical(self, self.tr("Error"), self.tr("Could not add bot. An unexpected error occurred."))
