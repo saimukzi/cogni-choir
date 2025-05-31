@@ -14,12 +14,12 @@ import sys
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QPushButton, QLabel, QInputDialog, QMessageBox,
-    QListWidgetItem, QComboBox, QLineEdit,
+    QListWidgetItem, QComboBox, QLineEdit, QTextEdit,
     QSplitter, QAbstractItemView,
     QMenu, QStyle, QSizePolicy # Added QMenu for context menu, QStyle, QSizePolicy
 )
 from PyQt6.QtGui import QAction
-from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint # Added QSize
+from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint, pyqtSignal # Added QSize
 import os # For path construction
 import logging # For logging
 
@@ -33,6 +33,16 @@ from . import ai_engines
 from .add_bot_dialog import AddBotDialog
 from .create_fake_message_dialog import CreateFakeMessageDialog
 from .api_key_dialog import ApiKeyDialog
+
+
+class MessageInputTextEdit(QTextEdit):
+    ctrl_enter_pressed = pyqtSignal()
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Enter, Qt.Key.Key_Return) and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            self.ctrl_enter_pressed.emit()
+            return
+        super().keyPressEvent(event)
 
 
 class MainWindow(QMainWindow):
@@ -146,8 +156,10 @@ class MainWindow(QMainWindow):
 
         # Message Input Area
         message_input_layout = QHBoxLayout()
-        self.message_input_area = QLineEdit()
-        self.message_input_area.returnPressed.connect(self._send_user_message)
+        # self.message_input_area = QLineEdit()
+        self.message_input_area = MessageInputTextEdit() # Changed to custom QTextEdit for Ctrl+Enter
+        self.message_input_area.setMinimumHeight(60) # Set a minimum height for better usability
+        self.message_input_area.ctrl_enter_pressed.connect(self._send_user_message)
         message_input_layout.addWidget(self.message_input_area)
         self.send_message_button = QPushButton(self.tr("Send"))
         self.send_message_button.clicked.connect(self._send_user_message)
@@ -529,7 +541,8 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, self.tr("Error"), self.tr("Selected chatroom not found."))
             return
 
-        text = self.message_input_area.text().strip()
+        # text = self.message_input_area.text().strip()
+        text = self.message_input_area.toPlainText().strip() # Use QTextEdit for multi-line input
         if not text:
             return
 
