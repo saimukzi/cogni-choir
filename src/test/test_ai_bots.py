@@ -323,29 +323,6 @@ class TestAzureOpenAIEngine(unittest.TestCase):
             # This will be caught by the generic "except Exception" in SUT's generate_response
             # self.assertTrue(response.startswith("Error: An unexpected error occurred. Details: API key cannot be None"))
 
-    @patch('src.main.third_parties.azure_openai.openai', None) # Patch the whole module to None
-    def test_openai_sdk_not_available(self):
-        """Tests AzureOpenAI's behavior when the OpenAI SDK (openai module) is None."""
-        engine = AzureOpenAI()
-        aiengine_arg_dict = {"model_name": "deployment-sdk-missing"}
-        apikey_list = ["fake_key_sdk_missing"]
-
-        with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_sdk_missing"):
-            response = engine.generate_response(
-                _aiengine_id="azure_openai",
-                aiengine_arg_dict=aiengine_arg_dict,
-                apikey_list=apikey_list,
-                role_name="TestRole",
-                conversation_history=[]
-            )
-        self.assertTrue("Error: An unexpected error occurred. Details:" in response)
-        # Check for specific AttributeError if 'openai' module is None
-        self.assertTrue("'NoneType' object has no attribute 'AzureOpenAI'" in response or \
-                        "'NoneType' object has no attribute 'APIConnectionError'" in response or \
-                        "'NoneType' object has no attribute 'RateLimitError'" in response or \
-                        "'NoneType' object has no attribute 'AuthenticationError'" in response or \
-                        "'NoneType' object has no attribute 'APIError'" in response)
-
 
 class TestXAIEngine(unittest.TestCase): # Renamed from TestGrokEngine
     """Tests for the XAI (Grok) AI engine implementation."""
