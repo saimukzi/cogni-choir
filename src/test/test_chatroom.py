@@ -22,7 +22,7 @@ from src.main.ai_bots import Bot # Bot is still in ai_bots
 from src.main.ai_base import AIEngine # Import AIEngine from ai_base for spec
 from src.main.ai_engines import GeminiEngine, AzureOpenAIEngine, GrokEngine
 from src.main.message import Message
-from src.main.api_key_manager import ApiKeyManager
+from src.main.apikey_manager import ApiKeyManager
 
 
 class TestChatroom(unittest.TestCase):
@@ -30,13 +30,13 @@ class TestChatroom(unittest.TestCase):
     def setUp(self):
         """Sets up a Chatroom instance with a mock manager for each test."""
         self.mock_manager = MagicMock(spec=ChatroomManager)
-        self.mock_manager.api_key_manager = MagicMock(spec=ApiKeyManager) # Mock ApiKeyManager on the mock manager
+        self.mock_manager.apikey_manager = MagicMock(spec=ApiKeyManager) # Mock ApiKeyManager on the mock manager
         
         self.chatroom = Chatroom("Test Room")
         self.chatroom.manager = self.mock_manager # Assign the mock manager
         self.chatroom.filepath = os.path.join(DATA_DIR, "test_room.json") # Dummy filepath for save
 
-        self.dummy_engine = GeminiEngine(api_key="test_key") 
+        self.dummy_engine = GeminiEngine(apikey="test_key") 
 
     def test_initialization(self):
         """Tests the initial state of a newly created Chatroom."""
@@ -128,16 +128,16 @@ class TestChatroom(unittest.TestCase):
         """
         # Define NoKeyEngine (can be an inner class or defined in the test module)
         class NoKeyEngine(AIEngine): # Make sure AIEngine is imported
-            def __init__(self, api_key: str = None, model_name: str = "no-key-model"):
-                super().__init__(api_key, model_name)
+            def __init__(self, apikey: str = None, model_name: str = "no-key-model"):
+                super().__init__(apikey, model_name)
             def generate_response(self, role_name: str, system_prompt: str, conversation_history: list[Message]) -> str:
                 return "NoKeyEngine response"
-            def requires_api_key(self) -> bool:
+            def requires_apikey(self) -> bool:
                 return False
 
         # Setup chatroom
-        bot1 = Bot("BotAlpha", "Prompt Alpha", GeminiEngine(api_key="gemini_test_key", model_name="gemini-alpha"))
-        bot2 = Bot("BotBeta", "Prompt Beta", AzureOpenAIEngine(api_key="azureopenai_test_key", model_name="azureopenai-beta"))
+        bot1 = Bot("BotAlpha", "Prompt Alpha", GeminiEngine(apikey="gemini_test_key", model_name="gemini-alpha"))
+        bot2 = Bot("BotBeta", "Prompt Beta", AzureOpenAIEngine(apikey="azureopenai_test_key", model_name="azureopenai-beta"))
         bot3 = Bot("BotGamma", "Prompt Gamma", NoKeyEngine(model_name="no-key-gamma")) # Add this bot
 
         self.chatroom.add_bot(bot1)
@@ -154,8 +154,8 @@ class TestChatroom(unittest.TestCase):
 
 
         # --- Scenario 1: Key required, not provided (Gemini) ---
-        mock_api_key_manager_missing_gemini = MagicMock(spec=ApiKeyManager)
-        mock_api_key_manager_missing_gemini.load_key.side_effect = lambda service_name: {
+        mock_apikey_manager_missing_gemini = MagicMock(spec=ApiKeyManager)
+        mock_apikey_manager_missing_gemini.load_key.side_effect = lambda service_name: {
             "AzureOpenAIEngine": "azureopenai_test_key" # No Gemini key, NoKey key also missing (but not needed)
         }.get(service_name)
         
@@ -183,14 +183,14 @@ class TestChatroom(unittest.TestCase):
 
         # Mock engine instances to be returned by the mocked create_bot
         mock_engine_alpha = MagicMock(spec=AIEngine)
-        mock_engine_alpha.api_key = None # API key is None because mock_api_key_manager_missing_gemini returns None for Gemini
+        mock_engine_alpha.apikey = None # API key is None because mock_apikey_manager_missing_gemini returns None for Gemini
         mock_engine_alpha.model_name = bot_data_gemini_for_test['model_name']
-        mock_engine_alpha.requires_api_key.return_value = True # GeminiEngine requires a key
+        mock_engine_alpha.requires_apikey.return_value = True # GeminiEngine requires a key
 
         mock_engine_beta = MagicMock(spec=AIEngine)
-        mock_engine_beta.api_key = "azureopenai_test_key" # API key is provided for AzureOpenAI by mock_api_key_manager_missing_gemini
+        mock_engine_beta.apikey = "azureopenai_test_key" # API key is provided for AzureOpenAI by mock_apikey_manager_missing_gemini
         mock_engine_beta.model_name = bot_data_azureopenai_for_test['model_name']
-        mock_engine_beta.requires_api_key.return_value = True # AzureOpenAIEngine requires a key
+        mock_engine_beta.requires_apikey.return_value = True # AzureOpenAIEngine requires a key
 
         def mock_create_bot_side_effect(bot_name, system_prompt, engine_config):
             # Find the bot_data from self.test_data_missing_keys_scen1 to ensure prompts match
@@ -215,7 +215,7 @@ class TestChatroom(unittest.TestCase):
                 self.test_data_missing_keys_scen1, 
                 manager=self.mock_manager,
                 filepath="dummy_missing.json",
-                api_key_manager=mock_api_key_manager_missing_gemini
+                apikey_manager=mock_apikey_manager_missing_gemini
             )
 
         # Assertions for Scenario 1
@@ -238,7 +238,7 @@ class TestChatroom(unittest.TestCase):
         expected_nokey_warning_scen1 = f"Failed to create bot 'BotGamma' from data in chatroom '{self.test_data_missing_keys_scen1['name']}' due to: Unsupported engine type: NoKeyEngine"
         mock_logger_warning.assert_any_call(expected_nokey_warning_scen1)
         
-        # Verify no warning for BotBeta as its key is provided by mock_api_key_manager_missing_gemini
+        # Verify no warning for BotBeta as its key is provided by mock_apikey_manager_missing_gemini
         unexpected_azureopenai_warning_fragment = "API key for AzureOpenAI not found for bot 'BotBeta'"
         for call in mock_logger_warning.call_args_list:
             logged_message = call[0][0]
@@ -248,8 +248,8 @@ class TestChatroom(unittest.TestCase):
         mock_logger_warning.reset_mock()
 
         # --- Scenario 2: All Keys provided / Not Required (original test logic adapted) ---
-        mock_api_key_manager_all_keys = MagicMock(spec=ApiKeyManager)
-        mock_api_key_manager_all_keys.load_key.side_effect = lambda service_name: {
+        mock_apikey_manager_all_keys = MagicMock(spec=ApiKeyManager)
+        mock_apikey_manager_all_keys.load_key.side_effect = lambda service_name: {
             "GeminiEngine": "gemini_test_key_loaded",
             "AzureOpenAIEngine": "azureopenai_test_key_loaded",
             # NoKeyEngine doesn't need a key, so it doesn't matter if "NoKey" is here or not
@@ -265,7 +265,7 @@ class TestChatroom(unittest.TestCase):
                 dict_data, # Use the original dict_data, which now includes BotGamma with NoKeyEngine
                 manager=self.mock_manager,
                 filepath="dummy_all_keys.json", # Original self.chatroom.filepath is "test_room.json"
-                api_key_manager=mock_api_key_manager_all_keys
+                apikey_manager=mock_apikey_manager_all_keys
             )
 
         # Assert no warnings were logged for missing keys in this scenario
@@ -290,14 +290,14 @@ class TestChatroom(unittest.TestCase):
         reloaded_bot_alpha_s2 = reloaded_chatroom_all_keys.get_bot("BotAlpha")
         self.assertIsNotNone(reloaded_bot_alpha_s2)
         self.assertIsInstance(reloaded_bot_alpha_s2.get_engine(), GeminiEngine)
-        self.assertEqual(reloaded_bot_alpha_s2.get_engine().api_key, "gemini_test_key_loaded")
+        self.assertEqual(reloaded_bot_alpha_s2.get_engine().apikey, "gemini_test_key_loaded")
         self.assertEqual(reloaded_bot_alpha_s2.get_engine().model_name, "gemini-alpha")
         
         # BotBeta (AzureOpenAIEngine) - key is "azureopenai_test_key_loaded"
         reloaded_bot_beta_s2 = reloaded_chatroom_all_keys.get_bot("BotBeta")
         self.assertIsNotNone(reloaded_bot_beta_s2)
         self.assertIsInstance(reloaded_bot_beta_s2.get_engine(), AzureOpenAIEngine)
-        self.assertEqual(reloaded_bot_beta_s2.get_engine().api_key, "azureopenai_test_key_loaded")
+        self.assertEqual(reloaded_bot_beta_s2.get_engine().apikey, "azureopenai_test_key_loaded")
         self.assertEqual(reloaded_bot_beta_s2.get_engine().model_name, "azureopenai-beta")
 
         # Add warning assertion for BotGamma failing to load in Scenario 2
@@ -326,10 +326,10 @@ class TestChatroomManager(unittest.TestCase):
         initialization for most tests to prevent actual file system access unless
         specifically testing that method.
         """
-        self.mock_api_key_manager = MagicMock(spec=ApiKeyManager)
+        self.mock_apikey_manager = MagicMock(spec=ApiKeyManager)
         # Prevent _load_chatrooms_from_disk from running in __init__ for most tests
         with patch.object(ChatroomManager, '_load_chatrooms_from_disk', lambda self: None):
-            self.manager = ChatroomManager(api_key_manager=self.mock_api_key_manager)
+            self.manager = ChatroomManager(apikey_manager=self.mock_apikey_manager)
 
         # Clean up test data directory before and after tests if it exists
         self.test_data_dir_path = DATA_DIR 
@@ -367,7 +367,7 @@ class TestChatroomManager(unittest.TestCase):
         mock_chatroom_from_dict.side_effect = [mock_chatroom_instance1, mock_chatroom_instance2]
 
         # Re-initialize manager to trigger actual _load_chatrooms_from_disk
-        manager = ChatroomManager(api_key_manager=self.mock_api_key_manager)
+        manager = ChatroomManager(apikey_manager=self.mock_apikey_manager)
 
         # Assertions
         self.assertEqual(len(manager.chatrooms), 2)
@@ -376,8 +376,8 @@ class TestChatroomManager(unittest.TestCase):
         mock_glob_glob.assert_called_once_with(os.path.join(DATA_DIR, "*.json"))
         self.assertEqual(mock_open_file.call_count, 2)
         self.assertEqual(mock_json_load.call_count, 2)
-        mock_chatroom_from_dict.assert_any_call(mock_room_data1, manager, dummy_filepath1, self.mock_api_key_manager)
-        mock_chatroom_from_dict.assert_any_call(mock_room_data2, manager, dummy_filepath2, self.mock_api_key_manager)
+        mock_chatroom_from_dict.assert_any_call(mock_room_data1, manager, dummy_filepath1, self.mock_apikey_manager)
+        mock_chatroom_from_dict.assert_any_call(mock_room_data2, manager, dummy_filepath2, self.mock_apikey_manager)
 
 
     @patch('src.main.chatroom.Chatroom._save')
@@ -458,12 +458,12 @@ class TestChatroomManager(unittest.TestCase):
         with patch('src.main.chatroom.Chatroom._save') as mock_original_save:
             original_chatroom = self.manager.create_chatroom(original_room_name)
             self.assertIsNotNone(original_chatroom) # Ensure original_chatroom is created
-            original_bot = Bot("OrigBot", "Prompt", GeminiEngine(api_key="key", model_name="gemini-orig"))
+            original_bot = Bot("OrigBot", "Prompt", GeminiEngine(apikey="key", model_name="gemini-orig"))
             original_chatroom.add_bot(original_bot) 
             original_chatroom.add_message("User", "Hello clone test") 
 
         # Mock load_key for ApiKeyManager
-        self.mock_api_key_manager.load_key.return_value = "loaded_api_key"
+        self.mock_apikey_manager.load_key.return_value = "loaded_apikey"
 
         # Patch Chatroom._save for the cloned chatroom to avoid actual file operations
         with patch('src.main.chatroom.Chatroom._save') as mock_cloned_save:
@@ -480,14 +480,14 @@ class TestChatroomManager(unittest.TestCase):
         self.assertIsNotNone(cloned_bot)
         self.assertEqual(cloned_bot.get_system_prompt(), "Prompt")
         self.assertIsInstance(cloned_bot.get_engine(), GeminiEngine)
-        self.assertEqual(cloned_bot.get_engine().api_key, "loaded_api_key")
+        self.assertEqual(cloned_bot.get_engine().apikey, "loaded_apikey")
         self.assertEqual(cloned_bot.get_engine().model_name, "gemini-orig")
 
         # Assert message history is NOT copied
         self.assertEqual(len(cloned_chatroom.get_messages()), 0)
         
         # Check that ApiKeyManager.load_key was called for the bot's engine type
-        self.mock_api_key_manager.load_key.assert_called_with("GeminiEngine")
+        self.mock_apikey_manager.load_key.assert_called_with("GeminiEngine")
         
         # Check that the cloned chatroom's _save was called (by create_chatroom and add_bot)
         # create_chatroom for clone + add_bot for the cloned bot

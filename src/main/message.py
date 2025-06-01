@@ -72,3 +72,11 @@ class Message:
             A `Message` instance created from the provided data.
         """
         return Message(sender=data["sender"], content=data["content"], timestamp=data["timestamp"])
+
+    # def __deepcopy__(self, _memo):
+    #     """Creates a deep copy of the message instance.
+
+    #     Returns:
+    #         A new `Message` instance with the same attributes.
+    #     """
+    #     return Message(sender=self.sender, content=self.content, timestamp=self.timestamp)

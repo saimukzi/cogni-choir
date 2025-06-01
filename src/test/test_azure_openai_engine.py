@@ -37,7 +37,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         """
         # It's good practice to disable logging during tests unless specifically testing log output
         logging.disable(logging.CRITICAL)
-        self.api_key = "test_api_key"
+        self.apikey = "test_apikey"
         self.model_name = "test_model"
         # self.azure_endpoint is removed as it's read internally by the engine
         self.api_version = "2024-12-01-preview" # This is hardcoded in the engine
@@ -87,7 +87,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
             ]
             
             self.engine = AzureOpenAIEngine(
-                api_key=self.api_key,
+                apikey=self.apikey,
                 model_name=self.model_name # This model_name is for AIEngine base, not deployment name
             )
             
@@ -98,7 +98,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
 
         # Ensure the AzureOpenAI client was initialized with mocked/hardcoded values
         MockAzureOpenAI.assert_called_once_with(
-            api_key=self.api_key,
+            apikey=self.apikey,
             azure_endpoint=self.mocked_azure_endpoint_val, # From mocked commons.read_str
             api_version=self.api_version # Hardcoded in AzureOpenAIEngine
         )
@@ -122,9 +122,9 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         logging.disable(logging.NOTSET) # Re-enable logging
         patch.stopall() # Stop any patches started with patch.object or in setUp
 
-    def test_requires_api_key(self):
+    def test_requires_apikey(self):
         """Tests that the engine correctly reports it requires an API key."""
-        self.assertTrue(self.engine.requires_api_key())
+        self.assertTrue(self.engine.requires_apikey())
 
     def test_generate_response_success(self):
         """Tests successful response generation with a simple conversation history."""
