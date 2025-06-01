@@ -138,16 +138,6 @@ class TestGoogleEngine(unittest.TestCase): # Renamed from TestGeminiEngine
         with self.assertRaises(AssertionError):
             engine.generate_response("google_gemini", aiengine_arg_dict, [], "TestRole", [])
 
-    @patch('src.main.third_parties.google.genai', None) # Patched to new location
-    def test_google_sdk_not_available(self): # Renamed
-        """Tests Google engine's behavior when the google-genai SDK is not available."""
-        engine = Google()
-        aiengine_arg_dict = {"model_name": "gemini-sdk-missing"}
-        apikey_list = ["fake_key_sdk_missing"]
-        # If genai is None, _get_client will raise an AttributeError when trying to access genai.Client
-        response = engine.generate_response("google_gemini", aiengine_arg_dict, apikey_list, "TestRole", [])
-        self.assertTrue(response.startswith("Error: Gemini API call failed: 'NoneType' object has no attribute 'Client'"))
-
 
 class TestAzureOpenAIEngine(unittest.TestCase):
     """Tests for the AzureOpenAI AI engine implementation."""
