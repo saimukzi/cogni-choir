@@ -1,3 +1,9 @@
+"""Dialogs for master password management.
+
+This module provides dialog classes for creating, entering, and changing
+the master password used to secure sensitive data within the application.
+These dialogs handle user input and basic validation.
+"""
 import sys
 from PyQt6.QtWidgets import (
     QApplication, QDialog, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout,
@@ -60,6 +66,11 @@ class CreateMasterPasswordDialog(QDialog):
         self.cancel_button.clicked.connect(self.reject)
 
     def accept(self):
+        """Handles the OK button click and validates the password fields.
+
+        Checks if passwords are provided and if they match. If validation
+        passes, it accepts the dialog. Otherwise, it displays an error message.
+        """
         password = self.password_input.text()
         confirm_password = self.confirm_password_input.text()
 
@@ -142,6 +153,13 @@ class EnterMasterPasswordDialog(QDialog):
 
 
     def accept(self):
+        """Handles the OK button click and validates the password field.
+
+        Checks if a password is provided. If validation passes, it accepts
+        the dialog. Otherwise, it displays an error message.
+        This method is also called if the "Forgot Password" flow leads to
+        data clearing, in which case `clear_data_flag` will be True.
+        """
         password = self.password_input.text()
         if not password:
             self.error_label.setText("Password cannot be empty.")
@@ -244,6 +262,13 @@ class ChangeMasterPasswordDialog(QDialog):
         self.cancel_button.clicked.connect(self.reject)
 
     def accept(self):
+        """Handles the OK button click and validates the password fields.
+
+        Checks for empty fields, ensures the new password and its confirmation
+        match, and verifies that the new password is different from the old one.
+        If all validations pass, it accepts the dialog. Otherwise, it displays
+        an appropriate error message.
+        """
         old_password = self.old_password_input.text()
         new_password = self.new_password_input.text()
         confirm_new_password = self.confirm_new_password_input.text()

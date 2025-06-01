@@ -1,13 +1,30 @@
+"""Abstract base classes and data classes for third-party integrations.
+
+This module defines the structure for integrating various third-party AI services.
+It includes:
+- `ApiKeySlotInfo`: Describes an API key slot required by a third-party service.
+- `AIEngineArgInfo`: Describes an argument for a specific AI engine.
+- `AIEngineInfo`: Describes a specific AI engine provided by a third-party.
+- `ThirdPartyBase`: An abstract base class that all third-party integration
+  classes must inherit from. It defines the interface for providing API key
+  information, AI engine details, and response generation.
+- `ThirdPartyGroup`: Manages a collection of `ThirdPartyBase` instances.
+"""
 import abc
 import logging
 
 from .message import Message
 
 class ApiKeySlotInfo:
+    """Information about an API key slot for a third-party service.
 
+    Attributes:
+        apikey_slot_id (str): A unique identifier for this API key slot (e.g., "OPENAI_API_KEY").
+        name (str): A user-friendly name for this API key slot (e.g., "OpenAI API Key").
+    """
     def __init__(self, apikey_slot_id: str, name: str):
-        """
-        Initializes a new instance of the ApiKeySlot class.
+        """Initializes ApiKeySlotInfo.
+
         Args:
             apikey_slot_id (str): Unique identifier for the API key slot.
             name (str): Name of the API key slot.
@@ -16,13 +33,23 @@ class ApiKeySlotInfo:
         self.name = name
 
     def __repr__(self):
+        """Returns a string representation of the ApiKeySlotInfo instance."""
         return f"ApiKeySlotInfo(apikey_slot_id={self.apikey_slot_id}, name={self.name})"
 
 
 class AIEngineArgInfo:
+    """Information about an argument for an AI engine.
+
+    Attributes:
+        arg_id (str): The unique identifier for the argument (e.g., "model_name").
+        name (str): A user-friendly name for the argument (e.g., "Model Name").
+        required (bool): True if the argument is required, False otherwise.
+        default_value (Optional[str]): The default value for the argument, if any.
+        value_options (Optional[list[str]]): A list of possible valid string
+            values for the argument, if applicable.
+    """
     def __init__(self, arg_id: str, name:str, required: bool, default_value: str = None, value_options: list[str] = None):
-        """
-        Initializes a new instance of the AIEngineArgInfo class.
+        """Initializes AIEngineArgInfo.
 
         Args:
             arg_id (str): The id of the argument.
@@ -39,10 +66,20 @@ class AIEngineArgInfo:
 
 
 class AIEngineInfo:
+    """Information about a specific AI engine provided by a third party.
 
+    Attributes:
+        aiengine_id (str): A unique identifier for this AI engine (e.g., "OPENAI_GPT4").
+        name (str): A user-friendly name for the AI engine (e.g., "OpenAI GPT-4").
+        apikey_slot_id_list (list[str]): A list of `apikey_slot_id` strings
+            that this engine requires. These IDs should correspond to `ApiKeySlotInfo`
+            instances.
+        arg_list (list[AIEngineArgInfo]): A list of `AIEngineArgInfo` objects
+            describing the arguments this engine accepts or requires.
+    """
     def __init__(self, aiengine_id: str, name: str, apikey_slot_id_list: list[str], arg_list: list[AIEngineArgInfo]):
-        """
-        Initializes a new instance of the AIEngineInfo class.
+        """Initializes AIEngineInfo.
+
         Args:
             aiengine_id (str): Unique identifier for the AI engine.
             name (str): Name of the AI engine.
@@ -55,14 +92,14 @@ class AIEngineInfo:
         self.arg_list = arg_list
 
     def get_aiengine_arg_info(self, arg_id: str) -> AIEngineArgInfo | None:
-        """
-        Retrieves the AI engine argument information by its ID.
+        """Retrieves the AIEngineArgInfo for a given argument ID.
 
         Args:
             arg_id (str): The ID of the argument to retrieve.
 
         Returns:
-            AIEngineArgInfo | None: The argument information if found, otherwise None.
+            Optional[AIEngineArgInfo]: The argument information if found,
+                otherwise None.
         """
         for arg_info in self.arg_list:
             if arg_info.arg_id == arg_id:
@@ -71,8 +108,21 @@ class AIEngineInfo:
 
 
 class ThirdPartyBase(abc.ABC):
+    """Abstract base class for third-party AI service integrations.
 
+    Subclasses must implement methods to provide information about required API
+    keys, available AI engines, and to generate responses from those engines.
+
+    Attributes:
+        thirdparty_id (str): A unique identifier for the third-party service
+                             (e.g., "OPENAI", "ANTHROPIC").
+    """
     def __init__(self, thirdparty_id: str):
+        """Initializes ThirdPartyBase.
+
+        Args:
+            thirdparty_id (str): Unique identifier for the third-party service.
+        """
         self.thirdparty_id = thirdparty_id
 
     @abc.abstractmethod

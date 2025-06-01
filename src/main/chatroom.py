@@ -234,7 +234,6 @@ class Chatroom:
             data: The dictionary containing chatroom data.
             manager: The `ChatroomManager` instance that will manage this chatroom.
             filepath: The path to the file from which the chatroom was loaded.
-            apikey_manager: The `ApiKeyManager` instance for retrieving API keys for bots.
 
         Returns:
             A `Chatroom` instance populated with data from the dictionary.

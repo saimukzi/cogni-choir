@@ -9,11 +9,7 @@ from .apikey_manager import ApiKeyQuery
 class Bot:
     """Represents an AI bot with a specific name, system prompt, and AI engine."""
     def __init__(self):
-        """Initializes a new instance of the Bot class.
-
-        Args:
-            name: The name of the bot.
-        """
+        """Initializes a new instance of the Bot class."""
         self.name : str|None = None
         self.aiengine_id : str|None = None
         self.aiengine_arg_dict : dict|None = None
@@ -64,6 +60,7 @@ class Bot:
 
         Args:
             arg_id: The ID of the argument to retrieve.
+            default: The default value to return if the argument is not found.
 
         Returns:
             The value of the argument if it exists, otherwise returns the default value.

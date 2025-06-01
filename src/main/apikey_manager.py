@@ -39,6 +39,12 @@ class ApiKeyQuery:
         apikey_id (str): The specific ID of the API key within that slot.
     """
     def __init__(self, apikey_slot_id: str, apikey_id: str):
+        """Initializes an ApiKeyQuery instance.
+
+        Args:
+            apikey_slot_id: The slot ID for the API key.
+            apikey_id: The specific ID of the API key within the slot.
+        """
         self._apikey_slot_id = apikey_slot_id
         self._apikey_id = apikey_id
 
@@ -139,6 +145,12 @@ class ApiKeyManager:
     #             print(f"Error creating data directory {self.data_folder_path}: {e}", file=sys.stderr)
 
     def _load_data(self):
+        """Loads API key data from the JSON file.
+
+        If the data file exists, it's loaded into `self._data`.
+        Otherwise, `self._data` is set to None. It then calls `_fix_data`
+        to ensure the data structure is initialized.
+        """
         if os.path.exists(self.data_path):
             with open(self.data_path, 'r', encoding='utf-8') as f:
                 self._data = json.load(f)
@@ -147,6 +159,12 @@ class ApiKeyManager:
         self._fix_data()
 
     def _fix_data(self):
+        """Ensures the data structure for API keys is correctly initialized.
+
+        If `self._data` is None (e.g., file didn't exist), it initializes it
+        as an empty dictionary. It also ensures that the nested dictionary
+        `apikey_slot_id_to_apikey_id_list_dict` exists.
+        """
         if not self._data:
             self._data = {}
         if 'apikey_slot_id_to_apikey_id_list_dict' not in self._data:
@@ -225,7 +243,11 @@ class ApiKeyManager:
         return decrypted_key
 
     def delete_apikey(self, apikey_query: ApiKeyQuery):
-        """Deletes an API key for a given service."""
+        """Deletes an API key from keyring and the local data index.
+
+        Args:
+            apikey_query: An `ApiKeyQuery` object specifying the key to delete.
+        """
         if not apikey_query:
             return
         apikey_slot_id = apikey_query.apikey_slot_id
@@ -241,13 +263,14 @@ class ApiKeyManager:
         """Retrieves a list of API keys for the specified services.
 
         This method returns a list of decrypted API keys for the provided
-        service names. If a key cannot be found or decrypted, it is skipped.
+        API key queries. If a key cannot be found or decrypted, it is skipped.
 
         Args:
-            service_name_list (list[str]): List of service names to retrieve keys for.
+            query_list (list[ApiKeyQuery]): List of `ApiKeyQuery` objects
+                specifying which keys to retrieve.
 
         Returns:
-            list[str]: List of decrypted API keys for the specified services.
+            list[str]: List of decrypted API keys.
         """
         if not self.encryption_service:
             raise RuntimeError("Encryption service not available. Cannot get keys.")

@@ -78,16 +78,21 @@ class AddBotDialog(QDialog):
         self._set_model_name_input_to_default()
 
     def _on_engine_combo_current_index_changed(self):
-        """Handles changes in the AI engine selection.
+        """Handles the change in the selected AI engine.
 
-        Updates the model name input field to the default value based on the
-        selected AI engine. If no default model name is available, it clears
-        the input field.
+        This method is connected to the `currentIndexChanged` signal of the
+        `engine_combo` QComboBox. It updates the model name input field to the
+        default model name associated with the newly selected AI engine.
         """
         self._set_model_name_input_to_default()
 
     def _set_model_name_input_to_default(self):
-        """Sets the model name input field to the default value based on the selected AI engine."""
+        """Sets the model name input to its default for the current engine.
+
+        Retrieves the default model name for the currently selected AI engine
+        and updates the `model_name_input` QLineEdit. If no default model
+        name is found, the input field is cleared.
+        """
         default_model_name = self._get_default_model_name()
         if default_model_name:
             self.model_name_input.setText(default_model_name)
@@ -95,6 +100,13 @@ class AddBotDialog(QDialog):
             self.model_name_input.clear()
 
     def _get_default_model_name(self) -> str:
+        """Gets the default model name for the currently selected AI engine.
+
+        Returns:
+            The default model name as a string, or an empty string if no
+            default model name is defined for the selected engine or if no
+            engine is selected.
+        """
         aiengine_info = self._get_current_aiengine_info()
         if not aiengine_info:
             return ''
@@ -181,6 +193,17 @@ class AddBotDialog(QDialog):
     #     return None
 
     def _get_matched_api_query_list(self) -> list[apikey_manager.ApiKeyQuery]:
+        """Gets API key queries matching the selected AI engine's requirements.
+
+        Filters the dialog's `apikey_query_list` to include only those queries
+        whose `apikey_slot_id` is present in the `apikey_slot_id_list` of the
+        currently selected `AIEngineInfo`.
+
+        Returns:
+            A list of `ApiKeyQuery` objects that match the API key requirements
+            of the selected AI engine. Returns an empty list if no AI engine is
+            selected or if no matching API key queries are found.
+        """
         aiengine_info = self._get_current_aiengine_info()
         if not aiengine_info:
             return []
