@@ -14,8 +14,12 @@ import os
 # Adjusting sys.path for direct imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from src.main.ai_bots import Bot, AIEngine, create_bot
-from src.main.ai_engines import GeminiEngine, GrokEngine
+import openai # Import the openai module itself for error types
+from src.main.ai_bots import Bot
+from src.main.third_party import ThirdPartyBase
+from src.main.third_parties.google import Google # Updated import for Google/Gemini
+from src.main.third_parties.xai import XAI # Updated import for XAI/Grok
+from src.main.third_parties.azure_openai import AzureOpenAI
 from src.main.message import Message
 
 # No global SDK mocks here; will use @patch decorator for targeted mocking
@@ -24,272 +28,330 @@ class TestBot(unittest.TestCase):
     """Tests for the Bot class."""
     def setUp(self):
         """Sets up a mock AI engine and a Bot instance for testing."""
-        self.mock_engine_instance = MagicMock(spec=AIEngine)
-        self.mock_engine_instance.__class__.__name__ = "SpecificMockedEngine" # For to_dict
-        self.mock_engine_instance.model_name = "mocked-model-001"
-        self.bot = Bot("TestBot", "Be helpful.", self.mock_engine_instance)
+        # AIEngine is no longer directly used by Bot. Bot stores aiengine_id and aiengine_arg_dict.
+        # For testing Bot class in isolation, we might not need a full mock engine instance here,
+        # or we can use ThirdPartyBase as a generic spec if some methods still expect an engine-like object.
+        self.mock_engine_instance = MagicMock(spec=ThirdPartyBase)
+        self.mock_engine_instance.__class__.__name__ = "SpecificMockedEngine" # For old to_dict if it used type name
+        self.mock_engine_instance.model_name = "mocked-model-001" # If any part of Bot still needs this from a mock
 
-    def test_bot_creation(self): # Added to ensure setUp is fine and basic attrs are set
+        self.bot = Bot()
+        self.bot.name = "TestBot"
+        self.bot.aiengine_id = "mock_engine_id_001"
+        self.bot.aiengine_arg_dict = {
+            "system_prompt": "Be helpful.", # System prompt is now an engine argument
+            "model_name": "mocked-model-001"  # Model name is also an engine argument
+        }
+        # apikey_query_list is initialized to None by Bot.__init__
+
+    def test_bot_creation(self): # Ensure basic attributes are set
         """Tests basic Bot attributes after creation."""
-        self.assertEqual(self.bot.get_name(), "TestBot")
-        self.assertEqual(self.bot.get_system_prompt(), "Be helpful.")
-        self.assertEqual(self.bot.get_engine(), self.mock_engine_instance)
+        self.assertEqual(self.bot.name, "TestBot")
+        self.assertEqual(self.bot.aiengine_id, "mock_engine_id_001")
+        self.assertEqual(self.bot.get_aiengine_arg("system_prompt"), "Be helpful.")
+        self.assertEqual(self.bot.get_aiengine_arg("model_name"), "mocked-model-001")
+        self.assertIsNone(self.bot.apikey_query_list)
 
     def test_bot_to_dict(self):
         """Tests the serialization of a Bot instance to a dictionary."""
-        # The type(self.engine).__name__ for a MagicMock spec'ing AIEngine 
-        # will be 'AIEngine' if spec_set=True, or 'MagicMock' if spec_set=False or just spec.
-        # Since Bot.to_dict() uses type(self.engine).__name__, and self.mock_engine_instance is a MagicMock,
-        # its type name will be 'MagicMock'.
-        # The __class__.__name__ = "SpecificMockedEngine" assignment on the instance
-        # doesn't change what type(instance).__name__ returns.
-        # For a more robust test of to_dict with specific engine types, one might mock the specific engine class
-        # or use a real instance if the dependencies are simple.
-        # Given the current mocking, we expect 'MagicMock' or the spec's name if spec_set=True.
-        # Let's assume spec provides the name of the class it's spec'ing for __class__.__name__
-        # However, type(mock_instance).__name__ is 'MagicMock'.
-        # The previous code set mock_engine_instance.__class__.__name__ = "SpecificMockedEngine"
-        # This is a bit tricky. Let's assume the Bot.to_dict() is intended to get the *actual* underlying class name
-        # if it were a real engine. If self.engine is a mock, `type(self.engine).__name__` is usually 'MagicMock'.
-        # The custom __class__.__name__ set on the instance is not what type() picks up.
-        # So, if the mock is just `MagicMock(spec=AIEngine)`, engine_type will be 'MagicMock'.
-        # If the goal was to test the string 'SpecificMockedEngine', the mock needs to be constructed differently
-        # or the `to_dict` method needs to be aware of this.
-        # For now, let's stick to what `type(self.mock_engine_instance).__name__` would yield.
-        # If `spec=AIEngine` and AIEngine is an ABC, it might be 'AIEngine'.
-        # If `spec=GeminiEngine`, it might be 'GeminiEngine'.
-        # Let's use `self.mock_engine_instance.__class__.__name__` as set in setUp for the expected value.
         expected_dict = {
             "name": "TestBot",
-            "system_prompt": "Be helpful.",
-            "engine_type": "SpecificMockedEngine", 
-            "model_name": "mocked-model-001"
-        }
-        # To make this pass, Bot.to_dict() should perhaps use self.engine.__class__.__name__
-        # if that's the intent, instead of type(self.engine).__name__.
-        # Given Bot.to_dict() is: type(self.engine).__name__, and self.mock_engine_instance is a MagicMock
-        # this will be "MagicMock". So the test's setUp for this specific string is what needs to align.
-        # The current test setup is: self.mock_engine_instance.__class__.__name__ = "SpecificMockedEngine"
-        # This is fine if Bot.to_dict() was `self.engine.__class__.__name__`.
-        # Let's assume Bot.to_dict() should be robust to mocks and use `self.engine.__class__.__name__`.
-        # If `Bot.to_dict()` remains `type(self.engine).__name__`, then expected_dict should be "MagicMock".
-
-        # Re-evaluating: The most straightforward way to test to_dict() with a mock
-        # is to ensure the mock behaves like a real engine for the properties accessed.
-        # Bot.to_dict() accesses `type(self.engine).__name__`.
-        # A MagicMock's `type(mock).__name__` is 'MagicMock'.
-        # So, the expected should be 'MagicMock' unless we change how Bot.to_dict works or how the mock is made.
-        # The previous fix was to set mock_engine_instance.__class__.__name__. Let's assume this is the intended way.
-        # The failure `AssertionError: {'engine_type': 'MagicMock'} != {'engine_type': 'SpecificMockedEngine'}`
-        # confirms `type(self.engine).__name__` returns 'MagicMock'.
-        # So, the fix is in the expected_dict or how Bot.to_dict() gets the name.
-        # Let's make the test expect 'MagicMock' as that's what `type(MagicMock).__name__` is.
-        # OR, more robustly, mock the `type(self.engine).__name__` access itself if that's too complex.
-        
-        # Correcting the expectation based on how `type()` works with `MagicMock`
-        expected_dict_corrected = {
-            "name": "TestBot",
-            "system_prompt": "Be helpful.",
-            "engine_type": "MagicMock", # This is what type(MagicMock()) typically yields for __name__
-            "model_name": "mocked-model-001"
-        }
-        # However, if the spec argument to MagicMock is a class (like AIEngine),
-        # and AIEngine is a known class, it *might* give AIEngine.
-        # Given the previous failure, it was 'MagicMock'.
-        
-        # The current code in `Bot.to_dict()` is `type(self.engine).__name__`.
-        # The mock is `MagicMock(spec=AIEngine)`. `type(self.mock_engine_instance).__name__` is 'MagicMock'.
-        # The line `self.mock_engine_instance.__class__.__name__ = "SpecificMockedEngine"` in setUp
-        # was an attempt to control this, but `type()` doesn't use the instance's `__class__.__name__`.
-        # It uses the actual type of the object.
-        # So, the test should expect 'MagicMock'.
-        expected_dict = {
-            "name": "TestBot",
-            "system_prompt": "Be helpful.",
-            "engine_type": "SpecificMockedEngine", 
-            "model_name": "mocked-model-001"
+            "aiengine_id": "mock_engine_id_001",
+            "aiengine_arg_dict": {
+                "system_prompt": "Be helpful.",
+                "model_name": "mocked-model-001"
+            },
+            "apikey_query_list": None # As it's not set in setUp
         }
         self.assertEqual(self.bot.to_dict(), expected_dict)
 
 
-class TestGeminiEngine(unittest.TestCase):
-    """Tests for the GeminiEngine AI engine implementation."""
+class TestGoogleEngine(unittest.TestCase): # Renamed from TestGeminiEngine
+    """Tests for the Google (Gemini) AI engine implementation."""
     def setUp(self):
         """Sets up a mock for the `google.genai.Client` instance."""
-        # Common mock setup for genai.Client instance
         self.mock_genai_client_instance = MagicMock()
 
-    @patch('src.main.ai_engines.gemini_engine.genai') # Patched where genai is now imported and used 
-    def test_gemini_init_success(self, mock_genai_sdk):
-        """Tests successful initialization of GeminiEngine with a mock SDK."""
+    @patch('src.main.third_parties.google.genai') # Patched to new location
+    def test_google_init_success(self, mock_genai_sdk): # Renamed
+        """Tests successful initialization of Google engine with a mock SDK."""
         mock_genai_sdk.Client.return_value = self.mock_genai_client_instance
-        engine = GeminiEngine(apikey="fake_gemini_key", model_name="gemini-custom")
-        
-        mock_genai_sdk.Client.assert_called_once_with(apikey="fake_gemini_key")
-        self.assertEqual(engine.client, self.mock_genai_client_instance)
+        # Google class __init__ takes no apikey or model_name. These are passed to generate_response.
+        engine = Google()
+        # To test _get_client behavior, we'd call generate_response.
+        # For an "init_success" test, we mostly ensure it can be instantiated.
+        self.assertIsInstance(engine, Google)
+        # We can also test that the internal client dict is empty initially.
+        self.assertEqual(len(engine._apikey_to_client_dict), 0)
 
-    @patch('src.main.ai_engines.gemini_engine.genai') # Patched where genai is now imported and used
-    def test_gemini_generate_response_success(self, mock_genai_sdk):
-        """Tests successful response generation from GeminiEngine."""
+
+    @patch('src.main.third_parties.google.genai') # Patched to new location
+    def test_google_generate_response_success(self, mock_genai_sdk): # Renamed
+        """Tests successful response generation from Google engine."""
         mock_genai_sdk.Client.return_value = self.mock_genai_client_instance
-        self.mock_genai_client_instance.models.generate_content.return_value = MagicMock(text="Test Gemini response") # GenerateContentResponse
+        # Mock the specific generate_content call path
+        self.mock_genai_client_instance.models.generate_content.return_value = MagicMock(text="Test Google response")
 
-        engine = GeminiEngine(apikey="fake_gemini_key") # Init with mocked SDK
-        # history_data = [{'role': 'user', 'text': 'Test message OETMTOCXPR'}]
+        engine = Google()
+        aiengine_arg_dict = {"model_name": "gemini-custom", "system_prompt": "System prompt ASFWDYPWYL"}
+        apikey_list = ["fake_google_key"]
         conversation_history = [Message(sender='user', content='Test message OETMTOCXPR')]
+
         response = engine.generate_response(
-            role_name='Fake Gemini KYVAAXQBVQ', 
-            system_prompt="System prompt ASFWDYPWYL", 
+            _aiengine_id="google_gemini", # Matches AIEngineInfo
+            aiengine_arg_dict=aiengine_arg_dict,
+            apikey_list=apikey_list,
+            role_name='FakeGoogleBot',
             conversation_history=conversation_history
         )
-        self.assertEqual(response, "Test Gemini response")
+        self.assertEqual(response, "Test Google response")
+        mock_genai_sdk.Client.assert_called_once_with(api_key="fake_google_key")
+        self.mock_genai_client_instance.models.generate_content.assert_called_once()
 
-    @patch('src.main.ai_engines.gemini_engine.genai') # Patched where genai is now imported and used
-    def test_gemini_generate_response_api_error(self, mock_genai_sdk):
-        """Tests GeminiEngine's error handling for an API error during response generation."""
-        # Assuming self.mock_genai_client_instance is set up in setUp like other tests
-        # and that the actual API call made by the engine is on this client instance.
-        # The original error also mentioned 'mock_gemini_model_instance' and 'mock_chat_instance',
-        # which are not defined in the provided setUp. Let's assume the client's method is called.
-        if not hasattr(self, 'mock_genai_client_instance'): # Ensure it exists from setUp
-            self.mock_genai_client_instance = MagicMock()
+
+    @patch('src.main.third_parties.google.genai') # Patched to new location
+    def test_google_generate_response_api_error(self, mock_genai_sdk): # Renamed
+        """Tests Google engine's error handling for an API error."""
         mock_genai_sdk.Client.return_value = self.mock_genai_client_instance
-        self.mock_genai_client_instance.models.generate_content.side_effect = Exception("Gemini API Error")
+        self.mock_genai_client_instance.models.generate_content.side_effect = Exception("Google API Error")
 
-        engine = GeminiEngine(apikey="fake_gemini_key") # Init with mocked SDK
+        engine = Google()
+        aiengine_arg_dict = {"model_name": "gemini-error", "system_prompt": "System Prompt for API Error Test"}
+        apikey_list = ["fake_google_key_error"]
         conversation_history = [Message(sender='user', content='Test message')]
+
         response = engine.generate_response(
+            _aiengine_id="google_gemini",
+            aiengine_arg_dict=aiengine_arg_dict,
+            apikey_list=apikey_list,
             role_name="TestRole",
-            system_prompt="System Prompt for API Error Test",
             conversation_history=conversation_history
         )
-        self.assertTrue(response.startswith("Error: Gemini API call failed: Gemini API Error"))
+        self.assertTrue(response.startswith("Error: Gemini API call failed: Google API Error"))
 
-    @patch('src.main.ai_engines.gemini_engine.genai') # Patched where genai is now imported and used
-    def test_gemini_no_apikey(self, mock_genai_sdk):
-        """Tests GeminiEngine's behavior when an API key is not provided."""
-        engine_no_key = GeminiEngine(apikey=None)
-        response = engine_no_key.generate_response(
-            role_name="TestRole",
-            system_prompt="System Prompt for No API Key Test",
-            conversation_history=[]
+    @patch('src.main.third_parties.google.genai') # Patched to new location
+    def test_google_no_apikey(self, mock_genai_sdk): # Renamed
+        """Tests Google engine's behavior when an API key is not provided in list."""
+        engine = Google()
+        aiengine_arg_dict = {"model_name": "gemini-no-key"}
+        # generate_response in Google class asserts `len(apikey_list) == 1`.
+        with self.assertRaises(AssertionError):
+            engine.generate_response("google_gemini", aiengine_arg_dict, [], "TestRole", [])
+
+    @patch('src.main.third_parties.google.genai', None) # Patched to new location
+    def test_google_sdk_not_available(self): # Renamed
+        """Tests Google engine's behavior when the google-genai SDK is not available."""
+        engine = Google()
+        aiengine_arg_dict = {"model_name": "gemini-sdk-missing"}
+        apikey_list = ["fake_key_sdk_missing"]
+        # If genai is None, _get_client will raise an AttributeError when trying to access genai.Client
+        response = engine.generate_response("google_gemini", aiengine_arg_dict, apikey_list, "TestRole", [])
+        self.assertTrue(response.startswith("Error: Gemini API call failed: 'NoneType' object has no attribute 'Client'"))
+
+
+class TestAzureOpenAIEngine(unittest.TestCase):
+    """Tests for the AzureOpenAI AI engine implementation."""
+    def setUp(self):
+        self.mock_openai_client_instance = MagicMock()
+        # Configure self.mock_completion_object for the chat.completions.create API
+        # The AzureOpenAI client's chat.completions.create returns an object
+        # that has a .choices list, and each choice has a .message object,
+        # which in turn has a .content attribute.
+        self.mock_completion_response_object = MagicMock()
+        mock_choice = MagicMock()
+        mock_message = MagicMock()
+        mock_message.content = "Test OpenAI response"
+        mock_choice.message = mock_message
+        self.mock_completion_response_object.choices = [mock_choice]
+
+        # The AzureOpenAI's generate_response method calls self.client.chat.completions.create
+        self.mock_openai_client_instance.chat.completions.create.return_value = self.mock_completion_response_object
+
+    @patch('src.main.third_parties.azure_openai.openai.AzureOpenAI') # Mock the actual SDK client
+    def test_openai_init_and_client_retrieval(self, mock_sdk_azure_openai_class):
+        # This test checks if our AzureOpenAI wrapper class correctly initializes
+        # and uses the underlying openai.AzureOpenAI SDK client.
+        mock_sdk_azure_openai_class.return_value = self.mock_openai_client_instance
+
+        engine = AzureOpenAI() # Instantiate our engine wrapper
+
+        # Define arguments for generate_response, which triggers _get_client
+        aiengine_arg_dict = {"model_name": "test_deployment", "system_prompt": "Test system prompt"}
+        apikey_list = ["test_api_key"]
+
+        # Mock commons.read_str as it's used in _get_client via generate_response
+        with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_init"):
+            # Calling generate_response will trigger _get_client if client not cached
+            engine.generate_response(
+                _aiengine_id="azure_openai",
+                aiengine_arg_dict=aiengine_arg_dict,
+                apikey_list=apikey_list,
+                role_name="TestRoleInit",
+                conversation_history=[]
+            )
+
+        # Assert that the underlying SDK client was initialized by _get_client
+        mock_sdk_azure_openai_class.assert_called_once_with(
+            api_key=apikey_list[0],
+            azure_endpoint="fake_endpoint_init",
+            api_version='2024-12-01-preview' # As hardcoded in azure_openai.py
         )
-        self.assertEqual(response, "Error: Gemini API key not configured.")
+        # Check if the client instance is cached (optional, depends on desired test depth)
+        # self.assertIn((apikey_list[0], "fake_endpoint_init", '2024-12-01-preview'), engine._client_dict)
+        # self.assertEqual(engine._client_dict[(apikey_list[0], "fake_endpoint_init", '2024-12-01-preview')], self.mock_openai_client_instance)
 
-    @patch('src.main.ai_engines.gemini_engine.genai', None) # Target the new location for this specific test
-    def test_gemini_sdk_not_available(self):
-        """Tests GeminiEngine's behavior when the google-genai SDK is not available."""
-        engine_sdk_missing = GeminiEngine(apikey="fake_key")
-        response = engine_sdk_missing.generate_response(
-            role_name="TestRole",
-            system_prompt="System Prompt for SDK Not Available Test",
-            conversation_history=[]
+
+    @patch('src.main.third_parties.azure_openai.openai.AzureOpenAI') # Mock the actual SDK client
+    def test_openai_generate_response_success(self, mock_sdk_azure_openai_class):
+        mock_sdk_azure_openai_class.return_value = self.mock_openai_client_instance
+        
+        engine = AzureOpenAI()
+        
+        aiengine_arg_dict_for_test = {
+            "model_name": "gpt-custom-deployment",
+            "system_prompt": "System instructions for AI."
+        }
+        apikey_list_for_test = ["fake_azure_openai_key"]
+        role_name_for_test = "TestBot"
+        conversation_history_for_test = [Message(sender='User1', content='Hello AI, this is my first message.')]
+        
+        with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_success"):
+            response = engine.generate_response(
+                _aiengine_id="azure_openai",
+                aiengine_arg_dict=aiengine_arg_dict_for_test,
+                apikey_list=apikey_list_for_test,
+                role_name=role_name_for_test,
+                conversation_history=conversation_history_for_test
+            )
+        
+        self.assertEqual(response, "Test OpenAI response")
+        
+        expected_api_messages = [
+            {'role': 'system', 'content': "System instructions for AI."},
+            {'role': 'user', 'content': 'User1 said:\nHello AI, this is my first message.'}
+        ]
+        
+        self.mock_openai_client_instance.chat.completions.create.assert_called_once_with(
+            model=aiengine_arg_dict_for_test["model_name"],
+            messages=expected_api_messages
         )
-        self.assertEqual(response, "Error: google.genai SDK not available.")
+        mock_sdk_azure_openai_class.assert_called_once_with(
+            api_key=apikey_list_for_test[0],
+            azure_endpoint="fake_endpoint_success",
+            api_version='2024-12-01-preview'
+        )
 
-
-# class TestOpenAIEngine(unittest.TestCase):
-#     """Tests for the OpenAIEngine AI engine implementation."""
-#     def setUp(self):
-#         self.mock_openai_client_instance = MagicMock()
-#         # Configure self.mock_completion_object for the responses.create API
-#         # which is expected to return an object with an 'output_text' attribute.
-#         self.mock_completion_object = MagicMock()
-#         self.mock_completion_object.output_text = "Test OpenAI response"
+    @patch('src.main.third_parties.azure_openai.openai.AzureOpenAI') # Patch the constructor
+    def test_openai_generate_response_api_error(self, mock_azure_openai_constructor): # Renamed arg
+        mock_client_instance = MagicMock()
+        # Make the mocked client's method raise APIConnectionError to test that specific block
+        mock_client_instance.chat.completions.create.side_effect = openai.APIConnectionError(request=MagicMock())
+        mock_azure_openai_constructor.return_value = mock_client_instance # Constructor returns our mock client
         
-#         # The OpenAIEngine's generate_response method calls self.client.responses.create
-#         # So, we set the return_value for that specific mock path.
-#         self.mock_openai_client_instance.responses.create.return_value = self.mock_completion_object
-        
-#         # self.mock_choice_object and self.mock_message_object are removed as they were
-#         # part of the structure for chat.completions.create, which is not used by the engine.
+        engine = AzureOpenAI()
+        aiengine_arg_dict_for_test = {"model_name": "deployment-error", "system_prompt": "SysPrompt"}
+        apikey_list_for_test = ["fake_key_error"]
+        conversation_history_for_test = [Message(sender='user', content='Test message')]
 
-    # @patch('src.main.ai_engines.openai_engine.openai') # Patched where openai is now imported and used
-    # def test_openai_init_success(self, mock_openai_sdk):
-    #     mock_openai_sdk.OpenAI.return_value = self.mock_openai_client_instance
-    #     engine = OpenAIEngine(apikey="fake_openai_key", model_name="gpt-custom")
-    #     mock_openai_sdk.OpenAI.assert_called_once_with(apikey="fake_openai_key")
-    #     self.assertEqual(engine.client, self.mock_openai_client_instance)
+        with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_error"):
+            response = engine.generate_response(
+                _aiengine_id="azure_openai",
+                aiengine_arg_dict=aiengine_arg_dict_for_test,
+                apikey_list=apikey_list_for_test,
+                role_name="TestRole",
+                conversation_history=conversation_history_for_test
+            )
+        self.assertTrue(response.startswith("Error: Could not connect to Azure OpenAI API. Details:"))
 
-    # @patch('src.main.ai_engines.openai_engine.openai') # Patched where openai is now imported and used
-    # def test_openai_generate_response_success(self, mock_openai_sdk):
-    #     mock_openai_sdk.OpenAI.return_value = self.mock_openai_client_instance
-    #     engine = OpenAIEngine(apikey="fake_openai_key")
-        
-    #     # Original call: engine.generate_response("Hello OpenAI", [("User", "Old message")])
-    #     # Define inputs for the generate_response call as per subtask
-    #     role_name = "TestBot"
-    #     system_prompt_for_test = "System instructions for AI."
-    #     conversation_history = [Message(sender='User1', content='Hello AI, this is my first message.')]
-        
-    #     response = engine.generate_response(
-    #         role_name=role_name,
-    #         system_prompt=system_prompt_for_test,
-    #         conversation_history=conversation_history
-    #     )
-        
-    #     self.assertEqual(response, "Test OpenAI response")
-        
-    #     # Calculate the expected 'input' argument for responses.create based on engine logic
-    #     # OpenAIEngine processes conversation_history:
-    #     # - If msg['role'] == role_name -> {"role": "assistant", "content": msg['text']}
-    #     # - Else (user message) -> {"role": "user", "content": f"{msg['role']} said:\n{msg['text']}"}
-    #     #   (with logic for concatenating consecutive user messages)
-    #     # Given role_name="TestBot" and history_data=[{'role': 'User1', 'text': 'Hello AI, this is my first message.'}]
-    #     # 'User1' != "TestBot", so it's a user message.
-    #     expected_api_input_messages = [
-    #         {'role': 'user', 'content': 'User1 said:\nHello AI, this is my first message.'}
-    #     ]
-        
-    #     # Assert that self.client.responses.create was called correctly
-    #     # engine.model_name will be "gpt-3.5-turbo" as engine is created with no model_name specified.
-    #     self.mock_openai_client_instance.responses.create.assert_called_once_with(
-    #         model=engine.model_name,
-    #         instructions=system_prompt_for_test,
-    #         input=expected_api_input_messages
-    #     )
+    @patch('src.main.third_parties.azure_openai.openai.AzureOpenAI')
+    def test_openai_generate_response_rate_limit_error(self, mock_azure_openai_constructor):
+        """Tests AzureOpenAI's error handling for openai.RateLimitError."""
+        mock_client_instance = MagicMock()
+        mock_client_instance.chat.completions.create.side_effect = openai.RateLimitError("Rate limit hit", response=MagicMock(), body=None)
+        mock_azure_openai_constructor.return_value = mock_client_instance
 
-    # @patch('src.main.ai_engines.openai_engine.openai') # Patched where openai is now imported and used
-    # def test_openai_generate_response_api_error(self, mock_openai_sdk):
-    #     mock_openai_sdk.OpenAI.return_value = self.mock_openai_client_instance
-    #     # Update to mock responses.create for consistency
-    #     self.mock_openai_client_instance.responses.create.side_effect = Exception("OpenAI API Error")
-    #     engine = OpenAIEngine(apikey="fake_openai_key")
-    #     conversation_history = [Message(sender='user', content='Test message')]
-    #     response = engine.generate_response(
-    #         role_name="TestRole",
-    #         system_prompt="System Prompt for API Error Test",
-    #         conversation_history=conversation_history
-    #     )
-    #     self.assertTrue(response.startswith("Error: OpenAI API call failed: OpenAI API Error"))
+        engine = AzureOpenAI()
+        aiengine_arg_dict = {"model_name": "deployment-rl-error", "system_prompt": "SysPrompt"}
+        apikey_list = ["fake_key_rl_error"]
+        with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_rl_error"):
+            response = engine.generate_response("azure_openai", aiengine_arg_dict, apikey_list, "TestRoleRL", [])
+        self.assertTrue(response.startswith("Error: Azure OpenAI API rate limit exceeded. Details:"))
 
-    # @patch('src.main.ai_engines.openai_engine.openai') # Patched where openai is now imported and used
-    # def test_openai_no_apikey(self, mock_openai_sdk):
-    #     engine_no_key = OpenAIEngine(apikey=None)
-    #     response = engine_no_key.generate_response(
-    #         role_name="TestRole",
-    #         system_prompt="System Prompt for No API Key Test",
-    #         conversation_history=[]
-    #     )
-    #     self.assertEqual(response, "Error: OpenAI API key not configured or client not initialized.")
+    @patch('src.main.third_parties.azure_openai.openai.AzureOpenAI')
+    def test_openai_generate_response_authentication_error(self, mock_azure_openai_constructor):
+        """Tests AzureOpenAI's error handling for openai.AuthenticationError."""
+        mock_client_instance = MagicMock()
+        mock_client_instance.chat.completions.create.side_effect = openai.AuthenticationError("Auth error", response=MagicMock(), body=None)
+        mock_azure_openai_constructor.return_value = mock_client_instance
 
-    # @patch('src.main.ai_engines.openai_engine.openai', None) # Target the new location
-    # def test_openai_sdk_not_available(self):
-    #     """Tests OpenAIEngine's behavior when the OpenAI SDK is not available."""
-    #     engine_sdk_missing = OpenAIEngine(apikey="fake_key")
-    #     response = engine_sdk_missing.generate_response(
-    #         role_name="TestRole",
-    #         system_prompt="System Prompt for SDK Not Available Test",
-    #         conversation_history=[]
-    #     )
-    #     self.assertEqual(response, "Error: openai SDK not available.")
+        engine = AzureOpenAI()
+        aiengine_arg_dict = {"model_name": "deployment-auth-error", "system_prompt": "SysPrompt"}
+        apikey_list = ["fake_key_auth_error"]
+        with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_auth_error"):
+            response = engine.generate_response("azure_openai", aiengine_arg_dict, apikey_list, "TestRoleAuth", [])
+        self.assertTrue(response.startswith("Error: Azure OpenAI API authentication failed."))
+
+    @patch('src.main.third_parties.azure_openai.openai.AzureOpenAI')
+    def test_openai_generate_response_generic_api_error(self, mock_azure_openai_constructor):
+        """Tests AzureOpenAI's error handling for a generic openai.APIError."""
+        mock_client_instance = MagicMock()
+        # Note: openai.APIError requires 'request' argument.
+        mock_client_instance.chat.completions.create.side_effect = openai.APIError("Generic API Error", request=MagicMock(), body=None)
+        mock_azure_openai_constructor.return_value = mock_client_instance
+
+        engine = AzureOpenAI()
+        aiengine_arg_dict = {"model_name": "deployment-generic-api-error", "system_prompt": "SysPrompt"}
+        apikey_list = ["fake_key_generic_api_error"]
+        with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_generic_api_error"):
+            response = engine.generate_response("azure_openai", aiengine_arg_dict, apikey_list, "TestRoleGenericAPI", [])
+        self.assertTrue(response.startswith("Error: An unexpected error occurred with the Azure OpenAI API. Details:"))
+
+    @patch('src.main.third_parties.azure_openai.openai.AzureOpenAI') # Patch the constructor
+    def test_openai_no_apikey_or_improper_config(self, mock_azure_openai_constructor): # Renamed arg
+        engine = AzureOpenAI()
+        aiengine_arg_dict = {"model_name": "deployment-no-key", "system_prompt": ""}
+
+        with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_no_key"):
+            # Test with empty apikey list (AssertionError)
+            with self.assertRaisesRegex(AssertionError, "Azure OpenAI requires exactly one API key."):
+                 engine.generate_response("azure_openai", aiengine_arg_dict, [], "TestRole", [])
+
+            # Test with API key as None (SDK TypeError)
+            # The openai.AzureOpenAI constructor will raise this if api_key is None
+            mock_azure_openai_constructor.side_effect = TypeError("API key cannot be None")
+            response = engine.generate_response("azure_openai", aiengine_arg_dict, [None], "TestRole", [])
+            # This will be caught by the generic "except Exception" in SUT's generate_response
+            self.assertTrue(response.startswith("Error: An unexpected error occurred. Details: API key cannot be None"))
+
+    @patch('src.main.third_parties.azure_openai.openai', None) # Patch the whole module to None
+    def test_openai_sdk_not_available(self):
+        """Tests AzureOpenAI's behavior when the OpenAI SDK (openai module) is None."""
+        engine = AzureOpenAI()
+        aiengine_arg_dict = {"model_name": "deployment-sdk-missing"}
+        apikey_list = ["fake_key_sdk_missing"]
+
+        with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_sdk_missing"):
+            response = engine.generate_response(
+                _aiengine_id="azure_openai",
+                aiengine_arg_dict=aiengine_arg_dict,
+                apikey_list=apikey_list,
+                role_name="TestRole",
+                conversation_history=[]
+            )
+        self.assertTrue("Error: An unexpected error occurred. Details:" in response)
+        # Check for specific AttributeError if 'openai' module is None
+        self.assertTrue("'NoneType' object has no attribute 'AzureOpenAI'" in response or \
+                        "'NoneType' object has no attribute 'APIConnectionError'" in response or \
+                        "'NoneType' object has no attribute 'RateLimitError'" in response or \
+                        "'NoneType' object has no attribute 'AuthenticationError'" in response or \
+                        "'NoneType' object has no attribute 'APIError'" in response)
 
 
-class TestGrokEngine(unittest.TestCase):
-    """Tests for the GrokEngine AI engine implementation."""
-    @patch('src.main.ai_engines.grok_engine.openai.OpenAI')
-    def test_grok_response_success(self, mock_openai_class):
-        """Tests successful response generation from GrokEngine."""
+class TestXAIEngine(unittest.TestCase): # Renamed from TestGrokEngine
+    """Tests for the XAI (Grok) AI engine implementation."""
+    @patch('src.main.third_parties.xai.openai.OpenAI') # Patched to new location
+    def test_xai_response_success(self, mock_openai_class): # Renamed
+        """Tests successful response generation from XAI engine."""
         # Configure the mock client and its methods
         mock_client_instance = MagicMock()
         mock_chat_completion = MagicMock()
@@ -301,236 +363,210 @@ class TestGrokEngine(unittest.TestCase):
         mock_client_instance.chat.completions.create.return_value = mock_chat_completion
         mock_openai_class.return_value = mock_client_instance
 
-        grok_engine = GrokEngine(apikey="fake_grok_key", model_name="grok-test-model")
-        
-        role_name = "TestGrokBot"
-        system_prompt = "System prompt for Grok."
+        mock_client_instance = MagicMock()
+        mock_chat_completion = MagicMock()
+        mock_choice = MagicMock()
+        mock_message = MagicMock()
+        mock_message.content = "Successful XAI response" # Updated text
+        mock_choice.message = mock_message
+        mock_chat_completion.choices = [mock_choice]
+        mock_client_instance.chat.completions.create.return_value = mock_chat_completion
+        mock_openai_class.return_value = mock_client_instance
+
+        engine = XAI() # Renamed, XAI takes no args in __init__
+        aiengine_arg_dict = {"model_name": "grok-test-model", "system_prompt": "System prompt for XAI."}
+        apikey_list = ["fake_xai_key"]
+        role_name = "TestXAIBot"
         conversation_history = [
-            Message(sender='User', content='Hello Grok!'),
+            Message(sender='User', content='Hello XAI!'),
             Message(sender=role_name, content='Hello User!'),
             Message(sender='User', content='How are you?')
         ]
         
-        response = grok_engine.generate_response(
+        response = engine.generate_response( # Call with full args
+            _aiengine_id="xai_grok", # Matches AIEngineInfo
+            aiengine_arg_dict=aiengine_arg_dict,
+            apikey_list=apikey_list,
             role_name=role_name,
-            system_prompt=system_prompt,
             conversation_history=conversation_history
         )
 
-        self.assertEqual(response, "Successful Grok response")
+        self.assertEqual(response, "Successful XAI response") # Updated text
         
         expected_messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": "User said:\nHello Grok!"},
+            {"role": "system", "content": aiengine_arg_dict["system_prompt"]},
+            {"role": "user", "content": "User said:\nHello XAI!"}, # Updated text
             {"role": "assistant", "content": "Hello User!"},
             {"role": "user", "content": "User said:\nHow are you?"}
         ]
         
         mock_client_instance.chat.completions.create.assert_called_once_with(
-            model="grok-test-model",
+            model=aiengine_arg_dict["model_name"],
             messages=expected_messages
         )
+        mock_openai_class.assert_called_once_with(api_key="fake_xai_key", base_url="https://api.x.ai/v1")
 
-    @patch('src.main.ai_engines.grok_engine.openai.OpenAI')
-    def test_grok_init_success(self, mock_openai_class):
-        """Tests successful initialization of GrokEngine."""
-        mock_client_instance = MagicMock()
-        mock_openai_class.return_value = mock_client_instance
+    @patch('src.main.third_parties.xai.openai.OpenAI') # Patched to new location
+    def test_xai_init_success(self, mock_openai_class): # Renamed
+        """Tests successful initialization of XAI engine."""
+        engine = XAI()
+        self.assertIsInstance(engine, XAI)
+        self.assertEqual(len(engine._apikey_to_client_dict), 0)
+        # _get_client is tested via generate_response, checking mock_openai_class call there.
 
-        engine = GrokEngine(apikey="test_apikey_123", model_name="grok-custom-model")
-        
-        mock_openai_class.assert_called_once_with(
-            apikey="test_apikey_123",
-            base_url="https://api.x.ai/v1"
-        )
-        self.assertEqual(engine.apikey, "test_apikey_123")
-        self.assertEqual(engine.model_name, "grok-custom-model")
-        self.assertEqual(engine.client, mock_client_instance)
-
-    def test_grok_init_no_apikey(self):
-        """Tests that GrokEngine raises ValueError if no API key is provided."""
-        with self.assertRaisesRegex(ValueError, "GrokEngine requires an API key, but none was provided."):
-            GrokEngine(apikey=None)
+    def test_xai_init_no_apikey(self): # Renamed
+        """XAI class takes no apikey in __init__. This test might be obsolete or test generate_response."""
+        # This test as-is for __init__ is not applicable.
+        # Testing no apikey for generate_response:
+        engine = XAI()
+        aiengine_arg_dict = {"model_name": "grok-no-key"}
+        with self.assertRaises(AssertionError): # XAI asserts len(apikey_list) == 1
+            engine.generate_response("xai_grok", aiengine_arg_dict, [], "TestRole", [])
 
     # Test for APIConnectionError
-    @patch('src.main.ai_engines.grok_engine.logging.error')
-    @patch('src.main.ai_engines.grok_engine.openai.OpenAI')
-    def test_grok_response_api_connection_error(self, mock_openai_class, mock_logging_error):
-        """Tests GrokEngine's error handling for APIConnectionError."""
+    @patch('src.main.third_parties.xai.logging.error')
+    @patch('src.main.third_parties.xai.openai.OpenAI') # Patch the OpenAI client constructor used by XAI
+    def test_xai_response_api_connection_error(self, mock_openai_constructor, mock_logging_error):
+        """Tests XAI engine's error handling for APIConnectionError."""
         mock_client_instance = MagicMock()
-        # Import openai for error types
-        import openai
+        # Make the mocked client's method raise the real exception from the globally imported openai
         mock_client_instance.chat.completions.create.side_effect = openai.APIConnectionError(request=MagicMock())
-        mock_openai_class.return_value = mock_client_instance
+        mock_openai_constructor.return_value = mock_client_instance # The constructor returns our mock client
 
-        engine = GrokEngine(apikey="fake_key")
-        response = engine.generate_response("TestRole", "SysPrompt", [])
+        engine = XAI()
+        aiengine_arg_dict = {"model_name": "grok-conn-error"}
+        apikey_list = ["fake_xai_key_conn_error"]
+        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikey_list, "TestRole", [])
         
         self.assertTrue(response.startswith("Error: Could not connect to Grok API."))
         mock_logging_error.assert_called_once()
 
-    # Test for RateLimitError
-    @patch('src.main.ai_engines.grok_engine.logging.error')
-    @patch('src.main.ai_engines.grok_engine.openai.OpenAI')
-    def test_grok_response_rate_limit_error(self, mock_openai_class, mock_logging_error):
-        """Tests GrokEngine's error handling for RateLimitError."""
+    @patch('src.main.third_parties.xai.logging.error')
+    @patch('src.main.third_parties.xai.openai.OpenAI')
+    def test_xai_response_rate_limit_error(self, mock_openai_constructor, mock_logging_error):
+        """Tests XAI engine's error handling for RateLimitError."""
         mock_client_instance = MagicMock()
-        import openai # Import for error types
         mock_client_instance.chat.completions.create.side_effect = openai.RateLimitError("Rate limit exceeded", response=MagicMock(), body=None)
-        mock_openai_class.return_value = mock_client_instance
+        mock_openai_constructor.return_value = mock_client_instance
 
-        engine = GrokEngine(apikey="fake_key")
-        response = engine.generate_response("TestRole", "SysPrompt", [])
+        engine = XAI()
+        aiengine_arg_dict = {"model_name": "grok-rate-limit"}
+        apikey_list = ["fake_xai_key_rate_limit"]
+        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikey_list, "TestRole", [])
 
         self.assertTrue(response.startswith("Error: Grok API rate limit exceeded."))
         mock_logging_error.assert_called_once()
 
-    # Test for AuthenticationError
-    @patch('src.main.ai_engines.grok_engine.logging.error')
-    @patch('src.main.ai_engines.grok_engine.openai.OpenAI')
-    def test_grok_response_authentication_error(self, mock_openai_class, mock_logging_error):
-        """Tests GrokEngine's error handling for AuthenticationError."""
+    @patch('src.main.third_parties.xai.logging.error')
+    @patch('src.main.third_parties.xai.openai.OpenAI')
+    def test_xai_response_authentication_error(self, mock_openai_constructor, mock_logging_error):
+        """Tests XAI engine's error handling for AuthenticationError."""
         mock_client_instance = MagicMock()
-        import openai # Import for error types
         mock_client_instance.chat.completions.create.side_effect = openai.AuthenticationError("Auth error", response=MagicMock(), body=None)
-        mock_openai_class.return_value = mock_client_instance
+        mock_openai_constructor.return_value = mock_client_instance
         
-        engine = GrokEngine(apikey="fake_key")
-        response = engine.generate_response("TestRole", "SysPrompt", [])
+        engine = XAI()
+        aiengine_arg_dict = {"model_name": "grok-auth-error"}
+        apikey_list = ["fake_xai_key_auth_error"]
+        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikey_list, "TestRole", [])
 
         self.assertTrue(response.startswith("Error: Grok API authentication failed."))
         mock_logging_error.assert_called_once()
 
-    # Test for generic APIError
-    @patch('src.main.ai_engines.grok_engine.logging.error')
-    @patch('src.main.ai_engines.grok_engine.openai.OpenAI')
-    def test_grok_response_api_error(self, mock_openai_class, mock_logging_error):
-        """Tests GrokEngine's error handling for a generic APIError."""
+    @patch('src.main.third_parties.xai.logging.error')
+    @patch('src.main.third_parties.xai.openai.OpenAI')
+    def test_xai_response_api_error(self, mock_openai_constructor, mock_logging_error):
+        """Tests XAI engine's error handling for a generic APIError."""
         mock_client_instance = MagicMock()
-        import openai # Import for error types
         mock_client_instance.chat.completions.create.side_effect = openai.APIError("Generic API error", request=MagicMock(), body=None)
-        mock_openai_class.return_value = mock_client_instance
+        mock_openai_constructor.return_value = mock_client_instance
 
-        engine = GrokEngine(apikey="fake_key")
-        response = engine.generate_response("TestRole", "SysPrompt", [])
+        engine = XAI()
+        aiengine_arg_dict = {"model_name": "grok-api-error"}
+        apikey_list = ["fake_xai_key_api_error"]
+        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikey_list, "TestRole", [])
 
         self.assertTrue(response.startswith("Error: An unexpected error occurred with the Grok API."))
         mock_logging_error.assert_called_once()
 
-    # Test for other unexpected Exception
-    @patch('src.main.ai_engines.grok_engine.logging.error')
-    @patch('src.main.ai_engines.grok_engine.openai.OpenAI')
-    def test_grok_response_unexpected_exception(self, mock_openai_class, mock_logging_error):
-        """Tests GrokEngine's error handling for an unexpected exception."""
+    @patch('src.main.third_parties.xai.logging.error')
+    @patch('src.main.third_parties.xai.openai.OpenAI') # Patch only the OpenAI class
+    def test_xai_response_unexpected_exception(self, mock_openai_constructor, mock_logging_error):
+        """Tests XAI engine's error handling for an unexpected exception."""
         mock_client_instance = MagicMock()
         mock_client_instance.chat.completions.create.side_effect = Exception("Something totally unexpected happened")
-        mock_openai_class.return_value = mock_client_instance
+        mock_openai_constructor.return_value = mock_client_instance # The constructor returns our mock
 
-        engine = GrokEngine(apikey="fake_key")
-        response = engine.generate_response("TestRole", "SysPrompt", [])
+        engine = XAI()
+        aiengine_arg_dict = {"model_name": "grok-unexpected-error"}
+        apikey_list = ["fake_xai_key_unexpected_error"]
+        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikey_list, "TestRole", [])
 
-        self.assertTrue(response.startswith("Error: An unexpected error occurred."))
+        self.assertTrue(response.startswith("Error: An unexpected error occurred. Details: Something totally unexpected happened"))
         mock_logging_error.assert_called_once()
 
-
-    @patch('src.main.ai_engines.gemini_engine.genai') # Mock genai via its new path for consistency
-    def test_engine_base_class_init(self, mock_genai_sdk): # mock_genai_sdk is passed due to patch
-        """Tests that GrokEngine correctly initializes attributes from AIEngine."""
-        # This test is for AIEngine, but was previously under TestGrokEngine.
-        # It's better placed in a generic TestAIEngine or similar if one exists,
-        # or ensure it's testing something specific to GrokEngine if kept here.
-        # For now, assuming it's a general base class test that found its way here.
-        # If it's meant to test GrokEngine's inheritance, it should instantiate GrokEngine.
-        # Let's make it test GrokEngine's inheritance of base attributes.
-        # Need to patch GrokEngine's specific dependencies if any for __init__
-        with patch('src.main.ai_engines.grok_engine.openai.OpenAI'): # Patch Grok's OpenAI client init
-            engine = GrokEngine(apikey="key123", model_name="model-abc") 
-            self.assertEqual(engine.apikey, "key123")
-            self.assertEqual(engine.model_name, "model-abc")
+    # This test seems to be misplaced as it was testing AIEngine/GrokEngine base class behavior.
+    # For XAI (which inherits ThirdPartyBase), the apikey and model_name are not direct __init__ args.
+    # We can remove this or adapt it to test ThirdPartyBase if a generic test for it is needed.
+    # For now, removing as XAI's specific init is tested in test_xai_init_success.
+    # @patch('src.main.third_parties.google.genai')
+    # def test_engine_base_class_init(self, mock_genai_sdk):
+    #     """Tests that XAI correctly initializes attributes from AIEngine."""
+    #     with patch('src.main.third_parties.xai.openai.OpenAI'):
+    #         engine = XAI() # XAI init takes no args
+    #         # Attributes like apikey, model_name are not stored on XAI instance from __init__
+    #         # self.assertEqual(engine.apikey, "key123")
+    #         # self.assertEqual(engine.model_name, "model-abc")
+    #         pass # Test can be removed or re-purposed for ThirdPartyBase if needed.
 
 
-class TestCreateBot(unittest.TestCase):
-    """Tests for the `create_bot` factory function."""
-    def test_create_gemini_bot_success(self):
-        """Tests successful creation of a Bot with GeminiEngine."""
-        engine_config = {"engine_type": "GeminiEngine", "apikey": "test_gemini_key"}
-        bot = create_bot(bot_name="GeminiTestBot", system_prompt="Test", engine_config=engine_config)
-        self.assertIsInstance(bot, Bot)
-        self.assertIsInstance(bot.get_engine(), GeminiEngine)
-        self.assertEqual(bot.get_engine().apikey, "test_gemini_key")
+# The TestCreateBot class was commented out as create_bot function seems to be removed.
+# If bot creation logic is found elsewhere, new tests should be written.
+# For now, the old TestCreateBot structure with updated engine names would look like:
+#
+# class TestCreateBot(unittest.TestCase):
+#     """Tests for the `create_bot` factory function."""
+#     @patch('src.main.third_parties.google.genai') # Example, if create_bot calls this
+#     def test_create_google_bot_success(self, mock_genai_sdk): # Renamed
+#         """Tests successful creation of a Bot with Google engine."""
+#         # This test would need to be completely rewritten based on how bots are now created.
+#         # Assuming create_bot still exists and works similarly for demonstration:
+#         # engine_config = {"engine_type": "Google", "apikey": "test_google_key"}
+#         # bot = create_bot(bot_name="GoogleTestBot", system_prompt="Test", engine_config=engine_config)
+#         # self.assertIsInstance(bot, Bot)
+#         # self.assertIsInstance(bot.get_engine(), Google) # Check for Google instance
+#         # self.assertEqual(bot.get_engine().apikey, "test_google_key") # If apikey is stored on engine
+#         pass
 
-    # def test_create_openai_bot_success(self):
-    #     """Tests successful creation of a Bot with OpenAIEngine."""
-    #     engine_config = {"engine_type": "OpenAIEngine", "apikey": "test_openai_key"}
-    #     bot = create_bot(bot_name="OpenAITestBot", system_prompt="Test", engine_config=engine_config)
-    #     self.assertIsInstance(bot, Bot)
-    #     self.assertIsInstance(bot.get_engine(), OpenAIEngine)
-    #     self.assertEqual(bot.get_engine().apikey, "test_openai_key")
+#     def test_create_azure_openai_bot_success(self): # Renamed from test_create_openai_bot_success
+#         # engine_config = {"engine_type": "AzureOpenAI", "apikey": "test_openai_key"}
+#         # bot = create_bot(bot_name="OpenAITestBot", system_prompt="Test", engine_config=engine_config)
+#         # self.assertIsInstance(bot, Bot)
+#         # self.assertIsInstance(bot.get_engine(), AzureOpenAI)
+#         # self.assertEqual(bot.get_engine().apikey, "test_openai_key")
+#         pass
 
-    def test_create_grok_bot_success(self):
-        """Tests successful creation of a Bot with GrokEngine."""
-        engine_config = {"engine_type": "GrokEngine", "apikey": "test_grok_key"}
-        bot = create_bot(bot_name="GrokTestBot", system_prompt="Test", engine_config=engine_config)
-        self.assertIsInstance(bot, Bot)
-        self.assertIsInstance(bot.get_engine(), GrokEngine)
-        self.assertEqual(bot.get_engine().apikey, "test_grok_key")
-
-    def test_create_bot_with_model_name(self):
-        """Tests that `create_bot` correctly passes `model_name` to the engine."""
-        engine_config = {"engine_type": "GeminiEngine", "apikey": "test_key", "model_name": "gemini-custom-model"}
-        bot = create_bot(bot_name="CustomModelBot", system_prompt="Test", engine_config=engine_config)
-        self.assertIsInstance(bot.get_engine(), GeminiEngine)
-        self.assertEqual(bot.get_engine().model_name, "gemini-custom-model")
-
-    def test_create_bot_with_none_apikey(self):
-        """Tests `create_bot` when `apikey` is None in engine_config."""
-        engine_config = {"engine_type": "GeminiEngine", "apikey": None}
-        bot = create_bot(bot_name="NoApiKeyBot", system_prompt="Test", engine_config=engine_config)
-        self.assertIsInstance(bot.get_engine(), GeminiEngine)
-        self.assertIsNone(bot.get_engine().apikey)
-
-    def test_create_bot_invalid_engine_type(self):
-        """Tests `create_bot` with an unsupported engine type."""
-        engine_config = {"engine_type": "UnknownEngine", "apikey": "test_key"}
-        with self.assertRaisesRegex(ValueError, "Unsupported engine type: UnknownEngine"):
-            create_bot(bot_name="InvalidEngineBot", system_prompt="Test", engine_config=engine_config)
-
-    def test_create_bot_missing_engine_type(self):
-        """Tests `create_bot` when `engine_type` is missing from engine_config."""
-        engine_config = {"apikey": "test_key"} # Missing "engine_type"
-        # create_bot uses .get("engine_type"), which returns None if key is missing.
-        # This None value then fails the "if engine_type not in engine_map" check.
-        # So it should raise a ValueError with a message like "Unsupported engine type: None"
-        with self.assertRaisesRegex(ValueError, "Unsupported engine type: None"):
-            create_bot(bot_name="MissingEngineTypeBot", system_prompt="Test", engine_config=engine_config)
-
-    def test_create_bot_empty_engine_config(self):
-        """Tests `create_bot` with an empty engine_config dictionary."""
-        engine_config = {} # Empty config
-        with self.assertRaisesRegex(ValueError, "Unsupported engine type: None"):
-            create_bot(bot_name="EmptyConfigBot", system_prompt="Test", engine_config=engine_config)
-    
-    # Test for default model name when not provided in config
-    @patch('src.main.ai_engines.gemini_engine.genai') # Patch to avoid actual SDK calls if any
-    def test_create_gemini_bot_default_model(self, mock_genai_sdk):
-        """Tests that `create_bot` results in the engine using its default model if not specified."""
-        engine_config = {"engine_type": "GeminiEngine", "apikey": "test_key_default_model"}
-        # Mock the GeminiEngine's default model if necessary, or ensure it has one
-        # For this test, we assume GeminiEngine sets a default model if not provided.
-        # We are testing if create_bot passes model_name=None to the engine constructor,
-        # and the engine then uses its default.
-        bot = create_bot(bot_name="DefaultModelGemini", system_prompt="Test", engine_config=engine_config)
-        self.assertIsInstance(bot.get_engine(), GeminiEngine)
-        # Assuming GeminiEngine's __init__ sets a default model_name if None is passed.
-        # e.g. self.model_name = model_name or "gemini-pro"
-        # We'd need to know the default or mock the engine's __init__ to check this robustly.
-        # For now, let's check if it's not None or empty, assuming a default is set.
-        # A better test would be to mock GeminiEngine and assert it was called with model_name=None.
-        # Or, if GeminiEngine has a known default constant, check against that.
-        self.assertIsNotNone(bot.get_engine().model_name) # Check that some model name is set
-        self.assertTrue(len(bot.get_engine().model_name) > 0) # And it's not empty
-        # The actual default model name in GeminiEngine is "gemini-2.5-flash-preview-05-20".
-        self.assertEqual(bot.get_engine().model_name, "gemini-2.5-flash-preview-05-20")
+#     @patch('src.main.third_parties.xai.openai.OpenAI') # Example
+#     def test_create_xai_bot_success(self, mock_xai_sdk): # Renamed
+#         # engine_config = {"engine_type": "XAI", "apikey": "test_xai_key"}
+#         # bot = create_bot(bot_name="XAITestBot", system_prompt="Test", engine_config=engine_config)
+#         # self.assertIsInstance(bot, Bot)
+#         # self.assertIsInstance(bot.get_engine(), XAI)
+#         # self.assertEqual(bot.get_engine().apikey, "test_xai_key")
+#         pass
+#
+#    # ... other create_bot tests would also need similar renaming and logic updates ...
+#
+#    @patch('src.main.third_parties.google.genai') # Example patch for the Google/Gemini engine
+#    def test_create_google_bot_default_model(self, mock_genai_sdk): # Renamed
+#        # engine_config = {"engine_type": "Google", "apikey": "test_key_default_model"}
+#        # bot = create_bot(bot_name="DefaultModelGoogle", system_prompt="Test", engine_config=engine_config)
+#        # self.assertIsInstance(bot.get_engine(), Google)
+#        # Assuming Google class sets a default model_name if not provided.
+#        # This depends on the actual implementation of Google class and create_bot.
+#        # For instance, if Google class has a DEFAULT_MODEL_NAME constant:
+#        # self.assertEqual(bot.get_engine().model_name, Google.DEFAULT_MODEL_NAME)
+#        pass
 
 
 if __name__ == '__main__':

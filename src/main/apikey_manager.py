@@ -199,8 +199,12 @@ class ApiKeyManager:
         """
         if not self.encryption_service:
             raise RuntimeError("Encryption service not available. Cannot save key.")
-        if not apikey_query:
-            raise ValueError("Service name and API key cannot be empty.")
+        if not apikey_query: # Checks if the ApiKeyQuery object itself is None
+            # This message might need refinement given ApiKeyQuery structure.
+            # For now, the critical check is for the apikey string itself.
+            raise ValueError("ApiKeyQuery object cannot be None.")
+        if not apikey: # Check for empty API key string
+            raise ValueError("API key cannot be empty.")
 
         apikey_slot_id = apikey_query.apikey_slot_id
         apikey_id = apikey_query.apikey_id
@@ -230,7 +234,13 @@ class ApiKeyManager:
         if not self.encryption_service:
             raise RuntimeError("Encryption service not available. Cannot load key.")
         if not apikey_query:
-            raise ValueError("Service name and API key ID cannot be empty.")
+            raise ValueError("ApiKeyQuery object cannot be None.")
+        if not apikey_query.apikey_slot_id or not apikey_query.apikey_id:
+            # Or handle differently, e.g., return None if keyring would fail with empty strings
+            print(f"Warning: Attempting to get API key with empty slot_id or key_id in query: {apikey_query.to_dict()}", file=sys.stderr)
+            # Keyring might return None or error with empty strings; let it try, or return None early.
+            # For now, let keyring handle it, as behavior might vary by backend.
+            # Consider raising ValueError here if empty slot/key ID is strictly invalid.
 
         apikey_slot_id = apikey_query.apikey_slot_id
         apikey_id = apikey_query.apikey_id

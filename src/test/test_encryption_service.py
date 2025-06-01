@@ -132,6 +132,12 @@ class TestEncryptionService(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Master password cannot be empty"):
             EncryptionService("")
 
+    def test_decrypt_none_input(self):
+        """Tests that decrypting a None input returns None gracefully."""
+        # This addresses the AttributeError: 'NoneType' object has no attribute 'encode'
+        # that would occur if None is passed to decrypt.
+        self.assertIsNone(self.es.decrypt(None), "Decrypting None should return None.")
+
 
 if __name__ == '__main__':
     unittest.main()

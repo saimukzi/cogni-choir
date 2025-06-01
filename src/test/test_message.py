@@ -63,5 +63,32 @@ class TestMessage(unittest.TestCase):
         expected_tuple = (sender, content)
         self.assertEqual(msg.to_history_tuple(), expected_tuple)
 
+    def test_message_to_dict(self):
+        """Tests the serialization of a Message object to a dictionary."""
+        sender = "User5"
+        content = "Serialization test"
+        fixed_timestamp = datetime.datetime(2023, 1, 2, 10, 30, 0).timestamp()
+        msg = Message(sender, content, timestamp=fixed_timestamp)
+
+        expected_dict = {
+            "sender": sender,
+            "content": content,
+            "timestamp": fixed_timestamp
+        }
+        self.assertEqual(msg.to_dict(), expected_dict)
+
+    def test_message_from_dict(self):
+        """Tests the deserialization of a Message object from a dictionary."""
+        data = {
+            "sender": "User6",
+            "content": "Deserialization test",
+            "timestamp": datetime.datetime(2023, 1, 3, 11, 20, 10).timestamp()
+        }
+        msg = Message.from_dict(data)
+
+        self.assertEqual(msg.sender, data["sender"])
+        self.assertEqual(msg.content, data["content"])
+        self.assertEqual(msg.timestamp, data["timestamp"])
+
 if __name__ == '__main__':
     unittest.main()

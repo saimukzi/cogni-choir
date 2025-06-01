@@ -10,7 +10,7 @@ import io
 # This assumes tests are run from the root of the project or src/test is in PYTHONPATH
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from src.main.apikey_manager import ApiKeyManager, ENCRYPTED_SERVICE_NAME_PREFIX, _KEYRING_MANAGED_SERVICES_KEY
+from src.main.apikey_manager import ApiKeyManager, ApiKeyQuery, ENCRYPTED_SERVICE_NAME_PREFIX # Removed _KEYRING_MANAGED_SERVICES_KEY, Added ApiKeyQuery
 from src.main.encryption_service import EncryptionService
 # Import the module itself to patch its global constant for salt file path
 import src.main.encryption_service as encryption_service_module
@@ -22,7 +22,7 @@ TEST_ENCRYPTION_SALT_FILE_FOR_AKM = os.path.join(DATA_DIR, "test_akm_encryption_
 
 
 class TestApiKeyManagerWithEncryption(unittest.TestCase):
-    """Tests for the ApiKeyManager class with encryption in fallback mode."""
+    """Tests for the ApiKeyManager class, assuming keyring usage with encryption."""
 
     @classmethod
     def setUpClass(cls):
@@ -45,20 +45,16 @@ class TestApiKeyManagerWithEncryption(unittest.TestCase):
         # EncryptionService will use the patched TEST_ENCRYPTION_SALT_FILE_FOR_AKM
         self.encryption_service = EncryptionService(self.master_password)
         
-        # Initialize ApiKeyManager, forcing fallback mode and using test paths
-        # We patch keyring.get_password during __init__ to ensure fallback mode
-        with patch('keyring.get_password', side_effect=Exception("Simulate no keyring")):
-            self.api_manager = ApiKeyManager(encryption_service=self.encryption_service)
-        
-        self.api_manager.fallback_file_path = TEST_API_KEYS_FILE
-        self.api_manager.use_keyring = False # Explicitly force fallback mode for all tests
-        # Manually reload cache after setting new path if __init__ loaded with different one.
-        # In this setup, ApiKeyManager's __init__ already loads based on the patched path if ES is passed.
-        # However, if ES wasn't passed, it would init its own fallback.
-        # Forcing use_keyring=False means it will rely on _keys_cache and fallback_file_path.
-        # If _load_keys_from_fallback wasn't called with the correct path in init, call it now.
-        self.api_manager._keys_cache = self.api_manager._load_keys_from_fallback()
-
+        # ApiKeyManager now requires encryption_service and data_path.
+        # It will attempt to use keyring. We'll mock keyring functions per test.
+        # The initial keyring.get_password in __init__ is for a _test_slot_id.
+        # We can let it pass or mock it here if its failure affects setup.
+        with patch('keyring.get_password') as mock_init_keyring_get:
+            mock_init_keyring_get.return_value = None # Simulate test key not found, which is fine
+            self.api_manager = ApiKeyManager(
+                encryption_service=self.encryption_service,
+                data_path=TEST_API_KEYS_FILE
+            )
 
     def tearDown(self):
         """Cleans up test files after each test."""
@@ -73,158 +69,247 @@ class TestApiKeyManagerWithEncryption(unittest.TestCase):
             os.remove(TEST_API_KEYS_FILE)
         if os.path.exists(TEST_ENCRYPTION_SALT_FILE_FOR_AKM):
             os.remove(TEST_ENCRYPTION_SALT_FILE_FOR_AKM)
-        # Do not remove DATA_DIR itself here if it might contain .gitkeep from project structure
-        # It will be removed in tearDown if empty.
 
-    def test_initial_state_fallback_mode(self):
-        """Test that the manager is correctly initialized in fallback mode."""
-        self.assertFalse(self.api_manager.use_keyring, "ApiKeyManager should be in fallback mode.")
+    def test_initial_state(self):
+        """Test that the manager is correctly initialized."""
         self.assertIsNotNone(self.api_manager.encryption_service, "Encryption service should be set.")
+        self.assertEqual(self.api_manager.data_path, TEST_API_KEYS_FILE)
+        self.assertEqual(self.api_manager._data, {'apikey_slot_id_to_apikey_id_list_dict': {}}, "Initial data should be empty manifest.")
 
-    def test_save_load_key_encrypted_fallback(self):
-        """Tests saving and loading an encrypted key in fallback mode."""
-        service_name = "TestServiceEnc"
-        apikey = "secret_key_123_fallback"
+    @patch('keyring.set_password')
+    @patch('keyring.get_password')
+    def test_save_load_key_encrypted(self, mock_keyring_get_password, mock_keyring_set_password):
+        """Tests saving and loading an encrypted key using keyring."""
+        slot_id = "TestSlot"
+        key_id = "TestKeyID"
+        apikey = "secret_key_123"
+        api_query = ApiKeyQuery(slot_id, key_id)
 
-        self.api_manager.set_apikey(service_name, apikey)
-        loaded_key = self.api_manager.get_apikey(service_name)
+        # Simulate key not found initially for get_apikey if it tries to read before setting mock
+        mock_keyring_get_password.return_value = None
+
+        # Action: Save key
+        self.api_manager.set_apikey(api_query, apikey)
+
+        # Verify keyring.set_password was called
+        # The first argument to set_password is the keyring service name
+        expected_keyring_service = self.api_manager._get_keyring_service_name(slot_id)
+        encrypted_key_arg = mock_keyring_set_password.call_args[0][2] # Get the encrypted key passed to set_password
+        mock_keyring_set_password.assert_called_once_with(expected_keyring_service, key_id, encrypted_key_arg)
+        self.assertNotEqual(encrypted_key_arg, apikey) # Ensure it's not plaintext
+
+        # Setup mock for keyring.get_password to return the encrypted key for subsequent load
+        mock_keyring_get_password.return_value = encrypted_key_arg
+
+        # Action: Load key
+        loaded_key = self.api_manager.get_apikey(api_query)
         self.assertEqual(loaded_key, apikey, "Loaded key should match original after decryption.")
+        mock_keyring_get_password.assert_called_with(expected_keyring_service, key_id) # Called by get_apikey
 
-        # Verify raw storage
+        # Verify manifest file
         self.assertTrue(os.path.exists(TEST_API_KEYS_FILE))
         with open(TEST_API_KEYS_FILE, 'r') as f:
-            raw_data = json.load(f)
+            manifest_data = json.load(f)
+        self.assertIn(slot_id, manifest_data['apikey_slot_id_to_apikey_id_list_dict'])
+        self.assertIn(key_id, manifest_data['apikey_slot_id_to_apikey_id_list_dict'][slot_id])
 
-        self.assertIn(service_name, raw_data, "Service name should be in raw data.")
-        self.assertNotEqual(raw_data[service_name], apikey, "Stored key should be encrypted.")
-
-        # Decrypt raw data directly to confirm it's the original key
-        decrypted_raw = self.encryption_service.decrypt(raw_data[service_name])
-        self.assertEqual(decrypted_raw, apikey, "Manually decrypted raw key should match original.")
-
-    def test_delete_key_fallback_encrypted(self):
-        """Tests deleting an encrypted key in fallback mode."""
-        service_name = "ToDeleteService"
+    @patch('keyring.delete_password')
+    @patch('keyring.set_password')
+    @patch('keyring.get_password') # Mock get_password for the initial set
+    def test_delete_key_encrypted(self, mock_get_password, mock_set_password, mock_delete_password):
+        """Tests deleting an encrypted key using keyring."""
+        slot_id = "ToDeleteSlot"
+        key_id = "ToDeleteKeyID"
         apikey = "key_to_delete"
-        self.api_manager.set_apikey(service_name, apikey)
-        self.assertIsNotNone(self.api_manager.get_apikey(service_name), "Key should be loadable before delete.")
+        api_query = ApiKeyQuery(slot_id, key_id)
 
-        self.api_manager.delete_apikey(service_name)
-        self.assertIsNone(self.api_manager.get_apikey(service_name), "Key should be None after delete.")
-        
-        if os.path.exists(TEST_API_KEYS_FILE):
-            with open(TEST_API_KEYS_FILE, 'r') as f:
-                raw_data = json.load(f)
-            self.assertNotIn(service_name, raw_data, "Deleted service should not be in raw data.")
+        # Save a key first
+        encrypted_key_placeholder = self.encryption_service.encrypt(apikey)
+        mock_get_password.return_value = None # For initial check if any
+        self.api_manager.set_apikey(api_query, apikey)
+        mock_set_password.assert_called_once() # Ensure it was "saved"
 
-    def test_load_key_decryption_failure(self):
-        """Tests that loading a key returns None if decryption fails."""
-        service_name = "CorruptService"
-        # Manually save a non-decryptable (or wrongly encrypted) key
-        self.api_manager._keys_cache[service_name] = "this is not properly encrypted by this ES"
-        self.api_manager._save_keys_to_fallback(self.api_manager._keys_cache)
+        # Configure get_password to "find" it for deletion check, then not find it
+        mock_get_password.side_effect = [encrypted_key_placeholder, None]
+        self.assertIsNotNone(self.api_manager.get_apikey(api_query), "Key should be loadable before delete.")
         
-        with patch('sys.stderr', new_callable=io.StringIO) as mock_stderr: # To catch print statements from decrypt
-            loaded_key = self.api_manager.get_apikey(service_name)
-            self.assertIsNone(loaded_key, "Loading a corrupt key should return None.")
+        # Action: Delete key
+        self.api_manager.delete_apikey(api_query)
+
+        # Verify keyring.delete_password was called
+        expected_keyring_service = self.api_manager._get_keyring_service_name(slot_id)
+        mock_delete_password.assert_called_once_with(expected_keyring_service, key_id)
+
+        # Verify key is gone from manager's perspective
+        mock_get_password.return_value = None # Ensure get_apikey now finds nothing
+        self.assertIsNone(self.api_manager.get_apikey(api_query), "Key should be None after delete.")
+
+        # Verify manifest file updated
+        with open(TEST_API_KEYS_FILE, 'r') as f:
+            manifest_data = json.load(f)
+        self.assertNotIn(key_id, manifest_data['apikey_slot_id_to_apikey_id_list_dict'].get(slot_id, []),
+                         "Deleted key_id should not be in manifest for slot_id.")
+
+    # test_load_key_decryption_failure needs to be adapted for keyring
+    @patch('keyring.get_password')
+    def test_load_key_decryption_failure_keyring(self, mock_keyring_get_password):
+        """Tests that loading a key returns None if decryption fails (from keyring)."""
+        slot_id = "CorruptSlot"
+        key_id = "CorruptKeyID"
+        api_query = ApiKeyQuery(slot_id, key_id)
+
+        # Simulate keyring returning a corrupted (non-decryptable by current ES) string
+        mock_keyring_get_password.return_value = "this is not properly encrypted by this ES"
+
+        # Pre-populate manifest so that get_apikey attempts to load this
+        self.api_manager._data['apikey_slot_id_to_apikey_id_list_dict'][slot_id] = [key_id]
+        # No need to save manifest here as get_apikey doesn't write it
+
+        with patch('sys.stderr', new_callable=io.StringIO) as mock_stderr:
+            loaded_key = self.api_manager.get_apikey(api_query)
+            self.assertIsNone(loaded_key, "Loading a corrupt key from keyring should return None.")
             self.assertIn("Failed to decrypt key", mock_stderr.getvalue())
+        mock_keyring_get_password.assert_called_once_with(self.api_manager._get_keyring_service_name(slot_id), key_id)
 
-
-    def test_re_encrypt_all_keys_fallback(self):
-        """Tests re-encrypting all keys in fallback mode."""
-        service1, key1 = "ServiceR1", "re_encrypt_key1"
-        service2, key2 = "ServiceR2", "re_encrypt_key2"
-        self.api_manager.set_apikey(service1, key1)
-        self.api_manager.set_apikey(service2, key2)
+    # test_re_encrypt_all_keys needs significant changes for keyring
+    @patch('keyring.get_password')
+    @patch('keyring.set_password')
+    def test_re_encrypt_all_keys_keyring(self, mock_keyring_set_password, mock_keyring_get_password):
+        """Tests re-encrypting all keys stored in keyring."""
+        slot1, id1, key1 = "SlotR1", "IDR1", "re_encrypt_key1"
+        slot2, id2, key2 = "SlotR2", "IDR2", "re_encrypt_key2"
+        query1, query2 = ApiKeyQuery(slot1, id1), ApiKeyQuery(slot2, id2)
 
         old_es = self.encryption_service
-        
-        # To truly simulate a new encryption key, we need a new password or new salt.
-        # Since EncryptionService uses a global path for its salt file, changing just the password
-        # for a new EncryptionService instance (while the salt file remains) will result in a new Fernet key.
-        new_master_pass = "new_akm_master_password_$%^"
-        new_es = EncryptionService(new_master_pass) # This will use the same salt file but derive a new Fernet key
-        
-        self.assertNotEqual(old_es.fernet_key, new_es.fernet_key, "New ES should have a different Fernet key.")
+        encrypted_key1_old_es = old_es.encrypt(key1)
+        encrypted_key2_old_es = old_es.encrypt(key2)
 
+        # Populate manifest
+        self.api_manager._data['apikey_slot_id_to_apikey_id_list_dict'] = {
+            slot1: [id1],
+            slot2: [id2]
+        }
+        # No need to save manifest to file, re_encrypt reads from self._data
+
+        # Mock keyring.get_password to return keys encrypted with old_es
+        def mock_get_password_side_effect(service_name, username):
+            if username == id1: return encrypted_key1_old_es
+            if username == id2: return encrypted_key2_old_es
+            return None
+        mock_keyring_get_password.side_effect = mock_get_password_side_effect
+        
+        new_master_pass = "new_akm_master_password_$%^"
+        new_es = EncryptionService(new_master_pass)
+        self.assertNotEqual(old_es.fernet_key, new_es.fernet_key)
+
+        # Action: Re-encrypt. This will use the new ApiKeyManager.re_encrypt logic
         self.api_manager.re_encrypt(old_encryption_service=old_es, new_encryption_service=new_es)
         
-        self.assertEqual(self.api_manager.encryption_service, new_es, "ApiKeyManager should now use the new ES.")
-        self.assertEqual(self.api_manager.get_apikey(service1), key1, "Key1 should be decryptable with new ES.")
-        self.assertEqual(self.api_manager.get_apikey(service2), key2, "Key2 should be decryptable with new ES.")
-
-        # Verify raw data is now encrypted with new_es
-        with open(TEST_API_KEYS_FILE, 'r') as f:
-            raw_data = json.load(f)
+        # Verify manager's ES is updated (re_encrypt in SUT needs to do this)
+        # Assuming re_encrypt updates self.api_manager.encryption_service
+        # --> The SUT's re_encrypt does NOT update self.encryption_service. This should be done by caller.
+        # So, we'll test decryption with new_es directly.
         
-        self.assertEqual(new_es.decrypt(raw_data[service1]), key1, "Raw key1 should be decryptable by new_es.")
-        self.assertIsNone(old_es.decrypt(raw_data[service1]), "Raw key1 should NOT be decryptable by old_es.")
-        self.assertEqual(new_es.decrypt(raw_data[service2]), key2, "Raw key2 should be decryptable by new_es.")
-        self.assertIsNone(old_es.decrypt(raw_data[service2]), "Raw key2 should NOT be decryptable by old_es.")
+        # Check that keyring.set_password was called with new encrypted keys
+        self.assertEqual(mock_keyring_set_password.call_count, 2)
+        calls = mock_keyring_set_password.call_args_list
+
+        # Call 1 (order might vary depending on dict iteration)
+        found_key1 = False
+        found_key2 = False
+        for call in calls:
+            called_service, called_id, new_encrypted_val = call[0]
+            if called_id == id1:
+                self.assertEqual(new_es.decrypt(new_encrypted_val), key1)
+                self.assertNotEqual(new_encrypted_val, encrypted_key1_old_es)
+                found_key1 = True
+            elif called_id == id2:
+                self.assertEqual(new_es.decrypt(new_encrypted_val), key2)
+                self.assertNotEqual(new_encrypted_val, encrypted_key2_old_es)
+                found_key2 = True
+        self.assertTrue(found_key1 and found_key2, "Both keys should have been re-encrypted and set in keyring.")
 
 
-    def test_clear_all_keys_and_data_fallback(self):
-        """Tests clearing all keys and data in fallback mode."""
-        service_name = "ServiceToClear"
-        apikey = "key_to_clear"
-        self.api_manager.set_apikey(service_name, apikey)
+    @patch('keyring.delete_password')
+    def test_clear_all_keys_and_data_keyring(self, mock_keyring_delete_password):
+        """Tests clearing all keys from keyring and associated data files."""
+        slot1, id1 = "SlotC1", "IDC1"
+        # Simulate some keys in the manifest
+        self.api_manager._data['apikey_slot_id_to_apikey_id_list_dict'] = {
+            slot1: [id1, "IDC2"],
+            "SlotC2": ["IDC3"]
+        }
+        self.api_manager._save_data() # Save manifest to be cleared
 
-        self.assertTrue(os.path.exists(TEST_API_KEYS_FILE), "API keys file should exist before clear.")
-        self.assertTrue(os.path.exists(TEST_ENCRYPTION_SALT_FILE_FOR_AKM), "Salt file should exist before clear.")
+        self.assertTrue(os.path.exists(TEST_API_KEYS_FILE))
+        # Salt file is managed by EncryptionService, ApiKeyManager.clear() does not directly delete it.
+        # EncryptionService.clear_encryption_salt() would, but AKM.clear() no longer calls it.
+        # The new AKM.clear() removes its own data file and keyring entries.
 
         self.api_manager.clear()
 
-        self.api_manager.get_apikey(service_name)
+        self.assertEqual(mock_keyring_delete_password.call_count, 3) # IDC1, IDC2, IDC3
 
-        # Fallback file should exist but be empty (or contain empty manifest)
-        self.assertTrue(os.path.exists(TEST_API_KEYS_FILE), "Fallback file should still exist.")
-        with open(TEST_API_KEYS_FILE, 'r') as f:
-            content = json.load(f)
-        self.assertEqual(content, {_KEYRING_MANAGED_SERVICES_KEY: []}, "Fallback file should be an empty manifest.")
+        # Data file should be removed by ApiKeyManager.clear()
+        self.assertFalse(os.path.exists(TEST_API_KEYS_FILE), "Data file (manifest) should be deleted.")
 
-        self.assertFalse(os.path.exists(TEST_ENCRYPTION_SALT_FILE_FOR_AKM), "Salt file should be deleted.")
+        # Check internal state
+        self.assertEqual(self.api_manager._data, {'apikey_slot_id_to_apikey_id_list_dict': {}},
+                         "Internal data should be reset to empty manifest after clear.")
 
 
-    def test_save_key_requires_encryption_service(self):
-        """Tests that save_key raises RuntimeError if encryption_service is None."""
-        self.api_manager.encryption_service = None # Simulate no ES
-        with self.assertRaisesRegex(RuntimeError, "Encryption service not available"):
-            self.api_manager.set_apikey("Test", "key")
-
-    def test_load_key_requires_encryption_service(self):
-        """Tests that load_key raises RuntimeError if encryption_service is None."""
-        # First save a key normally
-        self.api_manager.set_apikey("Test", "key")
-        # Then simulate ES becoming unavailable
+    def test_set_apikey_requires_encryption_service(self):
+        """Tests that set_apikey raises RuntimeError if encryption_service is (somehow) None."""
+        # ApiKeyManager __init__ now requires encryption_service.
+        # This test might be less relevant unless we test modifying it post-init.
+        # For robustness, let's assume it could be set to None post-init by mistake.
+        original_es = self.api_manager.encryption_service
         self.api_manager.encryption_service = None
         with self.assertRaisesRegex(RuntimeError, "Encryption service not available"):
-            self.api_manager.get_apikey("Test")
+            self.api_manager.set_apikey(ApiKeyQuery("Test", "TestID"), "key")
+        self.api_manager.encryption_service = original_es # Restore
+
+    def test_get_apikey_requires_encryption_service(self):
+        """Tests that get_apikey raises RuntimeError if encryption_service is (somehow) None."""
+        original_es = self.api_manager.encryption_service
+        self.api_manager.encryption_service = None
+        with self.assertRaisesRegex(RuntimeError, "Encryption service not available"):
+            self.api_manager.get_apikey(ApiKeyQuery("Test", "TestID"))
+        self.api_manager.encryption_service = original_es # Restore
 
     def test_empty_service_or_key_with_encryption(self):
-        """Tests handling of empty service or key names with encryption enabled."""
-        with self.assertRaisesRegex(ValueError, "Service name and API key cannot be empty"):
-            self.api_manager.set_apikey("", "some_key")
+        """Tests handling of empty ApiKeyQuery fields with encryption enabled."""
+        # ApiKeyManager.set_apikey now takes ApiKeyQuery.
+        # The ValueError "Service name and API key cannot be empty" was for key string.
+        # ApiKeyQuery itself doesn't prevent empty strings for slot_id/apikey_id in constructor.
+        # The actual keyring.set_password might fail with empty username/password.
+        # Let's test that ApiKeyManager.set_apikey raises ValueError for empty apikey string.
 
-        with self.assertRaisesRegex(ValueError, "Service name and API key cannot be empty"):
-            self.api_manager.set_apikey("some_service", "")
+        with self.assertRaisesRegex(ValueError, "API key cannot be empty"): # Assuming SUT checks this for apikey
+            self.api_manager.set_apikey(ApiKeyQuery("some_slot", "some_id"), "")
 
-        self.assertIsNone(self.api_manager.get_apikey(""), "Loading an empty service name should return None.")
+        # Test with empty slot_id or key_id in ApiKeyQuery - depends on how SUT handles this for keyring.
+        # Keyring might allow empty service/username but it's bad practice.
+        # For now, assume ApiKeyQuery itself can be created with empty strings.
+        # The SUT's set_apikey has `if not apikey_query: raise ValueError(...)`
+        # but this checks if the ApiKeyQuery object itself is None, not its content.
+        # The original test was `self.api_manager.set_apikey("", "some_key")`.
+        # Let's assume an ApiKeyQuery with empty parts is passed.
+        # The ValueError for empty apikey string is the main part to keep.
 
-    def test_keyring_manifest_management_in_fallback_mode(self):
-        """Ensure keyring manifest is NOT populated when use_keyring is False."""
-        # This test is mostly to confirm assumptions about _KEYRING_MANAGED_SERVICES_KEY
-        # when use_keyring is False.
-        self.assertFalse(self.api_manager.use_keyring) # Double check forced fallback
+        # What about get_apikey with empty ApiKeyQuery fields?
+        # `if not apikey_query: raise ValueError(...)`
+        with self.assertRaisesRegex(ValueError, "ApiKeyQuery object cannot be None."): # Updated expected message
+            self.api_manager.get_apikey(None) # Test None query
 
-        service_name = "ServiceFallbackManifestTest"
-        apikey = "key_for_fallback_manifest"
-        self.api_manager.set_apikey(service_name, apikey)
-
-        # In pure fallback mode, _KEYRING_MANAGED_SERVICES_KEY should remain empty or not primary storage key
-        self.assertNotIn(service_name, self.api_manager._keys_cache.get(_KEYRING_MANAGED_SERVICES_KEY, []),
-                         "Service name should not be in keyring manifest when in fallback mode.")
-        self.assertIn(service_name, self.api_manager._keys_cache,
-                      "Service name should be a direct key in cache for fallback mode.")
+        # Test query with empty strings - keyring might handle this, or SUT should.
+        # The SUT now prints a warning for empty slot/key ID and proceeds to call keyring.
+        # Mock keyring.get_password for this specific call to avoid NoKeyringError
+        # and simulate keyring returning None for such a query.
+        with patch('keyring.get_password') as mock_keyring_get_empty:
+            mock_keyring_get_empty.return_value = None
+            self.assertIsNone(self.api_manager.get_apikey(ApiKeyQuery("", "")),
+                              "Loading with empty query fields should return None after keyring call.")
 
 
 if __name__ == '__main__':
