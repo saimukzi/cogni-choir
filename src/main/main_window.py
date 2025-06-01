@@ -1032,16 +1032,18 @@ class MainWindow(QMainWindow):
             existing_bot_names=existing_bot_names_for_dialog,
             aiengine_info_list=self.third_party_group.aiengine_info_list,
             apikey_query_list=self.apikey_manager.get_available_apikey_query_list(),
+            old_bot=bot_to_edit,
             parent=self
         )
         dialog.setWindowTitle(self.tr("Edit Bot: {0}").format(bot_to_edit.name))
 
         # Pre-fill dialog fields
-        dialog.bot_name_input.setText(bot_to_edit.name)
-        dialog.engine_combo.setCurrentText(bot_to_edit.aiengine_id)
-        # if current_model_name:
-        dialog.model_name_input.setText(bot_to_edit.get_aiengine_arg('model_name',''))
-        dialog.system_prompt_input.setPlainText(bot_to_edit.get_aiengine_arg('system_prompt',''))
+        # dialog.set_bot_values(bot_to_edit)
+        # dialog.bot_name_input.setText(bot_to_edit.name)
+        # dialog.engine_combo.setCurrentText(bot_to_edit.aiengine_id)
+        # # if current_model_name:
+        # dialog.model_name_input.setText(bot_to_edit.get_aiengine_arg('model_name',''))
+        # dialog.system_prompt_input.setPlainText(bot_to_edit.get_aiengine_arg('system_prompt',''))
 
         if dialog.exec():
             new_bot = dialog.get_bot()

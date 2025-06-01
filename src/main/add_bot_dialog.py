@@ -21,6 +21,7 @@ class AddBotDialog(QDialog):
                  existing_bot_names: list[str],
                  aiengine_info_list: list[third_party.AIEngineInfo],
                  apikey_query_list: list[apikey_manager.ApiKeyQuery],
+                 old_bot: Bot | None = None,
                  parent=None):
         """Initializes the AddBotDialog.
 
@@ -54,16 +55,16 @@ class AddBotDialog(QDialog):
             self.engine_combo.addItem(aiengine_info.name, aiengine_info.aiengine_id)
         self.form_layout.addRow(self.engine_label, self.engine_combo)
 
-        # Model Name (Optional)
-        self.model_name_label = QLabel(self.tr("Model Name (Optional):"))
-        self.model_name_input = QLineEdit()
-        self.form_layout.addRow(self.model_name_label, self.model_name_input)
+        # # Model Name (Optional)
+        # self.model_name_label = QLabel(self.tr("Model Name (Optional):"))
+        # self.model_name_input = QLineEdit()
+        # self.form_layout.addRow(self.model_name_label, self.model_name_input)
 
-        # System Prompt
-        self.system_prompt_label = QLabel(self.tr("System Prompt:"))
-        self.system_prompt_input = QTextEdit()
-        self.system_prompt_input.setMinimumHeight(100)
-        self.form_layout.addRow(self.system_prompt_label, self.system_prompt_input)
+        # # System Prompt
+        # self.system_prompt_label = QLabel(self.tr("System Prompt:"))
+        # self.system_prompt_input = QTextEdit()
+        # self.system_prompt_input.setMinimumHeight(100)
+        # self.form_layout.addRow(self.system_prompt_label, self.system_prompt_input)
 
         main_layout.addLayout(self.form_layout)
 
@@ -75,43 +76,36 @@ class AddBotDialog(QDialog):
         self.button_box.rejected.connect(self.reject)
         main_layout.addWidget(self.button_box)
 
-        self._set_model_name_input_to_default()
         # Initialize dynamic fields for the initially selected engine
-        self._update_input_fields() # Call it once at init
+        # self._update_input_fields() # Call it once at init
+        self._set_values_by_bot(old_bot)
         # Connect to the new method
         self.engine_combo.currentIndexChanged.connect(self._update_input_fields)
 
-    def _set_model_name_input_to_default(self):
-        """Sets the model name input to its default for the current engine.
+    def _set_values_by_bot(self, bot: Bot | None):
+        """Sets the dialog fields with values from an existing Bot instance.
 
-        Retrieves the default model name for the currently selected AI engine
-        and updates the `model_name_input` QLineEdit. If no default model
-        name is found, the input field is cleared.
+        Args:
+            bot: An instance of Bot containing the bot's configuration.
         """
-        default_model_name = self._get_default_model_name()
-        if default_model_name:
-            self.model_name_input.setText(default_model_name)
-        else:
-            self.model_name_input.clear()
+        if bot:
+            self.bot_name_input.setText(bot.name)
+            self.engine_combo.setCurrentIndex(self.engine_combo.findData(bot.aiengine_id))
 
-    def _get_default_model_name(self) -> str:
-        """Gets the default model name for the currently selected AI engine.
+        self._update_input_fields()
 
-        Returns:
-            The default model name as a string, or an empty string if no
-            default model name is defined for the selected engine or if no
-            engine is selected.
-        """
-        aiengine_info = self._get_current_aiengine_info()
-        if not aiengine_info:
-            return ''
-
-        aiengine_arg_info = aiengine_info.get_aiengine_arg_info("model_name")
-        if not aiengine_arg_info:
-            return ''
-        if not aiengine_arg_info.default_value:
-            return ''
-        return aiengine_arg_info.default_value
+        # Set dynamic input fields based on the bot's AI engine arguments
+        if bot:
+            for arg_id, value in bot.aiengine_arg_dict.items():
+                if arg_id not in self._dynamic_input_widgets:
+                    continue
+                widget = self._dynamic_input_widgets[arg_id]
+                if isinstance(widget, QLineEdit):
+                    widget.setText(value)
+                elif isinstance(widget, QTextEdit):
+                    widget.setPlainText(value)
+                elif isinstance(widget, QComboBox):
+                    widget.setCurrentText(value)
 
     def _update_input_fields(self):
         """Updates dynamic input fields based on selected AI engine."""
@@ -124,6 +118,7 @@ class AddBotDialog(QDialog):
         #     self.form_layout.removeRow(4)
 
         for widget in self._dynamic_widgets:
+            print('delete widget')
             widget.deleteLater()
         self._dynamic_widgets.clear()
         self._dynamic_input_widgets.clear()
@@ -133,9 +128,6 @@ class AddBotDialog(QDialog):
             return
 
         for arg_info in current_ai_engine_info.arg_list:
-            # Skip model_name and system_prompt as they are handled separately for now
-            if arg_info.arg_id in ["model_name", "system_prompt"]:
-                continue
 
             label = QLabel(self.tr(arg_info.name) + (" (Optional):" if not arg_info.required else ":"))
             widget = None
@@ -156,17 +148,22 @@ class AddBotDialog(QDialog):
                         widget.addItem(str(item))
                 if arg_info.default_value:
                     widget.setCurrentText(str(arg_info.default_value))
+            elif arg_info.arg_type == AIEngineArgType.SUGGESTION:
+                widget = QComboBox()
+                if arg_info.value_option_list:
+                    for item in arg_info.value_option_list: # Ensure items are strings for addItem
+                        widget.addItem(str(item))
+                if arg_info.default_value:
+                    widget.setCurrentText(str(arg_info.default_value))
+                widget.setEditable(True)  # Allow user to type in suggestions
+            else:
+                assert False, f"Unsupported AIEngineArgType: {arg_info.arg_type}"
 
             if widget:
                 self.form_layout.addRow(label, widget)
                 self._dynamic_widgets.append(label)
                 self._dynamic_widgets.append(widget)
                 self._dynamic_input_widgets[arg_info.arg_id] = widget
-
-        # Special handling for model_name to set its default if it's part of arg_list
-        # This ensures _set_model_name_input_to_default works as expected
-        # or can be integrated here. For now, let's call it to keep its logic.
-        self._set_model_name_input_to_default()
 
 
     def _get_current_aiengine_info(self) -> third_party.AIEngineInfo | None:
@@ -279,10 +276,7 @@ class AddBotDialog(QDialog):
             bot = Bot()
             bot.name = self.bot_name_input.text().strip()
             bot.aiengine_id = self.engine_combo.currentData()
-            bot.aiengine_arg_dict = {
-                "model_name": self.model_name_input.text().strip(),
-                "system_prompt": self.system_prompt_input.toPlainText().strip()
-            }
+            bot.aiengine_arg_dict = {}
             # Retrieve values from dynamic fields
             for arg_id, widget in self._dynamic_input_widgets.items():
                 if isinstance(widget, QLineEdit):
