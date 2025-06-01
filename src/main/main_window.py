@@ -14,6 +14,7 @@ import sys
 import os # For path construction
 import logging # For logging
 import copy
+from typing import Optional
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,

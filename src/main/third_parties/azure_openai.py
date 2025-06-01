@@ -65,6 +65,7 @@ class AzureOpenAI(third_party.ThirdPartyBase):
                     third_party.AIEngineArgInfo(
                         arg_id="system_prompt",
                         name="System Prompt",
+                        arg_type=third_party.AIEngineArgType.MULTI_LINE,
                         required=False,
                     )
                 ]

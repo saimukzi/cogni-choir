@@ -10,6 +10,13 @@ from google.genai.types import Tool, GenerateContentConfig, GoogleSearch
 from .. import third_party
 
 DEFAULT_MODEL_NAME = "gemini-2.0-flash"
+MODEL_NAME_LIST = [
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-8b',
+    'gemini-1.5-pro',
+]
 
 class Google(third_party.ThirdPartyBase):
     """Integrates with Google's Generative AI services (e.g., Gemini).
@@ -60,12 +67,23 @@ class Google(third_party.ThirdPartyBase):
                     third_party.AIEngineArgInfo(
                         arg_id="model_name",
                         name="Model Name",
+                        arg_type=third_party.AIEngineArgType.SUGGESTION,
+                        value_option_list=MODEL_NAME_LIST,
                         required=True,
                         default_value=DEFAULT_MODEL_NAME,
-                        ),
+                    ),
+                    third_party.AIEngineArgInfo(
+                        arg_id="enable_google_search",
+                        name="Enable Google Search",
+                        arg_type=third_party.AIEngineArgType.SELECTION,
+                        value_option_list=['Yes', 'No'],
+                        required=True,
+                        default_value='No',
+                    ),
                     third_party.AIEngineArgInfo(
                         arg_id="system_prompt",
                         name="System Prompt",
+                        arg_type=third_party.AIEngineArgType.MULTI_LINE,
                         required=False,
                     )
                 ]

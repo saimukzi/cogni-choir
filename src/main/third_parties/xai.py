@@ -5,6 +5,16 @@ import logging
 import openai
 from .. import third_party
 
+DEFAULT_MODEL_NAME = "grok-3-latest"
+MODEL_NAME_LIST = [
+    'grok-3-latest',
+    'grok-3-fast-latest',
+    'grok-3-mini-latest',
+    'grok-3-mini-fast-latest',
+    'grok-2',
+    'grok-2-latest',
+]
+
 class XAI(third_party.ThirdPartyBase):
     """Integrates with xAI's services (e.g., Grok).
 
@@ -53,12 +63,15 @@ class XAI(third_party.ThirdPartyBase):
                     third_party.AIEngineArgInfo(
                         arg_id="model_name",
                         name="Model Name",
+                        arg_type=third_party.AIEngineArgType.SUGGESTION,
+                        value_option_list=MODEL_NAME_LIST,
                         required=True,
-                        default_value="grok-3-latest",
+                        default_value=DEFAULT_MODEL_NAME,
                         ),
                     third_party.AIEngineArgInfo(
                         arg_id="system_prompt",
                         name="System Prompt",
+                        arg_type=third_party.AIEngineArgType.MULTI_LINE,
                         required=False,
                     )
                 ]
@@ -97,7 +110,7 @@ class XAI(third_party.ThirdPartyBase):
 
         assert (len(apikey_list) == 1), "XAI requires exactly one API key."
 
-        model_name = aiengine_arg_dict.get("model_name", "grok-3-latest")
+        model_name = aiengine_arg_dict.get("model_name", DEFAULT_MODEL_NAME)
         system_prompt = aiengine_arg_dict.get("system_prompt", "")
         apikey = apikey_list[0]
 

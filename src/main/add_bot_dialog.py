@@ -1,6 +1,4 @@
 """Dialog for adding a new AI bot to a chatroom."""
-import itertools
-
 from PyQt6.QtWidgets import (
     QApplication, QVBoxLayout, QLabel, QMessageBox,
     QDialog, QComboBox, QLineEdit, QFormLayout,

@@ -12,6 +12,7 @@ It includes:
 """
 import abc
 import logging
+from enum import Enum
 
 from .message import Message
 
@@ -37,6 +38,19 @@ class ApiKeySlotInfo:
         return f"ApiKeySlotInfo(apikey_slot_id={self.apikey_slot_id}, name={self.name})"
 
 
+class AIEngineArgType(Enum):
+    """Enumeration for different types of AI engine arguments."""
+
+    SINGLE_LINE = "single_line" # Represents a single line of text input.
+    MULTI_LINE = "multi_line"   # Represents multiple lines of text input.
+    SELECTION = "selection"     # Represents a selection from a predefined list of options.
+    SUGGESTION = "suggestion"   # Represents a suggestion input, where the user can type and receive suggestions.
+
+    def __str__(self):
+        """Returns the string representation of the enum value."""
+        return self.value
+
+
 class AIEngineArgInfo:
     """Information about an argument for an AI engine.
 
@@ -48,7 +62,7 @@ class AIEngineArgInfo:
         value_options (Optional[list[str]]): A list of possible valid string
             values for the argument, if applicable.
     """
-    def __init__(self, arg_id: str, name:str, required: bool, default_value: str = None, value_options: list[str] = None):
+    def __init__(self, arg_id: str, name:str, required: bool, arg_type:AIEngineArgType = AIEngineArgType.SINGLE_LINE, default_value: str = None, value_option_list: list[str] = None):
         """Initializes AIEngineArgInfo.
 
         Args:
@@ -56,13 +70,15 @@ class AIEngineArgInfo:
             name (str): The display name of the argument.
             required (bool): Indicates whether the argument is required.
             default_value (str, optional): The default value for the argument. Defaults to None.
-            value_options (list[str], optional): A list of valid options for the argument value. Defaults to None.
+            arg_type (AIEngineArgType, optional): The type of the argument.
+            value_option_list (list[str], optional): A list of valid options for the argument, if applicable.
         """
         self.arg_id = arg_id
         self.name = name
         self.required = required
+        self.arg_type = arg_type
         self.default_value = default_value
-        self.value_options = value_options
+        self.value_option_list = value_option_list
 
 
 class AIEngineInfo:
