@@ -103,6 +103,7 @@ class AzureOpenAI(third_party.ThirdPartyBase):
         """
 
         assert (len(apikey_list) == 1), "Azure OpenAI requires exactly one API key."
+        assert (apikey_list[0] is not None), "Azure OpenAI API key cannot be None."
 
         deployment_name = aiengine_arg_dict["model_name"]
         system_prompt = aiengine_arg_dict.get("system_prompt", "")

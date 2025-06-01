@@ -306,8 +306,10 @@ class TestAzureOpenAIEngine(unittest.TestCase):
             response = engine.generate_response("azure_openai", aiengine_arg_dict, apikey_list, "TestRoleGenericAPI", [])
         self.assertTrue(response.startswith("Error: An unexpected error occurred with the Azure OpenAI API. Details:"))
 
-    @patch('src.main.third_parties.azure_openai.openai.AzureOpenAI') # Patch the constructor
-    def test_openai_no_apikey_or_improper_config(self, mock_azure_openai_constructor): # Renamed arg
+    def test_openai_no_apikey_or_improper_config(self):
+        """
+        Tests AzureOpenAI's behavior when no API key is provided or if the configuration is improper.
+        """
         engine = AzureOpenAI()
         aiengine_arg_dict = {"model_name": "deployment-no-key", "system_prompt": ""}
 
@@ -316,12 +318,10 @@ class TestAzureOpenAIEngine(unittest.TestCase):
             with self.assertRaisesRegex(AssertionError, "Azure OpenAI requires exactly one API key."):
                  engine.generate_response("azure_openai", aiengine_arg_dict, [], "TestRole", [])
 
-            # Test with API key as None (SDK TypeError)
-            # The openai.AzureOpenAI constructor will raise this if api_key is None
-            mock_azure_openai_constructor.side_effect = TypeError("API key cannot be None")
-            response = engine.generate_response("azure_openai", aiengine_arg_dict, [None], "TestRole", [])
+            with self.assertRaisesRegex(AssertionError, "Azure OpenAI API key cannot be None."):
+                engine.generate_response("azure_openai", aiengine_arg_dict, [None], "TestRole", [])
             # This will be caught by the generic "except Exception" in SUT's generate_response
-            self.assertTrue(response.startswith("Error: An unexpected error occurred. Details: API key cannot be None"))
+            # self.assertTrue(response.startswith("Error: An unexpected error occurred. Details: API key cannot be None"))
 
     @patch('src.main.third_parties.azure_openai.openai', None) # Patch the whole module to None
     def test_openai_sdk_not_available(self):
