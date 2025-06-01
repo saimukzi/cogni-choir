@@ -115,13 +115,13 @@ class AddBotDialog(QDialog):
 
     def _update_input_fields(self):
         """Updates dynamic input fields based on selected AI engine."""
-        # Clear previous dynamic widgets
-        # Static rows are: Bot Name, AI Engine, Model Name, System Prompt. These are the first 4 rows.
-        # Row indices for these are 0, 1, 2, 3.
-        while self.form_layout.rowCount() > 4:
-            # Removing row at index 4, because rows are 0-indexed.
-            # This removes the 5th row, which is the first dynamic row.
-            self.form_layout.removeRow(4)
+        # # Clear previous dynamic widgets
+        # # Static rows are: Bot Name, AI Engine, Model Name, System Prompt. These are the first 4 rows.
+        # # Row indices for these are 0, 1, 2, 3.
+        # while self.form_layout.rowCount() > 4:
+        #     # Removing row at index 4, because rows are 0-indexed.
+        #     # This removes the 5th row, which is the first dynamic row.
+        #     self.form_layout.removeRow(4)
 
         for widget in self._dynamic_widgets:
             widget.deleteLater()
@@ -137,7 +137,7 @@ class AddBotDialog(QDialog):
             if arg_info.arg_id in ["model_name", "system_prompt"]:
                 continue
 
-            label = QLabel(self.tr(arg_info.name) + (" (Optional):" if arg_info.is_optional else ":"))
+            label = QLabel(self.tr(arg_info.name) + (" (Optional):" if not arg_info.required else ":"))
             widget = None
 
             if arg_info.arg_type == AIEngineArgType.SINGLE_LINE:
@@ -151,8 +151,8 @@ class AddBotDialog(QDialog):
                 widget.setMinimumHeight(60) # Smaller height for generic multi-line
             elif arg_info.arg_type == AIEngineArgType.SELECTION:
                 widget = QComboBox()
-                if arg_info.selection_list:
-                    for item in arg_info.selection_list: # Ensure items are strings for addItem
+                if arg_info.value_option_list:
+                    for item in arg_info.value_option_list: # Ensure items are strings for addItem
                         widget.addItem(str(item))
                 if arg_info.default_value:
                     widget.setCurrentText(str(arg_info.default_value))
