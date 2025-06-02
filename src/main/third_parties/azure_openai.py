@@ -45,7 +45,7 @@ class AzureOpenAI(third_party.ThirdPartyBase):
         """Gets the AI engine information for Azure OpenAI.
 
         Defines the 'azure_openai' engine, including its required arguments
-        like 'model_name' (deployment name) and 'system_prompt'.
+        like 'deployment_name' (deployment name) and 'system_prompt'.
 
         Returns:
             list[third_party.AIEngineInfo]: A list containing information
@@ -58,7 +58,7 @@ class AzureOpenAI(third_party.ThirdPartyBase):
                 apikey_slot_id_list=["azure_openai"],
                 arg_list=[
                     third_party.AIEngineArgInfo(
-                        arg_id="model_name",
+                        arg_id="deployment_name",
                         name="Deployment Name",
                         required=True,
                         ),
@@ -91,7 +91,7 @@ class AzureOpenAI(third_party.ThirdPartyBase):
             _aiengine_id (str): The ID of the AI engine to use (unused, as
                 this class handles a specific Azure OpenAI engine type).
             aiengine_arg_dict (dict[str, str]): Arguments for the AI engine,
-                must include 'model_name' (deployment name) and optionally
+                must include 'deployment_name' (deployment name) and optionally
                 'system_prompt'.
             apikey_list (list[str]): List containing the Azure OpenAI API key.
                 Expects exactly one key.
@@ -106,7 +106,7 @@ class AzureOpenAI(third_party.ThirdPartyBase):
         assert (len(apikey_list) == 1), "Azure OpenAI requires exactly one API key."
         assert (apikey_list[0] is not None), "Azure OpenAI API key cannot be None."
 
-        deployment_name = aiengine_arg_dict["model_name"]
+        deployment_name = aiengine_arg_dict["deployment_name"]
         system_prompt = aiengine_arg_dict.get("system_prompt", "")
         apikey = apikey_list[0]
 
