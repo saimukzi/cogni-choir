@@ -262,13 +262,14 @@ class TestBotTemplateManager(unittest.TestCase):
         # Create new manager to trigger load
         manager_for_invalid_test = BotTemplateManager(data_dir=self.test_data_dir)
         with patch.object(manager_for_invalid_test.logger, 'warning') as mock_log_warning:
-            manager_for_invalid_test._load_templates() # Re-call load to ensure warning is logged by patched logger
-            templates = manager_for_invalid_test.list_templates()
-            self.assertEqual(len(templates), 1)
-            if templates:
-                self.assertEqual(templates[0].name, "GoodBot")
-            # Each invalid entry should log a warning or error
-            self.assertGreaterEqual(mock_log_warning.call_count + manager_for_invalid_test.logger.error.call_count, 2)
+            with patch.object(manager_for_invalid_test.logger, 'error') as mock_log_error:
+                manager_for_invalid_test._load_templates() # Re-call load to ensure warning is logged by patched logger
+                templates = manager_for_invalid_test.list_templates()
+                self.assertEqual(len(templates), 1)
+                if templates:
+                    self.assertEqual(templates[0].name, "GoodBot")
+                # Each invalid entry should log a warning or error
+                self.assertGreaterEqual(mock_log_warning.call_count + mock_log_error.call_count, 2)
 
 
     def test_12_clear_all_templates(self):
