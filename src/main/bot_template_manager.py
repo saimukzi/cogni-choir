@@ -9,6 +9,7 @@ import json
 import logging
 import os
 from typing import List, Dict, Optional
+import uuid
 from .ai_bots import Bot # Assuming Bot class is in ai_bots.py
 # from .commons import Commons # For file paths or other common utilities
 
@@ -86,7 +87,8 @@ class BotTemplateManager:
     def _generate_id(self) -> str:
         """Generates a unique ID for a new template."""
         # Simple approach: use timestamp. More robust: UUID.
-        return str(int(time.time() * 1000))
+        # return str(int(time.time() * 1000))
+        return str(uuid.uuid4())
 
     def create_template(self, bot_config: Bot) -> Optional[str]:
         """
