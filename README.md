@@ -35,6 +35,16 @@ To run the application, execute the following command from the project root dire
 python src/main/main_window.py
 ```
 
+## Features
+- **Chatroom Management:** Create, rename, clone, and delete chatrooms.
+- **Multi-AI Support:** Integrate and use multiple AI language models (e.g., Gemini, OpenAI) within any chatroom.
+- **Bot Customization:** Configure individual bots with specific AI engines, models, and system prompts.
+- **Bot Templates:** Create, manage, and reuse bot configurations as templates to quickly deploy similar bots.
+- **API Key Management:** Securely store and manage API keys for different AI services using system keyring and encryption.
+- **Master Password Protection:** Encrypt sensitive data like API keys and settings with a user-defined master password.
+- **Message History:** Each chatroom maintains its conversation history, saved locally.
+- **Internationalization:** Supports multiple languages for the UI (e.g., English, Chinese).
+
 ## Running Tests
 
 To run the unit tests, execute the following command from the project root directory:

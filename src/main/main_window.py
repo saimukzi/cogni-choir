@@ -21,13 +21,14 @@ from PyQt6.QtWidgets import (
     QListWidget, QPushButton, QLabel, QInputDialog, QMessageBox,
     QListWidgetItem, QTextEdit,
     QSplitter, QAbstractItemView,
-    QMenu, QStyle, QSizePolicy
+    QMenu, QStyle, QSizePolicy, QSpacerItem # Added QSpacerItem for potential use
 )
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QIcon # Added QIcon
 from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint, pyqtSignal, QTimer # Added QTimer
 
 # Attempt to import from sibling modules
 from .chatroom import ChatroomManager
+from .bot_template_manager import BotTemplateManager # Added
 # from .ai_bots import Bot, create_bot
 # from .ai_engines import GeminiEngine, GrokEngine
 from .apikey_manager import ApiKeyManager
@@ -112,9 +113,11 @@ class MainWindow(QMainWindow):
         # Initialize ApiKeyManager now that encryption_service is available
         self.apikey_manager = ApiKeyManager(encryption_service=self.encryption_service)
         self.chatroom_manager = ChatroomManager(apikey_manager=self.apikey_manager)
+        self.bot_template_manager = BotTemplateManager() # Added
 
         self._init_ui()
         self._update_chatroom_list() # Initial population
+        self._update_bot_template_list() # Initial population for templates
 
     def _init_ui(self):
         """Initializes the main user interface components and layout.
@@ -179,6 +182,32 @@ class MainWindow(QMainWindow):
         # chatroom_buttons_layout.addWidget(self.clone_chatroom_button) # REMOVED
         # chatroom_buttons_layout.addWidget(self.delete_chatroom_button) # REMOVED
         left_panel_layout.addLayout(chatroom_buttons_layout)
+
+        # --- Bot Template Management ---
+        bot_template_label = QLabel(self.tr("Bot Templates"))
+        left_panel_layout.addWidget(bot_template_label)
+
+        self.bot_template_list_widget = QListWidget()
+        self.bot_template_list_widget.currentItemChanged.connect(self._on_selected_bot_template_changed)
+        self.bot_template_list_widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.bot_template_list_widget.customContextMenuRequested.connect(self._show_bot_template_context_menu)
+        left_panel_layout.addWidget(self.bot_template_list_widget)
+
+        template_buttons_layout = QHBoxLayout()
+        self.new_template_button = QPushButton(self.tr("New"))
+        self.new_template_button.clicked.connect(self._create_bot_template)
+        template_buttons_layout.addWidget(self.new_template_button)
+
+        self.edit_template_button = QPushButton(self.tr("Edit"))
+        self.edit_template_button.clicked.connect(self._edit_selected_bot_template)
+        template_buttons_layout.addWidget(self.edit_template_button)
+
+        self.remove_template_button = QPushButton(self.tr("Remove"))
+        self.remove_template_button.clicked.connect(self._remove_selected_bot_template)
+        template_buttons_layout.addWidget(self.remove_template_button)
+
+        left_panel_layout.addLayout(template_buttons_layout)
+        # End Bot Template Management
 
         # Bot management UI elements have been moved to the new right panel.
         # The old layout code in left_panel_layout for bots has been removed.
@@ -256,6 +285,7 @@ class MainWindow(QMainWindow):
 
         self._update_bot_panel_state(False) # Initial state
         self._update_message_related_ui_state(False) # Message UI disabled initially
+        self._update_template_button_states() # Initial state for template buttons
 
     def _update_message_related_ui_state(self, enabled: bool):
         """Updates the enabled/read-only state of message-related UI elements.
@@ -1607,12 +1637,23 @@ class MainWindow(QMainWindow):
             self.apikey_manager.clear()
         else:
             self.logger.info("ApiKeyManager was not initialized, creating temporary one to clear potential fallback file.")
-            temp_manager = ApiKeyManager(encryption_service=None)
-            temp_manager.clear()
+            # Assuming BotTemplateManager doesn't need encryption service for initialization for clearing
+            # If it does, this might need adjustment or ensure it's always initialized before clear.
+            # For now, BotTemplateManager() is called without arguments, implying default data path.
+            if not hasattr(self, 'bot_template_manager') or not self.bot_template_manager:
+                 # Create a temporary one if it doesn't exist, to clear its data file
+                temp_template_manager = BotTemplateManager()
+                temp_template_manager.clear_all_templates()
+            # else, if it exists, its clear method is called below
+
+        if hasattr(self, 'bot_template_manager') and self.bot_template_manager:
+            self.bot_template_manager.clear_all_templates()
+            # self.bot_template_manager = None # Optionally nullify, will be recreated if needed
 
         self.encryption_service = None
         if self.apikey_manager:
             self.apikey_manager.encryption_service = None
+        # self.apikey_manager = None # Optionally nullify, will be recreated
 
         self.logger.info("All data clearing actions performed.")
 
@@ -1659,6 +1700,13 @@ class MainWindow(QMainWindow):
             else: # Should be re-created if was None or after full clear
                 self.apikey_manager = ApiKeyManager(encryption_service=self.encryption_service)
 
+            if hasattr(self, 'bot_template_manager') and self.bot_template_manager:
+                # Already done in _perform_clear_all_data_actions, but ensure it's re-initialized if cleared
+                pass # It should be cleared by _perform_clear_all_data_actions
+
+            if not hasattr(self, 'bot_template_manager') or not self.bot_template_manager: # If it was cleared or never existed
+                self.bot_template_manager = BotTemplateManager() # Re-initialize
+
             # Potentially refresh UI elements that depend on keys/chatrooms
             self.logger.info("Data cleared and master password setup re-initiated. Refreshing UI.")
             self._update_chatroom_list() # Will clear messages if no chatroom selected
@@ -1666,8 +1714,299 @@ class MainWindow(QMainWindow):
             self.bot_list_widget.clear() # Explicitly clear bot list
             self._update_bot_panel_state(False)
             self._update_message_related_ui_state(False)
+            self._update_bot_template_list() # Refresh template list
         else:
             self.logger.info("User cancelled 'Clear All Stored Data' action.")
+
+    # --- Bot Template Methods ---
+    def _update_bot_template_list(self):
+        """Refreshes the bot template list widget from the BotTemplateManager."""
+        current_selection_id = None
+        current_item = self.bot_template_list_widget.currentItem()
+        if current_item:
+            current_selection_id = current_item.data(Qt.ItemDataRole.UserRole)
+
+        self.bot_template_list_widget.clear()
+        templates_with_ids = self.bot_template_manager.list_templates_with_ids()
+
+        for template_id, template_bot in templates_with_ids:
+            # Make sure template_bot.name is accessible; if template_bot is a dict, adjust access
+            bot_name = template_bot.name if hasattr(template_bot, 'name') else "Unnamed Template"
+            item_widget = self._create_bot_template_list_item_widget(template_id, bot_name)
+
+            list_item = QListWidgetItem(self.bot_template_list_widget)
+            list_item.setData(Qt.ItemDataRole.UserRole, template_id) # Store template_id
+
+            list_item.setSizeHint(item_widget.sizeHint())
+            self.bot_template_list_widget.addItem(list_item)
+            self.bot_template_list_widget.setItemWidget(list_item, item_widget)
+
+            if template_id == current_selection_id:
+                self.bot_template_list_widget.setCurrentItem(list_item)
+
+        self._update_template_button_states()
+
+    def _create_bot_template_list_item_widget(self, template_id: str, template_name: str) -> QWidget:
+        """Creates a custom widget for an item in the bot template list."""
+        item_widget = QWidget()
+        item_layout = QHBoxLayout(item_widget)
+        item_layout.setContentsMargins(5, 2, 5, 2) # Smaller vertical margins
+        item_layout.setSpacing(5)
+
+        name_label = QLabel(template_name)
+        name_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        item_layout.addWidget(name_label)
+
+        add_to_chat_button = QPushButton("+")
+        add_to_chat_button.setFixedSize(25, 25) # Small square button
+        add_to_chat_button.setToolTip(self.tr("Add this template to the current chatroom"))
+        add_to_chat_button.clicked.connect(lambda checked=False, t_id=template_id: self._add_template_to_chatroom(t_id))
+        item_layout.addWidget(add_to_chat_button)
+
+        item_widget.setLayout(item_layout)
+        return item_widget
+
+    def _show_bot_template_context_menu(self, position: QPoint):
+        selected_items = self.bot_template_list_widget.selectedItems()
+        if not selected_items:
+            return
+
+        item = selected_items[0] # Assuming single selection for now for simplicity
+        template_id = item.data(Qt.ItemDataRole.UserRole)
+        if not template_id:
+            return
+
+        menu = QMenu(self)
+
+        edit_action = QAction(self.tr("Edit Template"), self)
+        edit_action.triggered.connect(lambda: self._edit_selected_bot_template(template_id_override=template_id))
+        menu.addAction(edit_action)
+
+        remove_action = QAction(self.tr("Remove Template"), self)
+        remove_action.triggered.connect(lambda: self._remove_selected_bot_template(template_id_override=template_id))
+        menu.addAction(remove_action)
+
+        menu.addSeparator()
+
+        add_to_chat_action = QAction(self.tr("Add to Current Chatroom"), self)
+        add_to_chat_action.triggered.connect(lambda: self._add_template_to_chatroom(template_id))
+        current_chatroom_item = self.chatroom_list_widget.currentItem()
+        add_to_chat_action.setEnabled(bool(current_chatroom_item)) # Enable only if a chatroom is selected
+        menu.addAction(add_to_chat_action)
+
+        menu.exec(self.bot_template_list_widget.mapToGlobal(position))
+
+    def _create_bot_template(self):
+       self.logger.info("Attempting to create a new bot template.")
+       # Pass an empty list for existing_bot_names if template names can be non-unique globally,
+       # or manage template name uniqueness if required (e.g., by passing existing template names).
+       # For now, let's assume template names don't need to be unique across all templates,
+       # as they are identified by IDs. The BotInfoDialog itself might have name validation
+       # if it's creating a bot for a specific chatroom, which is not the case here.
+       # We will rely on the user to manage meaningful names for templates.
+
+       # Get all existing template names to prevent duplicates if desired at this level
+       existing_template_names = [t.name for t in self.bot_template_manager.list_templates()]
+
+       dialog = BotInfoDialog(
+           existing_bot_names=existing_template_names, # To check for duplicate names among templates
+           aiengine_info_list=self.third_party_group.aiengine_info_list,
+           apikey_query_list=self.apikey_manager.get_available_apikey_query_list(),
+           old_bot=None, # Creating a new template
+           parent=self
+       )
+       dialog.setWindowTitle(self.tr("Create New Bot Template"))
+
+       if dialog.exec():
+           new_bot_config = dialog.get_bot()
+           if new_bot_config:
+               template_id = self.bot_template_manager.create_template(new_bot_config)
+               if template_id:
+                   self.logger.info(f"Bot template '{new_bot_config.name}' created with ID {template_id}.")
+                   self._update_bot_template_list()
+                   # Optionally select the new template in the list
+                   for i in range(self.bot_template_list_widget.count()):
+                       item = self.bot_template_list_widget.item(i)
+                       if item.data(Qt.ItemDataRole.UserRole) == template_id:
+                           self.bot_template_list_widget.setCurrentItem(item)
+                           break
+               else:
+                   self.logger.error("Failed to create bot template after dialog confirmation.")
+                   QMessageBox.critical(self, self.tr("Error"), self.tr("Could not save the bot template."))
+           else:
+               # This case should ideally be handled by dialog's own validation,
+               # but as a fallback.
+               self.logger.warning("BotInfoDialog accepted but returned no valid bot configuration for template.")
+               QMessageBox.warning(self, self.tr("Error"), self.tr("Failed to retrieve bot configuration from dialog."))
+       else:
+           self.logger.info("Bot template creation cancelled by user.")
+
+    def _edit_selected_bot_template(self, template_id_override: str | None = None):
+       template_id_to_edit = template_id_override
+       if not template_id_to_edit:
+           current_item = self.bot_template_list_widget.currentItem()
+           if not current_item:
+               QMessageBox.warning(self, self.tr("Warning"), self.tr("No bot template selected to edit."))
+               return
+           template_id_to_edit = current_item.data(Qt.ItemDataRole.UserRole)
+
+       if not template_id_to_edit:
+           self.logger.error("Could not determine template ID for editing.")
+           QMessageBox.critical(self, self.tr("Error"), self.tr("Cannot identify the template to edit."))
+           return
+
+       template_to_edit = self.bot_template_manager.get_template(template_id_to_edit)
+       if not template_to_edit:
+           self.logger.error(f"Bot template with ID '{template_id_to_edit}' not found for editing.")
+           QMessageBox.critical(self, self.tr("Error"), self.tr("Selected bot template not found."))
+           self._update_bot_template_list() # Refresh list if template disappeared
+           return
+
+       self.logger.info(f"Attempting to edit bot template '{template_to_edit.name}' (ID: {template_id_to_edit}).")
+
+       # Get all existing template names *excluding* the current one for validation
+       existing_template_names = [
+           t.name for t_id, t in self.bot_template_manager.list_templates_with_ids() if t_id != template_id_to_edit
+       ]
+
+       dialog = BotInfoDialog(
+           existing_bot_names=existing_template_names, # For duplicate name check
+           aiengine_info_list=self.third_party_group.aiengine_info_list,
+           apikey_query_list=self.apikey_manager.get_available_apikey_query_list(),
+           old_bot=template_to_edit, # Pass the existing bot config
+           parent=self
+       )
+       dialog.setWindowTitle(self.tr("Edit Bot Template: {0}").format(template_to_edit.name))
+
+       if dialog.exec():
+           updated_bot_config = dialog.get_bot()
+           if updated_bot_config:
+               if self.bot_template_manager.update_template(template_id_to_edit, updated_bot_config):
+                   self.logger.info(f"Bot template '{updated_bot_config.name}' (ID: {template_id_to_edit}) updated.")
+                   self._update_bot_template_list()
+                   # Restore selection
+                   for i in range(self.bot_template_list_widget.count()):
+                       item = self.bot_template_list_widget.item(i)
+                       if item.data(Qt.ItemDataRole.UserRole) == template_id_to_edit:
+                           self.bot_template_list_widget.setCurrentItem(item)
+                           break
+               else:
+                   self.logger.error(f"Failed to update bot template '{updated_bot_config.name}' (ID: {template_id_to_edit}).")
+                   QMessageBox.critical(self, self.tr("Error"), self.tr("Could not save the updated bot template."))
+           else:
+               self.logger.warning(f"BotInfoDialog accepted for edit, but returned no valid bot configuration for template ID {template_id_to_edit}.")
+               QMessageBox.warning(self, self.tr("Error"), self.tr("Failed to retrieve updated bot configuration from dialog."))
+       else:
+           self.logger.info(f"Editing of bot template '{template_to_edit.name}' cancelled by user.")
+
+    def _remove_selected_bot_template(self, template_id_override: str | None = None):
+       template_id_to_delete = template_id_override
+       if not template_id_to_delete:
+           current_item = self.bot_template_list_widget.currentItem()
+           if not current_item:
+               QMessageBox.warning(self, self.tr("Warning"), self.tr("No bot template selected to remove."))
+               return
+           template_id_to_delete = current_item.data(Qt.ItemDataRole.UserRole)
+
+       if not template_id_to_delete:
+           self.logger.error("Could not determine template ID for removal.")
+           QMessageBox.critical(self, self.tr("Error"), self.tr("Cannot identify the template to remove."))
+           return
+
+       template_to_delete = self.bot_template_manager.get_template(template_id_to_delete)
+       if not template_to_delete:
+           self.logger.error(f"Bot template with ID '{template_id_to_delete}' not found for removal.")
+           # It might have been deleted by another action, refresh list
+           self._update_bot_template_list()
+           QMessageBox.warning(self, self.tr("Warning"), self.tr("Selected bot template could not be found. It may have already been removed."))
+           return
+
+       self.logger.info(f"Attempting to remove bot template '{template_to_delete.name}' (ID: {template_id_to_delete}).")
+
+       reply = QMessageBox.question(self, self.tr("Confirm Removal"),
+                                    self.tr("Are you sure you want to remove the bot template '{0}'?").format(template_to_delete.name),
+                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                    QMessageBox.StandardButton.No)
+
+       if reply == QMessageBox.StandardButton.Yes:
+           if self.bot_template_manager.delete_template(template_id_to_delete):
+               self.logger.info(f"Bot template '{template_to_delete.name}' (ID: {template_id_to_delete}) removed.")
+               self._update_bot_template_list()
+               # No need to show another success message, list update is enough
+           else:
+               # This might happen if the template was deleted between the check and now, though unlikely.
+               self.logger.error(f"Failed to remove bot template '{template_to_delete.name}' (ID: {template_id_to_delete}) via manager.")
+               QMessageBox.critical(self, self.tr("Error"), self.tr("Could not remove the bot template. It might have been removed by another process."))
+               self._update_bot_template_list() # Refresh list
+       else:
+           self.logger.info(f"Removal of bot template '{template_to_delete.name}' cancelled by user.")
+
+    def _add_template_to_chatroom(self, template_id: str):
+       self.logger.info(f"Attempting to add bot from template ID '{template_id}' to current chatroom.")
+
+       current_chatroom_item = self.chatroom_list_widget.currentItem()
+       if not current_chatroom_item:
+           QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected to add the bot to."))
+           return
+
+       chatroom_name = current_chatroom_item.text()
+       chatroom = self.chatroom_manager.get_chatroom(chatroom_name)
+       if not chatroom:
+           self.logger.error(f"Selected chatroom '{chatroom_name}' not found.")
+           QMessageBox.critical(self, self.tr("Error"), self.tr("Selected chatroom not found. Cannot add bot."))
+           return
+
+       template_bot_config = self.bot_template_manager.get_template(template_id)
+       if not template_bot_config:
+           self.logger.error(f"Bot template with ID '{template_id}' not found.")
+           QMessageBox.critical(self, self.tr("Error"), self.tr("Bot template not found. Cannot add bot."))
+           self._update_bot_template_list() # Refresh template list
+           return
+
+       # Create a new Bot instance from the template config
+       # We need to make a copy to avoid modifying the template itself,
+       # especially if we plan to change its name for the chatroom.
+       # import copy # Already imported at the top
+       new_bot_instance = copy.deepcopy(template_bot_config)
+
+       # Determine a unique name for the bot in the chatroom
+       # Option 1: Use template name, append number if duplicate
+       # Option 2: Prompt user for a new name
+       # For simplicity, let's use Option 1.
+       base_name = new_bot_instance.name
+       bot_name_in_chatroom = base_name
+       suffix = 1
+       existing_bot_names_in_chatroom = [bot.name for bot in chatroom.list_bots()]
+       while bot_name_in_chatroom in existing_bot_names_in_chatroom:
+           bot_name_in_chatroom = f"{base_name} ({suffix})"
+           suffix += 1
+       new_bot_instance.name = bot_name_in_chatroom
+
+       # Potentially, we might need to re-evaluate API key requirements here if they are
+       # stored as part of the template and need to be resolved against current apikey_manager.
+       # However, BotInfoDialog already associates ApiKeyQuery objects.
+       # If the template's apikey_query_list is valid, it should be usable.
+
+       if chatroom.add_bot(new_bot_instance):
+           self.logger.info(f"Bot '{new_bot_instance.name}' (from template ID '{template_id}') added to chatroom '{chatroom_name}'.")
+           self._update_bot_list(chatroom_name) # Refresh the bot list for the current chatroom
+           QMessageBox.information(self, self.tr("Success"),
+                                     self.tr("Bot '{0}' added to chatroom '{1}' from template.").format(new_bot_instance.name, chatroom_name))
+       else:
+           # This could happen if add_bot has its own validation that fails (e.g. unexpected duplicate after name generation)
+           self.logger.error(f"Failed to add bot '{new_bot_instance.name}' to chatroom '{chatroom_name}'.")
+           QMessageBox.critical(self, self.tr("Error"),
+                                  self.tr("Could not add bot '{0}' to the chatroom. It might already exist or an internal error occurred.").format(new_bot_instance.name))
+
+    def _update_template_button_states(self):
+        has_selection = bool(self.bot_template_list_widget.currentItem())
+        self.edit_template_button.setEnabled(has_selection)
+        self.remove_template_button.setEnabled(has_selection)
+        # Add other button state updates if needed
+
+    def _on_selected_bot_template_changed(self, current: QListWidgetItem, _previous: QListWidgetItem):
+        self._update_template_button_states()
+    # --- End Bot Template Methods ---
 
     def _remove_bot_from_chatroom(self):
         """Removes the selected bot from the current chatroom. (DEPRECATED/UNUSED)

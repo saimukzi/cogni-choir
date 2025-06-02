@@ -5,6 +5,22 @@ parts of the application, such as file reading utilities. It also
 defines custom exceptions like `EscapeException` for specific error
 handling scenarios.
 """
+import os
+import appdirs # You might need to add appdirs to requirements.txt
+
+class Commons:
+    APP_NAME = "ChatApp" # Or your application's name
+    APP_AUTHOR = "YourAppNameOrAuthor" # Or your application's author/org
+
+    @staticmethod
+    def get_data_dir() -> str:
+        """
+        Returns the application's user-specific data directory.
+        Creates the directory if it doesn't exist.
+        """
+        data_dir = appdirs.user_data_dir(Commons.APP_NAME, Commons.APP_AUTHOR)
+        os.makedirs(data_dir, exist_ok=True)
+        return data_dir
 
 class EscapeException(Exception):
     """Custom exception for specific error handling scenarios.

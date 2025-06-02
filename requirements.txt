@@ -4,3 +4,4 @@ openai
 keyring
 requests
 cryptography
+appdirs>=1.4.4
