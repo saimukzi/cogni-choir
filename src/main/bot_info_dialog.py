@@ -10,7 +10,7 @@ from . import third_party
 from .third_party import AIEngineArgType # Added import
 from . import apikey_manager
 
-class AddBotDialog(QDialog):
+class BotInfoDialog(QDialog):
     """A dialog for adding a new bot to a chatroom.
 
     This dialog allows the user to specify the bot's name, select an AI engine,
@@ -23,7 +23,7 @@ class AddBotDialog(QDialog):
                  apikey_query_list: list[apikey_manager.ApiKeyQuery],
                  old_bot: Bot | None = None,
                  parent=None):
-        """Initializes the AddBotDialog.
+        """Initializes the BotInfoDialog.
 
         Args:
             existing_bot_names: A list of names of bots that already exist
@@ -317,4 +317,4 @@ class AddBotDialog(QDialog):
         Returns:
             The translated string.
         """
-        return QApplication.translate("AddBotDialog", text, disambiguation, n)
+        return QApplication.translate("BotInfoDialog", text, disambiguation, n)

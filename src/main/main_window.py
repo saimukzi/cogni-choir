@@ -32,7 +32,7 @@ from .chatroom import ChatroomManager
 # from .ai_engines import GeminiEngine, GrokEngine
 from .apikey_manager import ApiKeyManager
 # from . import ai_engines
-from .add_bot_dialog import AddBotDialog
+from .bot_info_dialog import BotInfoDialog
 from .create_fake_message_dialog import CreateFakeMessageDialog
 from .apikey_dialog import ApiKeyDialog
 from .password_manager import PasswordManager
@@ -986,7 +986,7 @@ class MainWindow(QMainWindow):
         """Handles editing the configuration of the selected bot.
 
         This method is triggered by the "Edit" action in the bot context menu.
-        It retrieves the selected bot, populates an `AddBotDialog` with its
+        It retrieves the selected bot, populates an `BotInfoDialog` with its
         current settings, and if the dialog is accepted, updates the bot's
         properties including name, system prompt, and AI engine configuration.
         Handles potential errors during engine recreation and ensures UI updates.
@@ -1018,7 +1018,7 @@ class MainWindow(QMainWindow):
             self.logger.error(f"Bot '{bot_name_to_edit}' not found in chatroom '{chatroom_name}' for editing.")
             return
 
-        # Prepare AddBotDialog
+        # Prepare BotInfoDialog
         # current_name = bot_to_edit.name
         # current_engine_instance = bot_to_edit.get_engine()
         # current_engine_type = type(current_engine_instance).__name__
@@ -1028,7 +1028,7 @@ class MainWindow(QMainWindow):
         all_bot_names_in_chatroom = [bot.name for bot in chatroom.list_bots()]
         existing_bot_names_for_dialog = [name for name in all_bot_names_in_chatroom if name != bot_to_edit.name]
 
-        dialog = AddBotDialog(
+        dialog = BotInfoDialog(
             existing_bot_names=existing_bot_names_for_dialog,
             aiengine_info_list=self.third_party_group.aiengine_info_list,
             apikey_query_list=self.apikey_manager.get_available_apikey_query_list(),
@@ -1343,7 +1343,7 @@ class MainWindow(QMainWindow):
     def _add_bot_to_chatroom(self):
         """Initiates adding a new bot to the currently selected chatroom.
 
-        Ensures a chatroom is selected. Then, it opens an `AddBotDialog`,
+        Ensures a chatroom is selected. Then, it opens an `BotInfoDialog`,
         providing it with existing bot names in the current chatroom (to prevent
         duplicates), a list of available AI engine information, and available API
         key queries.
@@ -1365,7 +1365,7 @@ class MainWindow(QMainWindow):
             return
 
         existing_bot_names_in_chatroom = [bot.name for bot in chatroom.list_bots()]
-        dialog = AddBotDialog(
+        dialog = BotInfoDialog(
             existing_bot_names=existing_bot_names_in_chatroom,
             aiengine_info_list=self.third_party_group.aiengine_info_list,
             apikey_query_list=self.apikey_manager.get_available_apikey_query_list(),
@@ -1378,12 +1378,12 @@ class MainWindow(QMainWindow):
             if not new_bot: # Safeguard, should not happen if accept validation passed
                 return
 
-            # Bot name validation (emptiness, duplication) is now handled within AddBotDialog.accept()
+            # Bot name validation (emptiness, duplication) is now handled within BotInfoDialog.accept()
             # bot_name = data["bot_name"] # Already stripped in dialog's get_data or accept
             # engine_type = data["engine_type"]
             # model_name = data["model_name"] # Already stripped
             # system_prompt = data["system_prompt"]
-            # Validation for bot_name (empty, duplicate) is now done in AddBotDialog.accept()
+            # Validation for bot_name (empty, duplicate) is now done in BotInfoDialog.accept()
 
             # Check if the selected engine type requires an API key by looking at the class constructor
             # This check is illustrative; a more robust check might involve inspecting constructor parameters
