@@ -61,7 +61,7 @@ class TestBot(unittest.TestCase):
                 "system_prompt": "Be helpful.",
                 "model_name": "mocked-model-001"
             },
-            "apikey_query_list": None # As it's not set in setUp
+            "apikey_query_list": []
         }
         self.assertEqual(self.bot.to_dict(), expected_dict)
 
