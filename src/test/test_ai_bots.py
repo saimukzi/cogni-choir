@@ -50,7 +50,7 @@ class TestBot(unittest.TestCase):
         self.assertEqual(self.bot.aiengine_id, "mock_engine_id_001")
         self.assertEqual(self.bot.get_aiengine_arg("system_prompt"), "Be helpful.")
         self.assertEqual(self.bot.get_aiengine_arg("model_name"), "mocked-model-001")
-        self.assertIsNone(self.bot.apikey_query_list)
+        self.assertListEqual(self.bot.apikey_query_list, []) # Ensure it's an empty list if not set
 
     def test_bot_to_dict(self):
         """Tests the serialization of a Bot instance to a dictionary."""
