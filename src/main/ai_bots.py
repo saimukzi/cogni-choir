@@ -10,7 +10,7 @@ from typing import Dict, Any, List
 class Bot:
     """Represents an AI bot with a specific name, AI engine configuration, and API key requirements."""
     def __init__(self, name: str = "", aiengine_id: str = "",
-                 aiengine_arg_dict: Dict[str, Any] = None,
+                 aiengine_arg_dict: Dict[str, str] = None,
                  apikey_query_list: List[ApiKeyQuery] = None):
         """Initializes a new instance of the Bot class.
 
@@ -23,7 +23,7 @@ class Bot:
         """
         self.name: str = name
         self.aiengine_id: str = aiengine_id
-        self.aiengine_arg_dict: Dict[str, Any] = aiengine_arg_dict if aiengine_arg_dict is not None else {}
+        self.aiengine_arg_dict: Dict[str, str] = aiengine_arg_dict if aiengine_arg_dict is not None else {}
         self.apikey_query_list: List[ApiKeyQuery] = apikey_query_list if apikey_query_list is not None else []
 
     def to_dict(self) -> Dict[str, Any]:
