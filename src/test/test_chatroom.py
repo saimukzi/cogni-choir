@@ -227,7 +227,7 @@ class TestChatroom(unittest.TestCase):
         self.assertIsNotNone(reloaded_bot_gamma)
         self.assertEqual(reloaded_bot_gamma.aiengine_id, "nokey_engine_001")
         self.assertEqual(reloaded_bot_gamma.get_aiengine_arg("system_prompt"), "Prompt Gamma")
-        self.assertIsNone(reloaded_bot_gamma.apikey_query_list)
+        self.assertListEqual(reloaded_bot_gamma.apikey_query_list, [])
 
         # Verify messages
         self.assertEqual(len(self.chatroom.get_messages()), len(reloaded_chatroom.get_messages()))
