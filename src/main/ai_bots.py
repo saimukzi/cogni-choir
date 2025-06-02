@@ -11,7 +11,7 @@ class Bot:
     """Represents an AI bot with a specific name, AI engine configuration, and API key requirements."""
     def __init__(self, name: str = "", aiengine_id: str = "",
                  aiengine_arg_dict: Dict[str, Any] = None,
-                 apikey_query_list: List[Any] = None): # Replace Any with ApiKeyQuery if available/needed
+                 apikey_query_list: List[ApiKeyQuery] = None):
         """Initializes a new instance of the Bot class.
 
         Args:
@@ -24,9 +24,7 @@ class Bot:
         self.name: str = name
         self.aiengine_id: str = aiengine_id
         self.aiengine_arg_dict: Dict[str, Any] = aiengine_arg_dict if aiengine_arg_dict is not None else {}
-        # Ensure apikey_query_list is a list of dicts or appropriate objects for JSON serialization
-        self.apikey_query_list: List[Any] = apikey_query_list if apikey_query_list is not None else []
-        # Add other attributes like system_prompt if they are part of aiengine_arg_dict or separate
+        self.apikey_query_list: List[ApiKeyQuery] = apikey_query_list if apikey_query_list is not None else []
 
     def to_dict(self) -> Dict[str, Any]:
         """Serializes the Bot instance to a dictionary for JSON storage.
@@ -38,12 +36,9 @@ class Bot:
             "name": self.name,
             "aiengine_id": self.aiengine_id,
             "aiengine_arg_dict": self.aiengine_arg_dict,
-            # Ensure ApiKeyQuery can be serialized. If ApiKeyQuery has to_dict, use it.
-            # If apikey_query_list already stores dicts (e.g., from BotInfoDialog), this is fine.
             "apikey_query_list": [
-                query.to_dict() if hasattr(query, 'to_dict') and callable(getattr(query, 'to_dict'))
-                else query
-                for query in self.apikey_query_list if query is not None
+                query.to_dict()
+                for query in self.apikey_query_list
             ]
         }
 
@@ -58,23 +53,15 @@ class Bot:
             Bot: An instance of Bot with the provided configuration.
         """
         apikey_queries_data = data.get("apikey_query_list", [])
-        deserialized_queries = []
+        apikey_query_list = []
         for query_data in apikey_queries_data:
-            if isinstance(query_data, dict) and ApiKeyQuery and hasattr(ApiKeyQuery, 'from_dict'):
-                # Attempt to deserialize if ApiKeyQuery.from_dict exists and query_data is a dict
-                try:
-                    deserialized_queries.append(ApiKeyQuery.from_dict(query_data))
-                except Exception: # Broad exception if from_dict fails, fallback to raw data
-                    deserialized_queries.append(query_data)
-            else:
-                # If it's not a dict or ApiKeyQuery.from_dict is not available, store as is
-                deserialized_queries.append(query_data)
+            apikey_query_list.append(ApiKeyQuery.from_dict(query_data))
 
         return cls(
             name=data.get("name", ""),
             aiengine_id=data.get("aiengine_id", ""),
             aiengine_arg_dict=data.get("aiengine_arg_dict", {}),
-            apikey_query_list=deserialized_queries
+            apikey_query_list=apikey_query_list
         )
 
     def get_aiengine_arg(self, arg_id: str, default: Any = None) -> Any:
