@@ -11,8 +11,8 @@ The application uses PyQt6 for its GUI components. Internationalization (i18n)
 is supported using QTranslator. Logging is used for diagnostics.
 """
 import sys
-import os # For path construction
-import logging # For logging
+import os  # For path construction
+import logging  # For logging
 import copy
 from typing import Optional
 
@@ -21,14 +21,14 @@ from PyQt6.QtWidgets import (
     QListWidget, QPushButton, QLabel, QInputDialog, QMessageBox,
     QListWidgetItem, QTextEdit,
     QSplitter, QAbstractItemView,
-    QMenu, QStyle, QSizePolicy, QSpacerItem # Added QSpacerItem for potential use
+    QMenu, QStyle, QSizePolicy, QSpacerItem  # Added QSpacerItem for potential use
 )
-from PyQt6.QtGui import QAction, QIcon # Added QIcon
-from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint, pyqtSignal, QTimer # Added QTimer
+from PyQt6.QtGui import QAction, QIcon  # Added QIcon
+from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint, pyqtSignal, QTimer  # Added QTimer
 
 # Attempt to import from sibling modules
 from .chatroom import ChatroomManager
-from .bot_template_manager import BotTemplateManager # Added
+from .bot_template_manager import BotTemplateManager  # Added
 # from .ai_bots import Bot, create_bot
 # from .ai_engines import GeminiEngine, GrokEngine
 from .apikey_manager import ApiKeyManager
@@ -79,6 +79,7 @@ class MainWindow(QMainWindow):
     password to be set up on first run, which is then used to encrypt
     sensitive data like API keys.
     """
+
     def __init__(self):
         """Initializes the MainWindow.
 
@@ -94,30 +95,37 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.tr("Chatroom and Bot Manager"))
         self.setGeometry(100, 100, 800, 600)
 
-        self.third_party_group = third_party.ThirdPartyGroup(third_parties.THIRD_PARTY_CLASSES)
+        self.third_party_group = third_party.ThirdPartyGroup(
+            third_parties.THIRD_PARTY_CLASSES)
+
+        self.data_dir_path = 'data'
 
         self.password_manager = PasswordManager()
         self.encryption_service = None
-        self.apikey_manager = None # Initialized after password setup
-
+        self.apikey_manager = None  # Initialized after password setup
 
         if not self._handle_master_password_startup():
-            self.logger.warning("Master password setup failed or was cancelled. Closing application.")
+            self.logger.warning(
+                "Master password setup failed or was cancelled. Closing application.")
             # If running in a context where QApplication is already running, self.close() is preferred.
             # If this is very early startup, sys.exit() might be needed.
             # For now, assume self.close() is sufficient if called before app.exec().
             # A more robust way might involve a flag that main() checks after __init__ returns.
-            QTimer.singleShot(0, self.close) # Close after current event loop processing
-            return # Stop further initialization in __init__
+            # Close after current event loop processing
+            QTimer.singleShot(0, self.close)
+            return  # Stop further initialization in __init__
 
         # Initialize ApiKeyManager now that encryption_service is available
-        self.apikey_manager = ApiKeyManager(encryption_service=self.encryption_service)
-        self.chatroom_manager = ChatroomManager(apikey_manager=self.apikey_manager)
-        self.bot_template_manager = BotTemplateManager() # Added
+        self.apikey_manager = ApiKeyManager(
+            encryption_service=self.encryption_service)
+        self.chatroom_manager = ChatroomManager(
+            apikey_manager=self.apikey_manager)
+        self.bot_template_manager = BotTemplateManager(
+            data_dir=self.data_dir_path)  # Added
 
         self._init_ui()
-        self._update_chatroom_list() # Initial population
-        self._update_bot_template_list() # Initial population for templates
+        self._update_chatroom_list()  # Initial population
+        self._update_bot_template_list()  # Initial population for templates
 
     def _init_ui(self):
         """Initializes the main user interface components and layout.
@@ -138,18 +146,21 @@ class MainWindow(QMainWindow):
         settings_menu.addAction(manage_keys_action)
 
         change_mp_action = QAction(self.tr("Change Master Password"), self)
-        change_mp_action.triggered.connect(self._show_change_master_password_dialog)
+        change_mp_action.triggered.connect(
+            self._show_change_master_password_dialog)
         settings_menu.addAction(change_mp_action)
 
-        clear_all_data_action = QAction(self.tr("Clear All Stored Data..."), self)
-        clear_all_data_action.triggered.connect(self._clear_all_user_data_via_menu)
+        clear_all_data_action = QAction(
+            self.tr("Clear All Stored Data..."), self)
+        clear_all_data_action.triggered.connect(
+            self._clear_all_user_data_via_menu)
         settings_menu.addAction(clear_all_data_action)
 
         # --- Main Layout (Splitter for resizable panels) ---
         main_splitter = QSplitter(Qt.Orientation.Horizontal, central_widget)
-        main_layout = QHBoxLayout(central_widget) # Main layout to hold the splitter
+        # Main layout to hold the splitter
+        main_layout = QHBoxLayout(central_widget)
         main_layout.addWidget(main_splitter)
-
 
         # --- Left Panel (Chatroom List and Bot List) ---
         left_panel_widget = QWidget()
@@ -159,16 +170,22 @@ class MainWindow(QMainWindow):
         chatroom_label = QLabel(self.tr("Chatrooms"))
         left_panel_layout.addWidget(chatroom_label)
         self.chatroom_list_widget = QListWidget()
-        self.chatroom_list_widget.currentItemChanged.connect(self._on_selected_chatroom_changed)
+        self.chatroom_list_widget.currentItemChanged.connect(
+            self._on_selected_chatroom_changed)
         # Attempt to set stylesheet for selected item clarity
-        self.chatroom_list_widget.setStyleSheet("QListWidget::item:selected { background-color: #ADD8E6; color: black; }")
-        self.chatroom_list_widget.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection) # Added
-        self.chatroom_list_widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu) # Added
-        self.chatroom_list_widget.customContextMenuRequested.connect(self._show_chatroom_context_menu) # Added
+        self.chatroom_list_widget.setStyleSheet(
+            "QListWidget::item:selected { background-color: #ADD8E6; color: black; }")
+        self.chatroom_list_widget.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection)  # Added
+        self.chatroom_list_widget.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)  # Added
+        self.chatroom_list_widget.customContextMenuRequested.connect(
+            self._show_chatroom_context_menu)  # Added
         left_panel_layout.addWidget(self.chatroom_list_widget)
 
         chatroom_buttons_layout = QHBoxLayout()
-        self.new_chatroom_button = QPushButton(self.tr("New Chatroom")) # Store as member for state updates
+        self.new_chatroom_button = QPushButton(
+            self.tr("New Chatroom"))  # Store as member for state updates
         self.new_chatroom_button.clicked.connect(self._create_chatroom)
         # self.rename_chatroom_button = QPushButton(self.tr("Rename Chatroom")) # REMOVED
         # self.rename_chatroom_button.clicked.connect(self._rename_chatroom) # REMOVED
@@ -188,9 +205,12 @@ class MainWindow(QMainWindow):
         left_panel_layout.addWidget(bot_template_label)
 
         self.bot_template_list_widget = QListWidget()
-        self.bot_template_list_widget.currentItemChanged.connect(self._on_selected_bot_template_changed)
-        self.bot_template_list_widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.bot_template_list_widget.customContextMenuRequested.connect(self._show_bot_template_context_menu)
+        self.bot_template_list_widget.currentItemChanged.connect(
+            self._on_selected_bot_template_changed)
+        self.bot_template_list_widget.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
+        self.bot_template_list_widget.customContextMenuRequested.connect(
+            self._show_bot_template_context_menu)
         left_panel_layout.addWidget(self.bot_template_list_widget)
 
         template_buttons_layout = QHBoxLayout()
@@ -199,11 +219,13 @@ class MainWindow(QMainWindow):
         template_buttons_layout.addWidget(self.new_template_button)
 
         self.edit_template_button = QPushButton(self.tr("Edit"))
-        self.edit_template_button.clicked.connect(self._edit_selected_bot_template)
+        self.edit_template_button.clicked.connect(
+            self._edit_selected_bot_template)
         template_buttons_layout.addWidget(self.edit_template_button)
 
         self.remove_template_button = QPushButton(self.tr("Remove"))
-        self.remove_template_button.clicked.connect(self._remove_selected_bot_template)
+        self.remove_template_button.clicked.connect(
+            self._remove_selected_bot_template)
         template_buttons_layout.addWidget(self.remove_template_button)
 
         left_panel_layout.addLayout(template_buttons_layout)
@@ -214,16 +236,18 @@ class MainWindow(QMainWindow):
 
         main_splitter.addWidget(left_panel_widget)
 
-
         # --- Middle Panel (Message Display and Input) ---
-        right_panel_widget = QWidget() # This is now the middle panel
+        right_panel_widget = QWidget()  # This is now the middle panel
         right_panel_layout = QVBoxLayout(right_panel_widget)
 
         self.message_display_area = QListWidget()
-        self.message_display_area.setWordWrap(True) # Enable word wrap
-        self.message_display_area.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        self.message_display_area.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.message_display_area.customContextMenuRequested.connect(self._show_message_context_menu)
+        self.message_display_area.setWordWrap(True)  # Enable word wrap
+        self.message_display_area.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.message_display_area.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
+        self.message_display_area.customContextMenuRequested.connect(
+            self._show_message_context_menu)
         right_panel_layout.addWidget(self.message_display_area, 5)
 
         # Message Actions Layout (for delete and fake message buttons)
@@ -232,18 +256,22 @@ class MainWindow(QMainWindow):
         # self.delete_message_button.clicked.connect(self._delete_selected_messages)
         # message_actions_layout.addWidget(self.delete_message_button)
 
-        self.create_fake_message_button = QPushButton(self.tr("Create Fake Message"))
-        self.create_fake_message_button.clicked.connect(self._show_create_fake_message_dialog)
+        self.create_fake_message_button = QPushButton(
+            self.tr("Create Fake Message"))
+        self.create_fake_message_button.clicked.connect(
+            self._show_create_fake_message_dialog)
         message_actions_layout.addWidget(self.create_fake_message_button)
         right_panel_layout.addLayout(message_actions_layout)
-
 
         # Message Input Area
         message_input_layout = QHBoxLayout()
         # self.message_input_area = QLineEdit()
-        self.message_input_area = MessageInputTextEdit() # Changed to custom QTextEdit for Ctrl+Enter
-        self.message_input_area.setMinimumHeight(60) # Set a minimum height for better usability
-        self.message_input_area.ctrl_enter_pressed.connect(self._send_user_message)
+        # Changed to custom QTextEdit for Ctrl+Enter
+        self.message_input_area = MessageInputTextEdit()
+        # Set a minimum height for better usability
+        self.message_input_area.setMinimumHeight(60)
+        self.message_input_area.ctrl_enter_pressed.connect(
+            self._send_user_message)
         message_input_layout.addWidget(self.message_input_area)
         self.send_message_button = QPushButton(self.tr("Send"))
         self.send_message_button.clicked.connect(self._send_user_message)
@@ -267,25 +295,30 @@ class MainWindow(QMainWindow):
         bot_list_container_widget = QWidget()
         right_bot_panel_layout = QVBoxLayout(bot_list_container_widget)
 
-        self.bot_panel_label = QLabel(self.tr("Bots")) # New generic label
+        self.bot_panel_label = QLabel(self.tr("Bots"))  # New generic label
         right_bot_panel_layout.addWidget(self.bot_panel_label)
 
         self.bot_list_widget = QListWidget()
-        self.bot_list_widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.bot_list_widget.customContextMenuRequested.connect(self._show_bot_context_menu)
-        self.bot_list_widget.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        right_bot_panel_layout.addWidget(self.bot_list_widget, 1) # Add stretch factor
+        self.bot_list_widget.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
+        self.bot_list_widget.customContextMenuRequested.connect(
+            self._show_bot_context_menu)
+        self.bot_list_widget.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection)
+        right_bot_panel_layout.addWidget(
+            self.bot_list_widget, 1)  # Add stretch factor
 
         self.add_bot_button = QPushButton(self.tr("Add Bot"))
         self.add_bot_button.clicked.connect(self._add_bot_to_chatroom)
         right_bot_panel_layout.addWidget(self.add_bot_button)
 
         main_splitter.addWidget(bot_list_container_widget)
-        main_splitter.setSizes([250, 300, 250]) # Adjusted for three panels
+        main_splitter.setSizes([250, 300, 250])  # Adjusted for three panels
 
-        self._update_bot_panel_state(False) # Initial state
-        self._update_message_related_ui_state(False) # Message UI disabled initially
-        self._update_template_button_states() # Initial state for template buttons
+        self._update_bot_panel_state(False)  # Initial state
+        self._update_message_related_ui_state(
+            False)  # Message UI disabled initially
+        self._update_template_button_states()  # Initial state for template buttons
 
     def _update_message_related_ui_state(self, enabled: bool):
         """Updates the enabled/read-only state of message-related UI elements.
@@ -350,19 +383,21 @@ class MainWindow(QMainWindow):
             # elif selected_items: # Fallback if specific clicked item not easily determined or not in selection
             #    self.chatroom_list_widget.setCurrentItem(selected_items[0])
 
-
             rename_action = QAction(self.tr("Rename"), self)
-            rename_action.triggered.connect(self._rename_chatroom) # Relies on currentItem
+            rename_action.triggered.connect(
+                self._rename_chatroom)  # Relies on currentItem
             menu.addAction(rename_action)
 
             clone_action = QAction(self.tr("Clone"), self)
-            clone_action.triggered.connect(self._clone_selected_chatroom) # Relies on currentItem
+            clone_action.triggered.connect(
+                self._clone_selected_chatroom)  # Relies on currentItem
             menu.addAction(clone_action)
 
             menu.addSeparator()
 
             delete_action = QAction(self.tr("Delete"), self)
-            delete_action.triggered.connect(self._delete_chatroom) # Relies on currentItem
+            delete_action.triggered.connect(
+                self._delete_chatroom)  # Relies on currentItem
             menu.addAction(delete_action)
 
         elif num_selected > 1:
@@ -371,18 +406,21 @@ class MainWindow(QMainWindow):
             # The target methods _clone_selected_chatroom and _delete_chatroom
             # will need to be updated to iterate over all selectedItems().
 
-            clone_selected_action = QAction(self.tr("Clone Selected Chatrooms ({0})").format(num_selected), self)
-            clone_selected_action.triggered.connect(self._clone_selected_chatroom) # Needs update for multi-select
+            clone_selected_action = QAction(
+                self.tr("Clone Selected Chatrooms ({0})").format(num_selected), self)
+            clone_selected_action.triggered.connect(
+                self._clone_selected_chatroom)  # Needs update for multi-select
             menu.addAction(clone_selected_action)
 
             menu.addSeparator()
 
-            delete_selected_action = QAction(self.tr("Delete Selected Chatrooms ({0})").format(num_selected), self)
-            delete_selected_action.triggered.connect(self._delete_chatroom) # Needs update for multi-select
+            delete_selected_action = QAction(
+                self.tr("Delete Selected Chatrooms ({0})").format(num_selected), self)
+            delete_selected_action.triggered.connect(
+                self._delete_chatroom)  # Needs update for multi-select
             menu.addAction(delete_selected_action)
 
         menu.exec(self.chatroom_list_widget.mapToGlobal(position))
-
 
     def _update_bot_panel_state(self, enabled: bool, _chatroom_name: str | None = None):
         """Updates the state of the bot panel UI elements.
@@ -398,10 +436,13 @@ class MainWindow(QMainWindow):
         """
         # Instead of disabling, set selection mode to NoSelection when not enabled
         if enabled:
-            self.bot_list_widget.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-            self.bot_list_widget.setFocusPolicy(Qt.FocusPolicy.StrongFocus) # Allow focus for keyboard navigation
+            self.bot_list_widget.setSelectionMode(
+                QAbstractItemView.SelectionMode.ExtendedSelection)
+            # Allow focus for keyboard navigation
+            self.bot_list_widget.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         else:
-            self.bot_list_widget.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+            self.bot_list_widget.setSelectionMode(
+                QAbstractItemView.SelectionMode.NoSelection)
             self.bot_list_widget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.add_bot_button.setEnabled(enabled)
         # self.remove_bot_button.setEnabled(enabled and bool(self.bot_list_widget.currentItem())) # REMOVED
@@ -419,7 +460,6 @@ class MainWindow(QMainWindow):
     #     # self.clone_chatroom_button.setEnabled(has_selection) # REMOVED
     #     # self.delete_chatroom_button.setEnabled(has_selection) # REMOVED
 
-
     def _update_chatroom_list(self):
         """Refreshes the chatroom list widget from the `ChatroomManager`.
 
@@ -430,7 +470,8 @@ class MainWindow(QMainWindow):
         deleted), it updates other UI parts like the bot list and message area
         to reflect an empty state.
         """
-        current_selection_name = self.chatroom_list_widget.currentItem().text() if self.chatroom_list_widget.currentItem() else None
+        current_selection_name = self.chatroom_list_widget.currentItem(
+        ).text() if self.chatroom_list_widget.currentItem() else None
 
         self.chatroom_list_widget.clear()
         # list_chatrooms now returns list[Chatroom]
@@ -438,7 +479,8 @@ class MainWindow(QMainWindow):
             item = QListWidgetItem(chatroom_obj.name)
             self.chatroom_list_widget.addItem(item)
             if chatroom_obj.name == current_selection_name:
-                self.chatroom_list_widget.setCurrentItem(item) # Restore selection
+                self.chatroom_list_widget.setCurrentItem(
+                    item)  # Restore selection
 
         if self.chatroom_list_widget.currentItem() is None:
             self._update_bot_list(None)
@@ -446,7 +488,6 @@ class MainWindow(QMainWindow):
             self._update_message_related_ui_state(False)
 
         # self._update_chatroom_related_button_states()
-
 
     def _on_selected_chatroom_changed(self, current: QListWidgetItem, _previous: QListWidgetItem):
         """Handles the event when the selected chatroom changes.
@@ -483,7 +524,6 @@ class MainWindow(QMainWindow):
             # self._update_bot_response_selector()
             self._update_message_related_ui_state(False)
 
-
     def _clone_selected_chatroom(self):
         """Clones the selected chatroom(s) via `ChatroomManager`.
 
@@ -497,43 +537,50 @@ class MainWindow(QMainWindow):
         """
         selected_items = self.chatroom_list_widget.selectedItems()
         if not selected_items:
-            QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom(s) selected to clone."))
+            QMessageBox.warning(self, self.tr("Warning"), self.tr(
+                "No chatroom(s) selected to clone."))
             return
 
         cloned_count = 0
         attempted_count = len(selected_items)
         last_cloned_name = None
         # Store original names for the final message if only one was selected
-        original_single_selected_name = selected_items[0].text() if attempted_count == 1 else None
-
+        original_single_selected_name = selected_items[0].text(
+        ) if attempted_count == 1 else None
 
         for item in selected_items:
             original_chatroom_name = item.text()
-            self.logger.info(f"Attempting to clone chatroom: {original_chatroom_name}")
-            cloned_chatroom = self.chatroom_manager.clone_chatroom(original_chatroom_name)
+            self.logger.info(
+                f"Attempting to clone chatroom: {original_chatroom_name}")
+            cloned_chatroom = self.chatroom_manager.clone_chatroom(
+                original_chatroom_name)
             if cloned_chatroom:
-                self.logger.info(f"Chatroom '{original_chatroom_name}' cloned successfully as '{cloned_chatroom.name}'.")
+                self.logger.info(
+                    f"Chatroom '{original_chatroom_name}' cloned successfully as '{cloned_chatroom.name}'.")
                 cloned_count += 1
-                last_cloned_name = cloned_chatroom.name # Keep track of the last one for single selection focus
+                # Keep track of the last one for single selection focus
+                last_cloned_name = cloned_chatroom.name
             else:
-                self.logger.error(f"Failed to clone chatroom '{original_chatroom_name}'.")
+                self.logger.error(
+                    f"Failed to clone chatroom '{original_chatroom_name}'.")
                 # Individual error message for each failure might be too noisy for multiple selections.
                 # Rely on the summary and logs.
 
         self._update_chatroom_list()
 
-        if attempted_count == 1: # Single selection
+        if attempted_count == 1:  # Single selection
             if cloned_count == 1 and last_cloned_name and original_single_selected_name:
-                 # Try to select the newly cloned chatroom if it was a single clone
+                # Try to select the newly cloned chatroom if it was a single clone
                 for i in range(self.chatroom_list_widget.count()):
                     if self.chatroom_list_widget.item(i).text() == last_cloned_name:
                         self.chatroom_list_widget.setCurrentRow(i)
                         break
                 QMessageBox.information(self, self.tr("Success"),
                                         self.tr("Chatroom '{0}' cloned as '{1}'.").format(original_single_selected_name, last_cloned_name))
-            elif original_single_selected_name: # Ensure it's not None
-                QMessageBox.critical(self, self.tr("Error"), self.tr("Failed to clone chatroom '{0}'.").format(original_single_selected_name))
-        else: # Multiple selections
+            elif original_single_selected_name:  # Ensure it's not None
+                QMessageBox.critical(self, self.tr("Error"), self.tr(
+                    "Failed to clone chatroom '{0}'.").format(original_single_selected_name))
+        else:  # Multiple selections
             if cloned_count == attempted_count:
                 QMessageBox.information(self, self.tr("Success"),
                                         self.tr("Successfully cloned {0} chatroom(s).").format(cloned_count))
@@ -543,7 +590,6 @@ class MainWindow(QMainWindow):
             else:
                 QMessageBox.critical(self, self.tr("Error"),
                                      self.tr("Failed to clone any of the selected {0} chatrooms. See log for details.").format(attempted_count))
-
 
     def _update_message_display(self):
         """Refreshes the message display area with messages from the current chatroom.
@@ -555,15 +601,19 @@ class MainWindow(QMainWindow):
         timestamp for potential use in other operations like deletion.
         If no chatroom is selected, the display area is simply cleared.
         """
-        current_chatroom_name = self.chatroom_list_widget.currentItem().text() if self.chatroom_list_widget.currentItem() else None
+        current_chatroom_name = self.chatroom_list_widget.currentItem(
+        ).text() if self.chatroom_list_widget.currentItem() else None
         self.message_display_area.clear()
         if current_chatroom_name:
-            chatroom = self.chatroom_manager.get_chatroom(current_chatroom_name)
+            chatroom = self.chatroom_manager.get_chatroom(
+                current_chatroom_name)
             if chatroom:
                 # Ensure sorted display by timestamp
                 for message in sorted(chatroom.get_messages(), key=lambda m: m.timestamp):
-                    item = QListWidgetItem(message.to_display_string()+'\n') # Use to_display_string for formatting
-                    item.setData(Qt.ItemDataRole.UserRole, message.timestamp) # Store timestamp
+                    # Use to_display_string for formatting
+                    item = QListWidgetItem(message.to_display_string()+'\n')
+                    item.setData(Qt.ItemDataRole.UserRole,
+                                 message.timestamp)  # Store timestamp
                     self.message_display_area.addItem(item)
 
     def _delete_selected_messages(self):
@@ -575,33 +625,37 @@ class MainWindow(QMainWindow):
         to delete them from the `Chatroom` object via `chatroom.delete_message()`.
         Finally, it refreshes the message display.
         """
-        current_chatroom_name = self.chatroom_list_widget.currentItem().text() if self.chatroom_list_widget.currentItem() else None
+        current_chatroom_name = self.chatroom_list_widget.currentItem(
+        ).text() if self.chatroom_list_widget.currentItem() else None
         if not current_chatroom_name:
-            QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected."))
+            QMessageBox.warning(self, self.tr("Warning"),
+                                self.tr("No chatroom selected."))
             return
 
         chatroom = self.chatroom_manager.get_chatroom(current_chatroom_name)
         if not chatroom:
-            return # Should not happen if UI is consistent
+            return  # Should not happen if UI is consistent
 
         selected_items = self.message_display_area.selectedItems()
         if not selected_items:
-            QMessageBox.information(self, self.tr("Information"), self.tr("No messages selected to delete."))
+            QMessageBox.information(self, self.tr("Information"), self.tr(
+                "No messages selected to delete."))
             return
 
         reply = QMessageBox.question(self, self.tr("Confirm Deletion"),
-                                   self.tr("Are you sure you want to delete {0} message(s)?").format(len(selected_items)),
-                                   QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+                                     self.tr("Are you sure you want to delete {0} message(s)?").format(
+                                         len(selected_items)),
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
 
         if reply == QMessageBox.StandardButton.Yes:
             deleted_count = 0
             for item in selected_items:
                 timestamp = item.data(Qt.ItemDataRole.UserRole)
-                if chatroom.delete_message(timestamp): # delete_message calls _notify_chatroom_updated
-                    deleted_count +=1
+                # delete_message calls _notify_chatroom_updated
+                if chatroom.delete_message(timestamp):
+                    deleted_count += 1
             if deleted_count > 0:
-                self._update_message_display() # Refresh display
-
+                self._update_message_display()  # Refresh display
 
     def _show_create_fake_message_dialog(self):
         """Opens a dialog to manually create and add a "fake" message.
@@ -612,28 +666,31 @@ class MainWindow(QMainWindow):
         valid sender and content, the message is added to the current
         chatroom's history, and the message display is updated.
         """
-        current_chatroom_name = self.chatroom_list_widget.currentItem().text() if self.chatroom_list_widget.currentItem() else None
+        current_chatroom_name = self.chatroom_list_widget.currentItem(
+        ).text() if self.chatroom_list_widget.currentItem() else None
         if not current_chatroom_name:
-            QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected."))
+            QMessageBox.warning(self, self.tr("Warning"),
+                                self.tr("No chatroom selected."))
             return
 
         chatroom = self.chatroom_manager.get_chatroom(current_chatroom_name)
         if not chatroom:
-            return # Should not happen
+            return  # Should not happen
 
         current_bot_names = [bot.name for bot in chatroom.list_bots()]
         dialog = CreateFakeMessageDialog(current_bot_names, self)
 
-        if dialog.exec(): # exec() shows the dialog
+        if dialog.exec():  # exec() shows the dialog
             data = dialog.get_data()
             if data:
                 sender, content = data
                 if not content.strip():
-                    QMessageBox.warning(self, self.tr("Warning"), self.tr("Message content cannot be empty."))
+                    QMessageBox.warning(self, self.tr("Warning"), self.tr(
+                        "Message content cannot be empty."))
                     return
-                chatroom.add_message(sender, content) # This will use current timestamp and trigger save
-                self._update_message_display() # Refresh
-
+                # This will use current timestamp and trigger save
+                chatroom.add_message(sender, content)
+                self._update_message_display()  # Refresh
 
     def _send_user_message(self):
         """Sends a message from the user to the current chatroom.
@@ -645,21 +702,25 @@ class MainWindow(QMainWindow):
         """
         current_chatroom_item = self.chatroom_list_widget.currentItem()
         if not current_chatroom_item:
-            QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected to send message."))
+            QMessageBox.warning(self, self.tr("Warning"), self.tr(
+                "No chatroom selected to send message."))
             return
 
         chatroom_name = current_chatroom_item.text()
         chatroom = self.chatroom_manager.get_chatroom(chatroom_name)
-        if not chatroom: # Should not happen if item is selected
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Selected chatroom not found."))
+        if not chatroom:  # Should not happen if item is selected
+            QMessageBox.critical(self, self.tr("Error"),
+                                 self.tr("Selected chatroom not found."))
             return
 
         # text = self.message_input_area.text().strip()
-        text = self.message_input_area.toPlainText().strip() # Use QTextEdit for multi-line input
+        # Use QTextEdit for multi-line input
+        text = self.message_input_area.toPlainText().strip()
         if not text:
             return
 
-        self.logger.info(f"Sending user message of length {len(text)} to chatroom '{chatroom_name}'.")
+        self.logger.info(
+            f"Sending user message of length {len(text)} to chatroom '{chatroom_name}'.")
         chatroom.add_message("User", text)
         self._update_message_display()
         self.message_input_area.clear()
@@ -685,7 +746,6 @@ class MainWindow(QMainWindow):
     #     # Disable trigger button if no bots are available
     #     # self.trigger_bot_response_button.setEnabled(self.bot_response_selector.count() > 0)
 
-
     def _trigger_bot_response(self, bot_name_override: str | None = None):
         """Triggers a response from a specified bot in the current chatroom.
 
@@ -710,14 +770,17 @@ class MainWindow(QMainWindow):
         """
         current_chatroom_item = self.chatroom_list_widget.currentItem()
         if not current_chatroom_item:
-            QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected."))
+            QMessageBox.warning(self, self.tr("Warning"),
+                                self.tr("No chatroom selected."))
             return
 
         chatroom_name = current_chatroom_item.text()
         chatroom = self.chatroom_manager.get_chatroom(chatroom_name)
         if not chatroom:
-            self.logger.error(f"Trigger bot response: Selected chatroom '{chatroom_name}' not found.")
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Selected chatroom not found."))
+            self.logger.error(
+                f"Trigger bot response: Selected chatroom '{chatroom_name}' not found.")
+            QMessageBox.critical(self, self.tr("Error"),
+                                 self.tr("Selected chatroom not found."))
             return
 
         # if self.bot_response_selector.count() == 0:
@@ -739,10 +802,11 @@ class MainWindow(QMainWindow):
 
         bot = chatroom.get_bot(selected_bot_name_to_use)
         if not bot:
-            self.logger.error(f"Trigger bot response: Bot '{selected_bot_name_to_use}' not found in chatroom '{chatroom_name}'.")
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Bot '{0}' not found in chatroom.").format(selected_bot_name_to_use))
+            self.logger.error(
+                f"Trigger bot response: Bot '{selected_bot_name_to_use}' not found in chatroom '{chatroom_name}'.")
+            QMessageBox.critical(self, self.tr("Error"), self.tr(
+                "Bot '{0}' not found in chatroom.").format(selected_bot_name_to_use))
             return
-
 
         # if isinstance(engine, (GeminiEngine, GrokEngine)):
         #     apikey = self.apikey_manager.load_key(engine_type_name)
@@ -752,17 +816,21 @@ class MainWindow(QMainWindow):
         #                             self.tr("Bot {0} (using {1}) needs an API key. Please set it in Settings.").format(bot.get_name(), engine_type_name))
         #         return
 
-        self.logger.info(f"Attempting to trigger bot response for bot '{selected_bot_name_to_use}' in chatroom '{chatroom_name}'.")
+        self.logger.info(
+            f"Attempting to trigger bot response for bot '{selected_bot_name_to_use}' in chatroom '{chatroom_name}'.")
         conversation_history = chatroom.get_messages()
 
         if not conversation_history:
-            self.logger.info(f"Trigger bot response: No messages in chatroom '{chatroom_name}' to respond to for bot '{selected_bot_name_to_use}'.")
-            QMessageBox.information(self, self.tr("Info"), self.tr("No messages in chat to respond to."))
+            self.logger.info(
+                f"Trigger bot response: No messages in chatroom '{chatroom_name}' to respond to for bot '{selected_bot_name_to_use}'.")
+            QMessageBox.information(self, self.tr("Info"), self.tr(
+                "No messages in chat to respond to."))
             return
 
         # UI updates to indicate processing, only for the main button
         # original_button_text = None
-        is_main_button_trigger = not bot_name_override # True if triggered by the main UI button
+        # True if triggered by the main UI button
+        is_main_button_trigger = not bot_name_override
         if is_main_button_trigger:
             # original_button_text = self.trigger_bot_response_button.text()
             # self.trigger_bot_response_button.setText(self.tr("Waiting for AI..."))
@@ -771,32 +839,39 @@ class MainWindow(QMainWindow):
 
         try:
             ai_response = self.third_party_group.generate_response(
-                aiengine_id = bot.aiengine_id,
-                aiengine_arg_dict = bot.aiengine_arg_dict,
-                apikey_list = self.apikey_manager.get_apikey_list(bot.apikey_query_list),
-                role_name = bot.name,
-                conversation_history = conversation_history,
+                aiengine_id=bot.aiengine_id,
+                aiengine_arg_dict=bot.aiengine_arg_dict,
+                apikey_list=self.apikey_manager.get_apikey_list(
+                    bot.apikey_query_list),
+                role_name=bot.name,
+                conversation_history=conversation_history,
             )
-            self.logger.info(f"Bot '{selected_bot_name_to_use}' generated response successfully in chatroom '{chatroom_name}'.")
+            self.logger.info(
+                f"Bot '{selected_bot_name_to_use}' generated response successfully in chatroom '{chatroom_name}'.")
             chatroom.add_message(bot.name, ai_response)
             self._update_message_display()
-        except ValueError as ve: # Specific handling for ValueErrors from create_bot or engine
-            self.logger.error(f"Configuration or input error for bot '{selected_bot_name_to_use}': {ve}", exc_info=True)
-            QMessageBox.critical(self, self.tr("Bot Configuration Error"), str(ve))
+        except ValueError as ve:  # Specific handling for ValueErrors from create_bot or engine
+            self.logger.error(
+                f"Configuration or input error for bot '{selected_bot_name_to_use}': {ve}", exc_info=True)
+            QMessageBox.critical(self, self.tr(
+                "Bot Configuration Error"), str(ve))
             # Optionally add system message to chatroom for this type of error too
             # chatroom.add_message("System", self.tr("Error with bot '{0}': {1}").format(selected_bot_name_to_use, str(ve)))
             # self._update_message_display()
         except Exception as e:
-            self.logger.error(f"Error during bot response generation for bot '{selected_bot_name_to_use}' in chatroom '{chatroom_name}': {e}", exc_info=True)
-            QMessageBox.critical(self, self.tr("Error"), self.tr("An error occurred while getting bot response for '{0}': {1}").format(selected_bot_name_to_use, str(e)))
-            chatroom.add_message("System", self.tr("Error during bot response for '{0}': {1}").format(selected_bot_name_to_use, str(e)))
+            self.logger.error(
+                f"Error during bot response generation for bot '{selected_bot_name_to_use}' in chatroom '{chatroom_name}': {e}", exc_info=True)
+            QMessageBox.critical(self, self.tr("Error"), self.tr(
+                "An error occurred while getting bot response for '{0}': {1}").format(selected_bot_name_to_use, str(e)))
+            chatroom.add_message("System", self.tr(
+                "Error during bot response for '{0}': {1}").format(selected_bot_name_to_use, str(e)))
             self._update_message_display()
         finally:
             # if is_main_button_trigger and original_button_text is not None:
             #     self.trigger_bot_response_button.setText(original_button_text)
             # The message related UI state should be updated regardless of which button triggered
-            self._update_message_related_ui_state(bool(self.chatroom_list_widget.currentItem()))
-
+            self._update_message_related_ui_state(
+                bool(self.chatroom_list_widget.currentItem()))
 
     def _create_chatroom(self):
         """Initiates the creation of a new chatroom.
@@ -809,21 +884,30 @@ class MainWindow(QMainWindow):
           refresh the UI, and the new chatroom is selected.
         - If the chatroom name already exists, a warning message is shown.
         """
-        name, ok = QInputDialog.getText(self, self.tr("New Chatroom"), self.tr("Enter chatroom name:"))
+        name, ok = QInputDialog.getText(self, self.tr(
+            "New Chatroom"), self.tr("Enter chatroom name:"))
         if ok and name:
             if self.chatroom_manager.create_chatroom(name):
-                self.logger.info(f"Chatroom '{name}' created successfully.") # INFO - user action success
+                # INFO - user action success
+                self.logger.info(f"Chatroom '{name}' created successfully.")
                 self._update_chatroom_list()
                 # Optionally select the new chatroom
-                items = self.chatroom_list_widget.findItems(name, Qt.MatchFlag.MatchExactly)
+                items = self.chatroom_list_widget.findItems(
+                    name, Qt.MatchFlag.MatchExactly)
                 if items:
                     self.chatroom_list_widget.setCurrentItem(items[0])
             else:
-                self.logger.warning(f"Failed to create chatroom '{name}', it likely already exists.") # WARNING - user action failed, but recoverable
-                QMessageBox.warning(self, self.tr("Error"), self.tr("Chatroom '{0}' already exists.").format(name))
-        elif name: # Name was provided but 'ok' was false (dialog cancelled) or name was empty after ok.
-            self.logger.debug(f"Chatroom creation cancelled or name was invalid: '{name}'.")
-        else: # 'ok' was false and name was empty (dialog cancelled with no input).
+                # WARNING - user action failed, but recoverable
+                self.logger.warning(
+                    f"Failed to create chatroom '{name}', it likely already exists.")
+                QMessageBox.warning(self, self.tr("Error"), self.tr(
+                    "Chatroom '{0}' already exists.").format(name))
+        # Name was provided but 'ok' was false (dialog cancelled) or name was empty after ok.
+        elif name:
+            self.logger.debug(
+                f"Chatroom creation cancelled or name was invalid: '{name}'.")
+        # 'ok' was false and name was empty (dialog cancelled with no input).
+        else:
             self.logger.debug("Chatroom creation cancelled by user.")
 
     def _rename_chatroom(self):
@@ -840,29 +924,39 @@ class MainWindow(QMainWindow):
         """
         current_item = self.chatroom_list_widget.currentItem()
         if not current_item:
-            QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected to rename."))
+            QMessageBox.warning(self, self.tr("Warning"), self.tr(
+                "No chatroom selected to rename."))
             return
 
         old_name = current_item.text()
-        new_name, ok = QInputDialog.getText(self, self.tr("Rename Chatroom"), self.tr("Enter new name:"), text=old_name)
+        new_name, ok = QInputDialog.getText(self, self.tr(
+            "Rename Chatroom"), self.tr("Enter new name:"), text=old_name)
 
         if ok and new_name and new_name != old_name:
             if self.chatroom_manager.rename_chatroom(old_name, new_name):
-                self.logger.info(f"Chatroom '{old_name}' renamed to '{new_name}' successfully.")
+                self.logger.info(
+                    f"Chatroom '{old_name}' renamed to '{new_name}' successfully.")
                 self._update_chatroom_list()
                 # Re-select the renamed chatroom
-                items = self.chatroom_list_widget.findItems(new_name, Qt.MatchFlag.MatchExactly)
+                items = self.chatroom_list_widget.findItems(
+                    new_name, Qt.MatchFlag.MatchExactly)
                 if items:
                     self.chatroom_list_widget.setCurrentItem(items[0])
             else:
-                self.logger.warning(f"Failed to rename chatroom '{old_name}' to '{new_name}'. New name might already exist.") # WARNING - user action failed
-                QMessageBox.warning(self, self.tr("Error"), self.tr("Could not rename chatroom. New name '{0}' might already exist.").format(new_name))
+                # WARNING - user action failed
+                self.logger.warning(
+                    f"Failed to rename chatroom '{old_name}' to '{new_name}'. New name might already exist.")
+                QMessageBox.warning(self, self.tr("Error"), self.tr(
+                    "Could not rename chatroom. New name '{0}' might already exist.").format(new_name))
         elif ok and not new_name:
-            self.logger.warning(f"Attempt to rename chatroom '{old_name}' with an empty name.") # WARNING - invalid input
-            QMessageBox.warning(self, self.tr("Warning"), self.tr("New chatroom name cannot be empty."))
-        elif not ok: # User cancelled the dialog
-            self.logger.debug(f"Chatroom rename for '{old_name}' cancelled by user.")
-
+            # WARNING - invalid input
+            self.logger.warning(
+                f"Attempt to rename chatroom '{old_name}' with an empty name.")
+            QMessageBox.warning(self, self.tr("Warning"), self.tr(
+                "New chatroom name cannot be empty."))
+        elif not ok:  # User cancelled the dialog
+            self.logger.debug(
+                f"Chatroom rename for '{old_name}' cancelled by user.")
 
     def _delete_chatroom(self):
         """Initiates deletion of the selected chatroom(s).
@@ -880,7 +974,8 @@ class MainWindow(QMainWindow):
         """
         selected_items = self.chatroom_list_widget.selectedItems()
         if not selected_items:
-            QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom(s) selected to delete."))
+            QMessageBox.warning(self, self.tr("Warning"), self.tr(
+                "No chatroom(s) selected to delete."))
             return
 
         num_selected = len(selected_items)
@@ -888,8 +983,9 @@ class MainWindow(QMainWindow):
 
         # For single deletion, keep the old simple message
         if num_selected == 1:
-            confirm_message = self.tr("Are you sure you want to delete chatroom '{0}'?").format(names_to_delete[0])
-        else: # For multiple deletions, list the names
+            confirm_message = self.tr(
+                "Are you sure you want to delete chatroom '{0}'?").format(names_to_delete[0])
+        else:  # For multiple deletions, list the names
             confirm_message = self.tr("Are you sure you want to delete the following {0} chatroom(s)?\n\n- {1}").format(
                 num_selected, "\n- ".join(names_to_delete)
             )
@@ -901,11 +997,13 @@ class MainWindow(QMainWindow):
             deleted_count = 0
             for name in names_to_delete:
                 self.logger.info(f"Deleting chatroom '{name}'.")
-                if self.chatroom_manager.delete_chatroom(name): # delete_chatroom returns True on success, False on failure
+                # delete_chatroom returns True on success, False on failure
+                if self.chatroom_manager.delete_chatroom(name):
                     deleted_count += 1
                 else:
                     # This case (delete_chatroom returns False) implies the chatroom wasn't found or couldn't be deleted.
-                    self.logger.warning(f"Failed to delete chatroom '{name}' during batch operation (it might have already been deleted or an error occurred).")
+                    self.logger.warning(
+                        f"Failed to delete chatroom '{name}' during batch operation (it might have already been deleted or an error occurred).")
 
             self._update_chatroom_list()
             # _update_chatroom_list will handle UI updates including bot list and panel if necessary.
@@ -916,27 +1014,28 @@ class MainWindow(QMainWindow):
             # self._update_bot_panel_state(False)
             # self._update_message_related_ui_state(False)
 
-            if num_selected == 1: # Message for single deletion
+            if num_selected == 1:  # Message for single deletion
                 if deleted_count == 1:
                     # Implicitly successful as no specific message for single success needed other than list update
                     # QMessageBox.information(self, self.tr("Success"), self.tr("Chatroom '{0}' deleted.").format(names_to_delete[0])) # Optional: could be too noisy
                     pass
-                else: # Should not happen if delete_chatroom was successful, but as a fallback
-                    QMessageBox.warning(self, self.tr("Deletion Failed"), self.tr("Could not delete chatroom '{0}'. It may have already been removed.").format(names_to_delete[0]))
+                else:  # Should not happen if delete_chatroom was successful, but as a fallback
+                    QMessageBox.warning(self, self.tr("Deletion Failed"), self.tr(
+                        "Could not delete chatroom '{0}'. It may have already been removed.").format(names_to_delete[0]))
 
-            else: # Messages for multiple deletions
+            else:  # Messages for multiple deletions
                 if deleted_count == num_selected:
                     QMessageBox.information(self, self.tr("Success"),
                                             self.tr("Successfully deleted {0} chatroom(s).").format(deleted_count))
                 elif deleted_count > 0:
                     QMessageBox.warning(self, self.tr("Partial Deletion"),
-                                         self.tr("Successfully deleted {0} out of {1} selected chatrooms. Some may have already been deleted or an error occurred.").format(deleted_count, num_selected))
-                else: # deleted_count == 0
+                                        self.tr("Successfully deleted {0} out of {1} selected chatrooms. Some may have already been deleted or an error occurred.").format(deleted_count, num_selected))
+                else:  # deleted_count == 0
                     QMessageBox.critical(self, self.tr("Deletion Failed"),
                                          self.tr("Failed to delete any of the selected {0} chatrooms. They may have already been deleted or an error occurred.").format(num_selected))
         else:
-            self.logger.debug(f"Deletion of {num_selected} chatroom(s) cancelled by user.")
-
+            self.logger.debug(
+                f"Deletion of {num_selected} chatroom(s) cancelled by user.")
 
     def _update_bot_list(self, chatroom_name: Optional[str]):
         """Refreshes the bot list widget for the given chatroom.
@@ -957,11 +1056,13 @@ class MainWindow(QMainWindow):
             if chatroom:
                 for bot in chatroom.list_bots():
                     # self.bot_list_widget.addItem(QListWidgetItem(bot.get_name())) # Old way
-                    bot_name_str = bot.name # Ensure it's a string
-                    item_widget = self._create_bot_list_item_widget(bot_name_str)
+                    bot_name_str = bot.name  # Ensure it's a string
+                    item_widget = self._create_bot_list_item_widget(
+                        bot_name_str)
 
                     list_item = QListWidgetItem(self.bot_list_widget)
-                    list_item.setData(Qt.ItemDataRole.UserRole, bot_name_str) # Store bot name
+                    list_item.setData(Qt.ItemDataRole.UserRole,
+                                      bot_name_str)  # Store bot name
 
                     # Set size hint for the list item to ensure custom widget is displayed correctly
                     list_item.setSizeHint(item_widget.sizeHint())
@@ -970,7 +1071,8 @@ class MainWindow(QMainWindow):
                     self.bot_list_widget.setItemWidget(list_item, item_widget)
 
         # Update panel state based on whether a chatroom is active
-        self._update_bot_panel_state(chatroom_name is not None and self.chatroom_manager.get_chatroom(chatroom_name) is not None, chatroom_name)
+        self._update_bot_panel_state(chatroom_name is not None and self.chatroom_manager.get_chatroom(
+            chatroom_name) is not None, chatroom_name)
 
     def _show_bot_context_menu(self, position: QPoint):
         """Displays a context menu for selected bot(s) in the bot list.
@@ -1002,11 +1104,13 @@ class MainWindow(QMainWindow):
             delete_action.triggered.connect(self._delete_selected_bots)
             menu.addAction(delete_action)
         elif num_selected > 1:
-            clone_action = QAction(self.tr("Clone Selected Bots"), self) # Pluralized
+            clone_action = QAction(
+                self.tr("Clone Selected Bots"), self)  # Pluralized
             clone_action.triggered.connect(self._clone_selected_bots)
             menu.addAction(clone_action)
 
-            delete_action = QAction(self.tr("Delete Selected Bots"), self) # Pluralized
+            delete_action = QAction(
+                self.tr("Delete Selected Bots"), self)  # Pluralized
             delete_action.triggered.connect(self._delete_selected_bots)
             menu.addAction(delete_action)
 
@@ -1045,7 +1149,8 @@ class MainWindow(QMainWindow):
 
         bot_to_edit = chatroom.get_bot(bot_name_to_edit)
         if not bot_to_edit:
-            self.logger.error(f"Bot '{bot_name_to_edit}' not found in chatroom '{chatroom_name}' for editing.")
+            self.logger.error(
+                f"Bot '{bot_name_to_edit}' not found in chatroom '{chatroom_name}' for editing.")
             return
 
         # Prepare BotInfoDialog
@@ -1056,7 +1161,8 @@ class MainWindow(QMainWindow):
         # current_system_prompt = bot_to_edit.get_system_prompt()
 
         all_bot_names_in_chatroom = [bot.name for bot in chatroom.list_bots()]
-        existing_bot_names_for_dialog = [name for name in all_bot_names_in_chatroom if name != bot_to_edit.name]
+        existing_bot_names_for_dialog = [
+            name for name in all_bot_names_in_chatroom if name != bot_to_edit.name]
 
         dialog = BotInfoDialog(
             existing_bot_names=existing_bot_names_for_dialog,
@@ -1065,7 +1171,8 @@ class MainWindow(QMainWindow):
             old_bot=bot_to_edit,
             parent=self
         )
-        dialog.setWindowTitle(self.tr("Edit Bot: {0}").format(bot_to_edit.name))
+        dialog.setWindowTitle(
+            self.tr("Edit Bot: {0}").format(bot_to_edit.name))
 
         # Pre-fill dialog fields
         # dialog.set_bot_values(bot_to_edit)
@@ -1077,7 +1184,7 @@ class MainWindow(QMainWindow):
 
         if dialog.exec():
             new_bot = dialog.get_bot()
-            if not new_bot: # Should not happen if dialog accept() worked
+            if not new_bot:  # Should not happen if dialog accept() worked
                 return
 
             # name_changed = (new_bot.name != bot_to_edit.name)
@@ -1085,8 +1192,10 @@ class MainWindow(QMainWindow):
             #                   new_bot.get_aiengine_arg('model_name') !=new_bot.get_aiengine_arg('model_name'))
             #                   # Ensure empty new_model_name matches None current_model_name
 
-            if not chatroom.remove_bot(bot_to_edit.name): # Use current_name for removal
-                self.logger.error(f"Failed to remove bot '{bot_to_edit.name}' before renaming.")
+            # Use current_name for removal
+            if not chatroom.remove_bot(bot_to_edit.name):
+                self.logger.error(
+                    f"Failed to remove bot '{bot_to_edit.name}' before renaming.")
                 return
 
             # if engine_changed:
@@ -1112,11 +1221,14 @@ class MainWindow(QMainWindow):
             #         return # Stop further processing
 
             if not chatroom.add_bot(new_bot):
-                self.logger.error(f"Failed to re-add bot '{new_bot.name}' after name change.")
-                QMessageBox.critical(self, self.tr("Error Updating Bot"), self.tr("Could not re-add bot with new name. Bot may be in an inconsistent state."))
+                self.logger.error(
+                    f"Failed to re-add bot '{new_bot.name}' after name change.")
+                QMessageBox.critical(self, self.tr("Error Updating Bot"), self.tr(
+                    "Could not re-add bot with new name. Bot may be in an inconsistent state."))
                 return
 
-            self.logger.info(f"Bot '{bot_to_edit.name}' updated successfully. New name: '{new_bot.name}'")
+            self.logger.info(
+                f"Bot '{bot_to_edit.name}' updated successfully. New name: '{new_bot.name}'")
 
             # Explicitly notify chatroom manager about the update for saving
             self.chatroom_manager.notify_chatroom_updated(chatroom)
@@ -1125,7 +1237,6 @@ class MainWindow(QMainWindow):
             # self._update_bot_response_selector()
         else:
             self.logger.debug(f"Edit bot '{bot_name_to_edit}' cancelled.")
-
 
     def _clone_selected_bots(self):
         """Clones the selected bot(s) within the current chatroom.
@@ -1144,16 +1255,19 @@ class MainWindow(QMainWindow):
             return
 
         current_chatroom_item = self.chatroom_list_widget.currentItem()
-        if not current_chatroom_item: # This should ideally not happen if items are selected from the list tied to a chatroom
+        if not current_chatroom_item:  # This should ideally not happen if items are selected from the list tied to a chatroom
             self.logger.error("No chatroom selected to clone bots into.")
-            QMessageBox.critical(self, self.tr("Error"), self.tr("No chatroom context for cloning."))
+            QMessageBox.critical(self, self.tr("Error"), self.tr(
+                "No chatroom context for cloning."))
             return
 
         chatroom_name = current_chatroom_item.text()
         chatroom = self.chatroom_manager.get_chatroom(chatroom_name)
         if not chatroom:
-            self.logger.error(f"Chatroom '{chatroom_name}' not found for cloning bots.")
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Could not find the current chatroom."))
+            self.logger.error(
+                f"Chatroom '{chatroom_name}' not found for cloning bots.")
+            QMessageBox.critical(self, self.tr("Error"), self.tr(
+                "Could not find the current chatroom."))
             return
 
         cloned_count = 0
@@ -1162,12 +1276,14 @@ class MainWindow(QMainWindow):
         for list_item in selected_items:
             original_bot_name = list_item.data(Qt.ItemDataRole.UserRole)
             if not original_bot_name:
-                self.logger.warning("Could not retrieve bot name from list item, skipping clone.")
+                self.logger.warning(
+                    "Could not retrieve bot name from list item, skipping clone.")
                 continue
 
             original_bot = chatroom.get_bot(original_bot_name)
             if not original_bot:
-                self.logger.error(f"Bot '{original_bot_name}' not found in chatroom '{chatroom_name}' for cloning.")
+                self.logger.error(
+                    f"Bot '{original_bot_name}' not found in chatroom '{chatroom_name}' for cloning.")
                 continue
 
             # Generate Unique Clone Name
@@ -1201,18 +1317,21 @@ class MainWindow(QMainWindow):
             #     QMessageBox.warning(self, self.tr("Clone Error"), self.tr("Could not create clone for bot '{0}': {1}").format(original_bot_name, str(e)))
             #     continue
             cloned_bot = copy.deepcopy(original_bot)
-            cloned_bot.name = clone_name # Set the new name
+            cloned_bot.name = clone_name  # Set the new name
 
             if chatroom.add_bot(cloned_bot):
-                self.logger.info(f"Bot '{original_bot_name}' cloned as '{clone_name}' in chatroom '{chatroom_name}'.")
+                self.logger.info(
+                    f"Bot '{original_bot_name}' cloned as '{clone_name}' in chatroom '{chatroom_name}'.")
                 cloned_count += 1
                 # Add the new clone's name to the list for subsequent unique name checks in this loop
                 # This is implicitly handled by `current_existing_names = [bot.get_name() for bot in chatroom.list_bots()]`
                 # at the start of the loop, but if `add_bot` doesn't immediately update the source for `list_bots()`,
                 # this might be needed: current_existing_names.append(clone_name)
             else:
-                self.logger.error(f"Failed to add cloned bot '{clone_name}' to chatroom '{chatroom_name}'. This might be due to a duplicate name if check failed.")
-                QMessageBox.warning(self, self.tr("Clone Error"), self.tr("Could not add cloned bot '{0}' to chatroom. It might already exist.").format(clone_name))
+                self.logger.error(
+                    f"Failed to add cloned bot '{clone_name}' to chatroom '{chatroom_name}'. This might be due to a duplicate name if check failed.")
+                QMessageBox.warning(self, self.tr("Clone Error"), self.tr(
+                    "Could not add cloned bot '{0}' to chatroom. It might already exist.").format(clone_name))
 
         if cloned_count > 0:
             self._update_bot_list(chatroom_name)
@@ -1222,9 +1341,11 @@ class MainWindow(QMainWindow):
             self.chatroom_manager.notify_chatroom_updated(chatroom)
 
         if cloned_count == len(selected_items):
-            QMessageBox.information(self, self.tr("Clone Successful"), self.tr("{0} bot(s) cloned successfully.").format(cloned_count))
+            QMessageBox.information(self, self.tr("Clone Successful"), self.tr(
+                "{0} bot(s) cloned successfully.").format(cloned_count))
         elif cloned_count > 0:
-            QMessageBox.warning(self, self.tr("Clone Partially Successful"), self.tr("Successfully cloned {0} out of {1} selected bots.").format(cloned_count, len(selected_items)))
+            QMessageBox.warning(self, self.tr("Clone Partially Successful"), self.tr(
+                "Successfully cloned {0} out of {1} selected bots.").format(cloned_count, len(selected_items)))
         # If cloned_count is 0 and selected_items was not empty, individual errors were already shown.
 
     def _delete_selected_bots(self):
@@ -1242,26 +1363,34 @@ class MainWindow(QMainWindow):
         current_chatroom_item = self.chatroom_list_widget.currentItem()
         if not current_chatroom_item:
             self.logger.error("No chatroom selected to delete bots from.")
-            QMessageBox.critical(self, self.tr("Error"), self.tr("No chatroom context for deletion."))
+            QMessageBox.critical(self, self.tr("Error"), self.tr(
+                "No chatroom context for deletion."))
             return
 
         chatroom_name = current_chatroom_item.text()
         chatroom = self.chatroom_manager.get_chatroom(chatroom_name)
         if not chatroom:
-            self.logger.error(f"Chatroom '{chatroom_name}' not found for deleting bots.")
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Could not find the current chatroom."))
+            self.logger.error(
+                f"Chatroom '{chatroom_name}' not found for deleting bots.")
+            QMessageBox.critical(self, self.tr("Error"), self.tr(
+                "Could not find the current chatroom."))
             return
 
         num_selected = len(selected_items)
-        bot_names_to_delete = [item.data(Qt.ItemDataRole.UserRole) for item in selected_items]
-        bot_names_to_delete = [name for name in bot_names_to_delete if name] # Filter out None values
+        bot_names_to_delete = [
+            item.data(Qt.ItemDataRole.UserRole) for item in selected_items]
+        # Filter out None values
+        bot_names_to_delete = [name for name in bot_names_to_delete if name]
 
         if not bot_names_to_delete:
-            self.logger.error("Could not retrieve bot names for deletion from selected items.")
-            QMessageBox.warning(self, self.tr("Error"), self.tr("Could not identify bots to delete."))
+            self.logger.error(
+                "Could not retrieve bot names for deletion from selected items.")
+            QMessageBox.warning(self, self.tr("Error"), self.tr(
+                "Could not identify bots to delete."))
             return
 
-        confirm_message = self.tr("Are you sure you want to delete the selected {0} bot(s)?\n\n{1}").format(num_selected, "\n".join(bot_names_to_delete))
+        confirm_message = self.tr("Are you sure you want to delete the selected {0} bot(s)?\n\n{1}").format(
+            num_selected, "\n".join(bot_names_to_delete))
         reply = QMessageBox.question(self, self.tr("Confirm Deletion"), confirm_message,
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                      QMessageBox.StandardButton.No)
@@ -1272,11 +1401,14 @@ class MainWindow(QMainWindow):
 
         deleted_count = 0
         for bot_name in bot_names_to_delete:
-            if chatroom.remove_bot(bot_name): # remove_bot should notify the manager for saving
-                self.logger.info(f"Bot '{bot_name}' removed from chatroom '{chatroom_name}'.")
+            # remove_bot should notify the manager for saving
+            if chatroom.remove_bot(bot_name):
+                self.logger.info(
+                    f"Bot '{bot_name}' removed from chatroom '{chatroom_name}'.")
                 deleted_count += 1
             else:
-                self.logger.warning(f"Failed to remove bot '{bot_name}' from chatroom '{chatroom_name}' (it might have already been removed or not found).")
+                self.logger.warning(
+                    f"Failed to remove bot '{bot_name}' from chatroom '{chatroom_name}' (it might have already been removed or not found).")
 
         if deleted_count > 0:
             self._update_bot_list(chatroom_name)
@@ -1284,10 +1416,11 @@ class MainWindow(QMainWindow):
             # Chatroom.remove_bot is expected to call _notify_chatroom_updated.
             # If it doesn't, an explicit call here would be:
             # self.chatroom_manager._notify_chatroom_updated(chatroom)
-            QMessageBox.information(self, self.tr("Deletion Successful"), self.tr("{0} bot(s) deleted successfully.").format(deleted_count))
-        elif selected_items: # Attempted deletion but nothing was actually deleted
-            QMessageBox.warning(self, self.tr("Deletion Failed"), self.tr("No bots were deleted. They may have already been removed or an error occurred."))
-
+            QMessageBox.information(self, self.tr("Deletion Successful"), self.tr(
+                "{0} bot(s) deleted successfully.").format(deleted_count))
+        elif selected_items:  # Attempted deletion but nothing was actually deleted
+            QMessageBox.warning(self, self.tr("Deletion Failed"), self.tr(
+                "No bots were deleted. They may have already been removed or an error occurred."))
 
     def _create_bot_list_item_widget(self, bot_name: str) -> QWidget:
         """Creates a custom widget for an item in the bot list.
@@ -1303,29 +1436,35 @@ class MainWindow(QMainWindow):
         """
         item_widget = QWidget()
         item_layout = QHBoxLayout(item_widget)
-        item_layout.setContentsMargins(5, 5, 5, 5) # Add some padding
-        item_layout.setSpacing(5) # Add a small spacing between elements
+        item_layout.setContentsMargins(5, 5, 5, 5)  # Add some padding
+        item_layout.setSpacing(5)  # Add a small spacing between elements
 
         # Avatar Placeholder
         avatar_label = QLabel()
         avatar_label.setFixedSize(40, 40)
-        avatar_label.setStyleSheet("border: 1px solid gray; background-color: lightgray;")
-        avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter) # Center placeholder text if any
+        avatar_label.setStyleSheet(
+            "border: 1px solid gray; background-color: lightgray;")
+        # Center placeholder text if any
+        avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         # You could add text like "Ava" or an icon here if desired
         # avatar_label.setText("Bot")
         item_layout.addWidget(avatar_label)
 
         # Bot Name Label
         name_label = QLabel(bot_name)
-        name_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        name_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         item_layout.addWidget(name_label)
 
         # Response Button
         response_button = QPushButton()
-        response_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        response_button.setIcon(self.style().standardIcon(
+            QStyle.StandardPixmap.SP_MediaPlay))
         response_button.setToolTip(self.tr("Trigger bot response"))
-        response_button.setFixedWidth(35) # Adjusted for better icon visibility
-        response_button.clicked.connect(lambda checked=False, b_name=bot_name: self._on_bot_response_button_clicked(b_name))
+        # Adjusted for better icon visibility
+        response_button.setFixedWidth(35)
+        response_button.clicked.connect(
+            lambda checked=False, b_name=bot_name: self._on_bot_response_button_clicked(b_name))
         item_layout.addWidget(response_button)
 
         item_widget.setLayout(item_layout)
@@ -1348,27 +1487,32 @@ class MainWindow(QMainWindow):
         if not current_chatroom_item:
             # This case should ideally not be reached if the button is part of a visible list
             # that implies an active chatroom.
-            self.logger.warning("Bot response button clicked but no chatroom selected.")
-            QMessageBox.warning(self, self.tr("Action Failed"), self.tr("No chatroom is currently selected."))
+            self.logger.warning(
+                "Bot response button clicked but no chatroom selected.")
+            QMessageBox.warning(self, self.tr("Action Failed"), self.tr(
+                "No chatroom is currently selected."))
             return
 
         chatroom_name = current_chatroom_item.text()
         chatroom = self.chatroom_manager.get_chatroom(chatroom_name)
         if not chatroom:
-            self.logger.error(f"_on_bot_response_button_clicked: Chatroom '{chatroom_name}' not found unexpectedly.")
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Chatroom context lost for bot response."))
+            self.logger.error(
+                f"_on_bot_response_button_clicked: Chatroom '{chatroom_name}' not found unexpectedly.")
+            QMessageBox.critical(self, self.tr("Error"), self.tr(
+                "Chatroom context lost for bot response."))
             return
 
         # Sanity check: ensure the bot still exists in the chatroom
         if not chatroom.get_bot(bot_name):
-            self.logger.warning(f"Bot '{bot_name}' (from button) not found in chatroom '{chatroom_name}'. List might be stale.")
+            self.logger.warning(
+                f"Bot '{bot_name}' (from button) not found in chatroom '{chatroom_name}'. List might be stale.")
             QMessageBox.warning(self, self.tr("Action Failed"),
                                 self.tr("Bot '{0}' seems to have been removed. Please refresh or try again.").format(bot_name))
-            self._update_bot_list(chatroom_name) # Refresh the list to reflect current state
+            # Refresh the list to reflect current state
+            self._update_bot_list(chatroom_name)
             return
 
         self._trigger_bot_response(bot_name_override=bot_name)
-
 
     def _add_bot_to_chatroom(self):
         """Initiates adding a new bot to the currently selected chatroom.
@@ -1385,16 +1529,19 @@ class MainWindow(QMainWindow):
         """
         current_chatroom_item = self.chatroom_list_widget.currentItem()
         if not current_chatroom_item:
-            QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected to add a bot to."))
+            QMessageBox.warning(self, self.tr("Warning"), self.tr(
+                "No chatroom selected to add a bot to."))
             return
 
         chatroom_name = current_chatroom_item.text()
         chatroom = self.chatroom_manager.get_chatroom(chatroom_name)
-        if not chatroom: # Should not happen if item is selected
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Selected chatroom not found."))
+        if not chatroom:  # Should not happen if item is selected
+            QMessageBox.critical(self, self.tr("Error"),
+                                 self.tr("Selected chatroom not found."))
             return
 
-        existing_bot_names_in_chatroom = [bot.name for bot in chatroom.list_bots()]
+        existing_bot_names_in_chatroom = [
+            bot.name for bot in chatroom.list_bots()]
         dialog = BotInfoDialog(
             existing_bot_names=existing_bot_names_in_chatroom,
             aiengine_info_list=self.third_party_group.aiengine_info_list,
@@ -1402,10 +1549,10 @@ class MainWindow(QMainWindow):
             parent=self
         )
 
-        if dialog.exec(): # This now uses the overridden accept method for validation
+        if dialog.exec():  # This now uses the overridden accept method for validation
             # data = dialog.get_data()
-            new_bot = dialog.get_bot() # This will return None if validation fails
-            if not new_bot: # Safeguard, should not happen if accept validation passed
+            new_bot = dialog.get_bot()  # This will return None if validation fails
+            if not new_bot:  # Safeguard, should not happen if accept validation passed
                 return
 
             # Bot name validation (emptiness, duplication) is now handled within BotInfoDialog.accept()
@@ -1439,15 +1586,18 @@ class MainWindow(QMainWindow):
             #     return
 
             if chatroom.add_bot(new_bot):
-                self.logger.info(f"Bot '{new_bot}) added to chatroom '{chatroom_name}' successfully.")
+                self.logger.info(
+                    f"Bot '{new_bot}) added to chatroom '{chatroom_name}' successfully.")
                 self._update_bot_list(chatroom_name)
                 # self._update_bot_response_selector()
             else:
-                self.logger.error(f"Failed to add bot '{new_bot}' to chatroom '{chatroom_name}' for an unknown reason after initial checks.")
-                QMessageBox.critical(self, self.tr("Error"), self.tr("Could not add bot. An unexpected error occurred."))
+                self.logger.error(
+                    f"Failed to add bot '{new_bot}' to chatroom '{chatroom_name}' for an unknown reason after initial checks.")
+                QMessageBox.critical(self, self.tr("Error"), self.tr(
+                    "Could not add bot. An unexpected error occurred."))
         else:
-            self.logger.debug(f"Add bot to chatroom '{chatroom_name}' cancelled by user in dialog.")
-
+            self.logger.debug(
+                f"Add bot to chatroom '{chatroom_name}' cancelled by user in dialog.")
 
     def _show_apikey_dialog(self):
         """Displays the API Key Management dialog (`ApiKeyDialog`).
@@ -1461,7 +1611,8 @@ class MainWindow(QMainWindow):
         `apikey_manager`.
         """
         if not self.encryption_service or not self.password_manager.has_master_password():
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Master password not set up or unlocked. Cannot manage API keys."))
+            QMessageBox.critical(self, self.tr("Error"), self.tr(
+                "Master password not set up or unlocked. Cannot manage API keys."))
             return
 
         self.logger.debug("Showing API Key Management dialog.")
@@ -1493,57 +1644,68 @@ class MainWindow(QMainWindow):
                   to set a new password).
         """
         if not self.password_manager.has_master_password():
-            self.logger.info("No master password set. Prompting user to create one.")
+            self.logger.info(
+                "No master password set. Prompting user to create one.")
             create_dialog = CreateMasterPasswordDialog(self)
             if create_dialog.exec():
                 password = create_dialog.get_password()
-                if not password: # Should be caught by dialog validation, but as safeguard
-                    QMessageBox.critical(self, self.tr("Error"), self.tr("Failed to create master password."))
-                    self.logger.error("Master password creation dialog accepted but no password returned.")
+                if not password:  # Should be caught by dialog validation, but as safeguard
+                    QMessageBox.critical(self, self.tr("Error"), self.tr(
+                        "Failed to create master password."))
+                    self.logger.error(
+                        "Master password creation dialog accepted but no password returned.")
                     return False
                 self.password_manager.set_master_password(password)
-                self.encryption_service = EncryptionService(master_password=password)
-                self.logger.info("Master password created and encryption service initialized.")
+                self.encryption_service = EncryptionService(
+                    master_password=password)
+                self.logger.info(
+                    "Master password created and encryption service initialized.")
                 return True
             else:
                 QMessageBox.information(self, self.tr("Setup Required"),
                                         self.tr("Master password creation was cancelled. The application will close."))
                 self.logger.info("Master password creation cancelled by user.")
                 return False
-        else: # Master password exists
-            self.logger.info("Master password exists. Prompting user to enter it.")
+        else:  # Master password exists
+            self.logger.info(
+                "Master password exists. Prompting user to enter it.")
             enter_dialog = EnterMasterPasswordDialog(self)
             if enter_dialog.exec():
                 if enter_dialog.clear_data_flag:
-                    self.logger.info("User opted to clear all data from 'Forgot Password' flow.")
+                    self.logger.info(
+                        "User opted to clear all data from 'Forgot Password' flow.")
                     # Confirmation is already handled in EnterMasterPasswordDialog
                     self._perform_clear_all_data_actions()
                     QMessageBox.information(self, self.tr("Data Cleared"),
                                             self.tr("All API keys and master password have been cleared. Please create a new master password."))
-                    return self._handle_master_password_startup() # Recursive call to set new password
+                    # Recursive call to set new password
+                    return self._handle_master_password_startup()
                 else:
                     password = enter_dialog.get_password()
-                    if not password: # Dialog cancelled or empty password somehow
+                    if not password:  # Dialog cancelled or empty password somehow
                         QMessageBox.critical(self, self.tr("Login Failed"),
                                              self.tr("Password entry cancelled. The application will close."))
-                        self.logger.warning("Master password entry dialog accepted but no password returned (or cancelled).")
+                        self.logger.warning(
+                            "Master password entry dialog accepted but no password returned (or cancelled).")
                         return False
 
                     if self.password_manager.verify_master_password(password):
-                        self.encryption_service = EncryptionService(master_password=password)
-                        self.logger.info("Master password verified and encryption service initialized.")
+                        self.encryption_service = EncryptionService(
+                            master_password=password)
+                        self.logger.info(
+                            "Master password verified and encryption service initialized.")
                         return True
                     else:
                         QMessageBox.critical(self, self.tr("Login Failed"),
                                              self.tr("Invalid master password. The application will close."))
                         self.logger.warning("Invalid master password entered.")
                         return False
-            else: # Dialog was cancelled
+            else:  # Dialog was cancelled
                 QMessageBox.information(self, self.tr("Login Required"),
                                         self.tr("Master password entry was cancelled. The application will close."))
                 self.logger.info("Master password entry cancelled by user.")
                 return False
-        return False # Fallback, should ideally be covered by above logic
+        return False  # Fallback, should ideally be covered by above logic
 
     def _show_change_master_password_dialog(self):
         """Manages the process of changing the master password.
@@ -1560,50 +1722,64 @@ class MainWindow(QMainWindow):
         6. Updates the `apikey_manager` to use the (now new) `self.encryption_service`.
         Provides feedback to the user on success or failure.
         """
-        if not self.password_manager.has_master_password(): # Should not happen if app is running
-            QMessageBox.warning(self, self.tr("Error"), self.tr("No master password set. This should not happen."))
-            self.logger.error("Change master password dialog called when no master password is set.")
+        if not self.password_manager.has_master_password():  # Should not happen if app is running
+            QMessageBox.warning(self, self.tr("Error"), self.tr(
+                "No master password set. This should not happen."))
+            self.logger.error(
+                "Change master password dialog called when no master password is set.")
             return
-        if not self.encryption_service: # Also should not happen
-            QMessageBox.warning(self, self.tr("Error"), self.tr("Encryption service not available."))
-            self.logger.error("Change master password dialog called when encryption service is not available.")
+        if not self.encryption_service:  # Also should not happen
+            QMessageBox.warning(self, self.tr("Error"), self.tr(
+                "Encryption service not available."))
+            self.logger.error(
+                "Change master password dialog called when encryption service is not available.")
             return
 
         change_dialog = ChangeMasterPasswordDialog(self)
         if change_dialog.exec():
             passwords = change_dialog.get_passwords()
-            if not passwords: # Dialog was likely cancelled or an issue occurred
-                self.logger.info("Change master password dialog did not return passwords.")
+            if not passwords:  # Dialog was likely cancelled or an issue occurred
+                self.logger.info(
+                    "Change master password dialog did not return passwords.")
                 return
 
             old_password = passwords["old"]
             new_password = passwords["new"]
 
             if self.password_manager.verify_master_password(old_password):
-                self.logger.info("Old master password verified. Proceeding with change.")
+                self.logger.info(
+                    "Old master password verified. Proceeding with change.")
                 # Create a temporary EncryptionService with the old password to decrypt keys
-                temp_old_encryption_service = EncryptionService(master_password=old_password)
+                temp_old_encryption_service = EncryptionService(
+                    master_password=old_password)
 
                 # Update the main PasswordManager (changes its salt for password hashing)
-                self.password_manager.change_master_password(old_password, new_password)
+                self.password_manager.change_master_password(
+                    old_password, new_password)
 
                 # Update the main EncryptionService to use the new password (reuses data encryption salt)
-                self.encryption_service.update_master_password(new_master_password=new_password)
+                self.encryption_service.update_master_password(
+                    new_master_password=new_password)
 
                 # Re-encrypt all API keys
                 if self.apikey_manager:
-                    self.apikey_manager.re_encrypt(temp_old_encryption_service, self.encryption_service)
+                    self.apikey_manager.re_encrypt(
+                        temp_old_encryption_service, self.encryption_service)
                     # Ensure ApiKeyManager instance uses the updated encryption_service
                     self.apikey_manager.encryption_service = self.encryption_service
                 else:
-                    self.logger.warning("ApiKeyManager not initialized during master password change. Keys not re-encrypted.")
+                    self.logger.warning(
+                        "ApiKeyManager not initialized during master password change. Keys not re-encrypted.")
 
                 QMessageBox.information(self, self.tr("Success"),
                                         self.tr("Master password changed successfully. API keys have been re-encrypted."))
-                self.logger.info("Master password changed and API keys re-encrypted successfully.")
+                self.logger.info(
+                    "Master password changed and API keys re-encrypted successfully.")
             else:
-                QMessageBox.critical(self, self.tr("Error"), self.tr("Incorrect old password."))
-                self.logger.warning("Incorrect old password entered during master password change.")
+                QMessageBox.critical(self, self.tr(
+                    "Error"), self.tr("Incorrect old password."))
+                self.logger.warning(
+                    "Incorrect old password entered during master password change.")
         else:
             self.logger.info("Change master password dialog cancelled.")
 
@@ -1629,21 +1805,24 @@ class MainWindow(QMainWindow):
         if os.path.exists(ENCRYPTION_SALT_FILE):
             try:
                 os.remove(ENCRYPTION_SALT_FILE)
-                self.logger.info(f"Encryption salt file {ENCRYPTION_SALT_FILE} removed.")
+                self.logger.info(
+                    f"Encryption salt file {ENCRYPTION_SALT_FILE} removed.")
             except OSError as e:
-                self.logger.error(f"Error removing encryption salt file {ENCRYPTION_SALT_FILE}: {e}")
+                self.logger.error(
+                    f"Error removing encryption salt file {ENCRYPTION_SALT_FILE}: {e}")
 
         if self.apikey_manager:
             self.apikey_manager.clear()
         else:
-            self.logger.info("ApiKeyManager was not initialized, creating temporary one to clear potential fallback file.")
+            self.logger.info(
+                "ApiKeyManager was not initialized, creating temporary one to clear potential fallback file.")
             # Assuming BotTemplateManager doesn't need encryption service for initialization for clearing
             # If it does, this might need adjustment or ensure it's always initialized before clear.
             # For now, BotTemplateManager() is called without arguments, implying default data path.
-            if not hasattr(self, 'bot_template_manager') or not self.bot_template_manager:
-                 # Create a temporary one if it doesn't exist, to clear its data file
-                temp_template_manager = BotTemplateManager()
-                temp_template_manager.clear_all_templates()
+            # if not hasattr(self, 'bot_template_manager') or not self.bot_template_manager:
+            #      # Create a temporary one if it doesn't exist, to clear its data file
+            #     temp_template_manager = BotTemplateManager()
+            #     temp_template_manager.clear_all_templates()
             # else, if it exists, its clear method is called below
 
         if hasattr(self, 'bot_template_manager') and self.bot_template_manager:
@@ -1656,7 +1835,6 @@ class MainWindow(QMainWindow):
         # self.apikey_manager = None # Optionally nullify, will be recreated
 
         self.logger.info("All data clearing actions performed.")
-
 
     def _clear_all_user_data_via_menu(self):
         """Handles the 'Clear All Stored Data' action from the settings menu.
@@ -1676,7 +1854,8 @@ class MainWindow(QMainWindow):
         """
         self.logger.warning("User initiated 'Clear All Stored Data' action.")
         reply = QMessageBox.question(self, self.tr("Confirm Clear All Data"),
-                                     self.tr("Are you sure you want to permanently delete all API keys, the master password, and encryption salt? This action cannot be undone."),
+                                     self.tr(
+                                         "Are you sure you want to permanently delete all API keys, the master password, and encryption salt? This action cannot be undone."),
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                      QMessageBox.StandardButton.No)
 
@@ -1690,31 +1869,36 @@ class MainWindow(QMainWindow):
             if not self._handle_master_password_startup():
                 QMessageBox.critical(self, self.tr("Setup Required"),
                                      self.tr("Master password setup was cancelled or failed. The application will now close."))
-                self.logger.critical("Master password setup failed after clearing all data. Closing application.")
+                self.logger.critical(
+                    "Master password setup failed after clearing all data. Closing application.")
                 QTimer.singleShot(0, self.close)
                 return
 
             # If startup was successful, ApiKeyManager needs to be re-initialized with new encryption service
             if self.apikey_manager:
-                self.apikey_manager.encryption_service = self.encryption_service # Update existing
-            else: # Should be re-created if was None or after full clear
-                self.apikey_manager = ApiKeyManager(encryption_service=self.encryption_service)
+                self.apikey_manager.encryption_service = self.encryption_service  # Update existing
+            else:  # Should be re-created if was None or after full clear
+                self.apikey_manager = ApiKeyManager(
+                    encryption_service=self.encryption_service)
 
             if hasattr(self, 'bot_template_manager') and self.bot_template_manager:
                 # Already done in _perform_clear_all_data_actions, but ensure it's re-initialized if cleared
-                pass # It should be cleared by _perform_clear_all_data_actions
+                pass  # It should be cleared by _perform_clear_all_data_actions
 
-            if not hasattr(self, 'bot_template_manager') or not self.bot_template_manager: # If it was cleared or never existed
-                self.bot_template_manager = BotTemplateManager() # Re-initialize
+            # If it was cleared or never existed
+            if not hasattr(self, 'bot_template_manager') or not self.bot_template_manager:
+                self.bot_template_manager = BotTemplateManager(
+                    data_dir=self.data_dir_path)  # Re-initialize
 
             # Potentially refresh UI elements that depend on keys/chatrooms
-            self.logger.info("Data cleared and master password setup re-initiated. Refreshing UI.")
-            self._update_chatroom_list() # Will clear messages if no chatroom selected
-            self.message_display_area.clear() # Explicitly clear current messages
-            self.bot_list_widget.clear() # Explicitly clear bot list
+            self.logger.info(
+                "Data cleared and master password setup re-initiated. Refreshing UI.")
+            self._update_chatroom_list()  # Will clear messages if no chatroom selected
+            self.message_display_area.clear()  # Explicitly clear current messages
+            self.bot_list_widget.clear()  # Explicitly clear bot list
             self._update_bot_panel_state(False)
             self._update_message_related_ui_state(False)
-            self._update_bot_template_list() # Refresh template list
+            self._update_bot_template_list()  # Refresh template list
         else:
             self.logger.info("User cancelled 'Clear All Stored Data' action.")
 
@@ -1731,11 +1915,14 @@ class MainWindow(QMainWindow):
 
         for template_id, template_bot in templates_with_ids:
             # Make sure template_bot.name is accessible; if template_bot is a dict, adjust access
-            bot_name = template_bot.name if hasattr(template_bot, 'name') else "Unnamed Template"
-            item_widget = self._create_bot_template_list_item_widget(template_id, bot_name)
+            bot_name = template_bot.name if hasattr(
+                template_bot, 'name') else "Unnamed Template"
+            item_widget = self._create_bot_template_list_item_widget(
+                template_id, bot_name)
 
             list_item = QListWidgetItem(self.bot_template_list_widget)
-            list_item.setData(Qt.ItemDataRole.UserRole, template_id) # Store template_id
+            list_item.setData(Qt.ItemDataRole.UserRole,
+                              template_id)  # Store template_id
 
             list_item.setSizeHint(item_widget.sizeHint())
             self.bot_template_list_widget.addItem(list_item)
@@ -1750,17 +1937,20 @@ class MainWindow(QMainWindow):
         """Creates a custom widget for an item in the bot template list."""
         item_widget = QWidget()
         item_layout = QHBoxLayout(item_widget)
-        item_layout.setContentsMargins(5, 2, 5, 2) # Smaller vertical margins
+        item_layout.setContentsMargins(5, 2, 5, 2)  # Smaller vertical margins
         item_layout.setSpacing(5)
 
         name_label = QLabel(template_name)
-        name_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        name_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         item_layout.addWidget(name_label)
 
         add_to_chat_button = QPushButton("+")
-        add_to_chat_button.setFixedSize(25, 25) # Small square button
-        add_to_chat_button.setToolTip(self.tr("Add this template to the current chatroom"))
-        add_to_chat_button.clicked.connect(lambda checked=False, t_id=template_id: self._add_template_to_chatroom(t_id))
+        add_to_chat_button.setFixedSize(25, 25)  # Small square button
+        add_to_chat_button.setToolTip(
+            self.tr("Add this template to the current chatroom"))
+        add_to_chat_button.clicked.connect(
+            lambda checked=False, t_id=template_id: self._add_template_to_chatroom(t_id))
         item_layout.addWidget(add_to_chat_button)
 
         item_widget.setLayout(item_layout)
@@ -1771,7 +1961,8 @@ class MainWindow(QMainWindow):
         if not selected_items:
             return
 
-        item = selected_items[0] # Assuming single selection for now for simplicity
+        # Assuming single selection for now for simplicity
+        item = selected_items[0]
         template_id = item.data(Qt.ItemDataRole.UserRole)
         if not template_id:
             return
@@ -1779,224 +1970,271 @@ class MainWindow(QMainWindow):
         menu = QMenu(self)
 
         edit_action = QAction(self.tr("Edit Template"), self)
-        edit_action.triggered.connect(lambda: self._edit_selected_bot_template(template_id_override=template_id))
+        edit_action.triggered.connect(
+            lambda: self._edit_selected_bot_template(template_id_override=template_id))
         menu.addAction(edit_action)
 
         remove_action = QAction(self.tr("Remove Template"), self)
-        remove_action.triggered.connect(lambda: self._remove_selected_bot_template(template_id_override=template_id))
+        remove_action.triggered.connect(
+            lambda: self._remove_selected_bot_template(template_id_override=template_id))
         menu.addAction(remove_action)
 
         menu.addSeparator()
 
         add_to_chat_action = QAction(self.tr("Add to Current Chatroom"), self)
-        add_to_chat_action.triggered.connect(lambda: self._add_template_to_chatroom(template_id))
+        add_to_chat_action.triggered.connect(
+            lambda: self._add_template_to_chatroom(template_id))
         current_chatroom_item = self.chatroom_list_widget.currentItem()
-        add_to_chat_action.setEnabled(bool(current_chatroom_item)) # Enable only if a chatroom is selected
+        # Enable only if a chatroom is selected
+        add_to_chat_action.setEnabled(bool(current_chatroom_item))
         menu.addAction(add_to_chat_action)
 
         menu.exec(self.bot_template_list_widget.mapToGlobal(position))
 
     def _create_bot_template(self):
-       self.logger.info("Attempting to create a new bot template.")
-       # Pass an empty list for existing_bot_names if template names can be non-unique globally,
-       # or manage template name uniqueness if required (e.g., by passing existing template names).
-       # For now, let's assume template names don't need to be unique across all templates,
-       # as they are identified by IDs. The BotInfoDialog itself might have name validation
-       # if it's creating a bot for a specific chatroom, which is not the case here.
-       # We will rely on the user to manage meaningful names for templates.
+        self.logger.info("Attempting to create a new bot template.")
+        # Pass an empty list for existing_bot_names if template names can be non-unique globally,
+        # or manage template name uniqueness if required (e.g., by passing existing template names).
+        # For now, let's assume template names don't need to be unique across all templates,
+        # as they are identified by IDs. The BotInfoDialog itself might have name validation
+        # if it's creating a bot for a specific chatroom, which is not the case here.
+        # We will rely on the user to manage meaningful names for templates.
 
-       # Get all existing template names to prevent duplicates if desired at this level
-       existing_template_names = [t.name for t in self.bot_template_manager.list_templates()]
+        # Get all existing template names to prevent duplicates if desired at this level
+        existing_template_names = [
+            t.name for t in self.bot_template_manager.list_templates()]
 
-       dialog = BotInfoDialog(
-           existing_bot_names=existing_template_names, # To check for duplicate names among templates
-           aiengine_info_list=self.third_party_group.aiengine_info_list,
-           apikey_query_list=self.apikey_manager.get_available_apikey_query_list(),
-           old_bot=None, # Creating a new template
-           parent=self
-       )
-       dialog.setWindowTitle(self.tr("Create New Bot Template"))
+        dialog = BotInfoDialog(
+            # To check for duplicate names among templates
+            existing_bot_names=existing_template_names,
+            aiengine_info_list=self.third_party_group.aiengine_info_list,
+            apikey_query_list=self.apikey_manager.get_available_apikey_query_list(),
+            old_bot=None,  # Creating a new template
+            parent=self
+        )
+        dialog.setWindowTitle(self.tr("Create New Bot Template"))
 
-       if dialog.exec():
-           new_bot_config = dialog.get_bot()
-           if new_bot_config:
-               template_id = self.bot_template_manager.create_template(new_bot_config)
-               if template_id:
-                   self.logger.info(f"Bot template '{new_bot_config.name}' created with ID {template_id}.")
-                   self._update_bot_template_list()
-                   # Optionally select the new template in the list
-                   for i in range(self.bot_template_list_widget.count()):
-                       item = self.bot_template_list_widget.item(i)
-                       if item.data(Qt.ItemDataRole.UserRole) == template_id:
-                           self.bot_template_list_widget.setCurrentItem(item)
-                           break
-               else:
-                   self.logger.error("Failed to create bot template after dialog confirmation.")
-                   QMessageBox.critical(self, self.tr("Error"), self.tr("Could not save the bot template."))
-           else:
-               # This case should ideally be handled by dialog's own validation,
-               # but as a fallback.
-               self.logger.warning("BotInfoDialog accepted but returned no valid bot configuration for template.")
-               QMessageBox.warning(self, self.tr("Error"), self.tr("Failed to retrieve bot configuration from dialog."))
-       else:
-           self.logger.info("Bot template creation cancelled by user.")
+        if dialog.exec():
+            new_bot_config = dialog.get_bot()
+            if new_bot_config:
+                template_id = self.bot_template_manager.create_template(
+                    new_bot_config)
+                if template_id:
+                    self.logger.info(
+                        f"Bot template '{new_bot_config.name}' created with ID {template_id}.")
+                    self._update_bot_template_list()
+                    # Optionally select the new template in the list
+                    for i in range(self.bot_template_list_widget.count()):
+                        item = self.bot_template_list_widget.item(i)
+                        if item.data(Qt.ItemDataRole.UserRole) == template_id:
+                            self.bot_template_list_widget.setCurrentItem(item)
+                            break
+                else:
+                    self.logger.error(
+                        "Failed to create bot template after dialog confirmation.")
+                    QMessageBox.critical(self, self.tr("Error"), self.tr(
+                        "Could not save the bot template."))
+            else:
+                # This case should ideally be handled by dialog's own validation,
+                # but as a fallback.
+                self.logger.warning(
+                    "BotInfoDialog accepted but returned no valid bot configuration for template.")
+                QMessageBox.warning(self, self.tr("Error"), self.tr(
+                    "Failed to retrieve bot configuration from dialog."))
+        else:
+            self.logger.info("Bot template creation cancelled by user.")
 
     def _edit_selected_bot_template(self, template_id_override: str | None = None):
-       template_id_to_edit = template_id_override
-       if not template_id_to_edit:
-           current_item = self.bot_template_list_widget.currentItem()
-           if not current_item:
-               QMessageBox.warning(self, self.tr("Warning"), self.tr("No bot template selected to edit."))
-               return
-           template_id_to_edit = current_item.data(Qt.ItemDataRole.UserRole)
+        template_id_to_edit = template_id_override
+        if not template_id_to_edit:
+            current_item = self.bot_template_list_widget.currentItem()
+            if not current_item:
+                QMessageBox.warning(self, self.tr("Warning"), self.tr(
+                    "No bot template selected to edit."))
+                return
+            template_id_to_edit = current_item.data(Qt.ItemDataRole.UserRole)
 
-       if not template_id_to_edit:
-           self.logger.error("Could not determine template ID for editing.")
-           QMessageBox.critical(self, self.tr("Error"), self.tr("Cannot identify the template to edit."))
-           return
+        if not template_id_to_edit:
+            self.logger.error("Could not determine template ID for editing.")
+            QMessageBox.critical(self, self.tr("Error"), self.tr(
+                "Cannot identify the template to edit."))
+            return
 
-       template_to_edit = self.bot_template_manager.get_template(template_id_to_edit)
-       if not template_to_edit:
-           self.logger.error(f"Bot template with ID '{template_id_to_edit}' not found for editing.")
-           QMessageBox.critical(self, self.tr("Error"), self.tr("Selected bot template not found."))
-           self._update_bot_template_list() # Refresh list if template disappeared
-           return
+        template_to_edit = self.bot_template_manager.get_template(
+            template_id_to_edit)
+        if not template_to_edit:
+            self.logger.error(
+                f"Bot template with ID '{template_id_to_edit}' not found for editing.")
+            QMessageBox.critical(self, self.tr("Error"), self.tr(
+                "Selected bot template not found."))
+            self._update_bot_template_list()  # Refresh list if template disappeared
+            return
 
-       self.logger.info(f"Attempting to edit bot template '{template_to_edit.name}' (ID: {template_id_to_edit}).")
+        self.logger.info(
+            f"Attempting to edit bot template '{template_to_edit.name}' (ID: {template_id_to_edit}).")
 
-       # Get all existing template names *excluding* the current one for validation
-       existing_template_names = [
-           t.name for t_id, t in self.bot_template_manager.list_templates_with_ids() if t_id != template_id_to_edit
-       ]
+        # Get all existing template names *excluding* the current one for validation
+        existing_template_names = [
+            t.name for t_id, t in self.bot_template_manager.list_templates_with_ids() if t_id != template_id_to_edit
+        ]
 
-       dialog = BotInfoDialog(
-           existing_bot_names=existing_template_names, # For duplicate name check
-           aiengine_info_list=self.third_party_group.aiengine_info_list,
-           apikey_query_list=self.apikey_manager.get_available_apikey_query_list(),
-           old_bot=template_to_edit, # Pass the existing bot config
-           parent=self
-       )
-       dialog.setWindowTitle(self.tr("Edit Bot Template: {0}").format(template_to_edit.name))
+        dialog = BotInfoDialog(
+            existing_bot_names=existing_template_names,  # For duplicate name check
+            aiengine_info_list=self.third_party_group.aiengine_info_list,
+            apikey_query_list=self.apikey_manager.get_available_apikey_query_list(),
+            old_bot=template_to_edit,  # Pass the existing bot config
+            parent=self
+        )
+        dialog.setWindowTitle(
+            self.tr("Edit Bot Template: {0}").format(template_to_edit.name))
 
-       if dialog.exec():
-           updated_bot_config = dialog.get_bot()
-           if updated_bot_config:
-               if self.bot_template_manager.update_template(template_id_to_edit, updated_bot_config):
-                   self.logger.info(f"Bot template '{updated_bot_config.name}' (ID: {template_id_to_edit}) updated.")
-                   self._update_bot_template_list()
-                   # Restore selection
-                   for i in range(self.bot_template_list_widget.count()):
-                       item = self.bot_template_list_widget.item(i)
-                       if item.data(Qt.ItemDataRole.UserRole) == template_id_to_edit:
-                           self.bot_template_list_widget.setCurrentItem(item)
-                           break
-               else:
-                   self.logger.error(f"Failed to update bot template '{updated_bot_config.name}' (ID: {template_id_to_edit}).")
-                   QMessageBox.critical(self, self.tr("Error"), self.tr("Could not save the updated bot template."))
-           else:
-               self.logger.warning(f"BotInfoDialog accepted for edit, but returned no valid bot configuration for template ID {template_id_to_edit}.")
-               QMessageBox.warning(self, self.tr("Error"), self.tr("Failed to retrieve updated bot configuration from dialog."))
-       else:
-           self.logger.info(f"Editing of bot template '{template_to_edit.name}' cancelled by user.")
+        if dialog.exec():
+            updated_bot_config = dialog.get_bot()
+            if updated_bot_config:
+                if self.bot_template_manager.update_template(template_id_to_edit, updated_bot_config):
+                    self.logger.info(
+                        f"Bot template '{updated_bot_config.name}' (ID: {template_id_to_edit}) updated.")
+                    self._update_bot_template_list()
+                    # Restore selection
+                    for i in range(self.bot_template_list_widget.count()):
+                        item = self.bot_template_list_widget.item(i)
+                        if item.data(Qt.ItemDataRole.UserRole) == template_id_to_edit:
+                            self.bot_template_list_widget.setCurrentItem(item)
+                            break
+                else:
+                    self.logger.error(
+                        f"Failed to update bot template '{updated_bot_config.name}' (ID: {template_id_to_edit}).")
+                    QMessageBox.critical(self, self.tr("Error"), self.tr(
+                        "Could not save the updated bot template."))
+            else:
+                self.logger.warning(
+                    f"BotInfoDialog accepted for edit, but returned no valid bot configuration for template ID {template_id_to_edit}.")
+                QMessageBox.warning(self, self.tr("Error"), self.tr(
+                    "Failed to retrieve updated bot configuration from dialog."))
+        else:
+            self.logger.info(
+                f"Editing of bot template '{template_to_edit.name}' cancelled by user.")
 
     def _remove_selected_bot_template(self, template_id_override: str | None = None):
-       template_id_to_delete = template_id_override
-       if not template_id_to_delete:
-           current_item = self.bot_template_list_widget.currentItem()
-           if not current_item:
-               QMessageBox.warning(self, self.tr("Warning"), self.tr("No bot template selected to remove."))
-               return
-           template_id_to_delete = current_item.data(Qt.ItemDataRole.UserRole)
+        template_id_to_delete = template_id_override
+        if not template_id_to_delete:
+            current_item = self.bot_template_list_widget.currentItem()
+            if not current_item:
+                QMessageBox.warning(self, self.tr("Warning"), self.tr(
+                    "No bot template selected to remove."))
+                return
+            template_id_to_delete = current_item.data(Qt.ItemDataRole.UserRole)
 
-       if not template_id_to_delete:
-           self.logger.error("Could not determine template ID for removal.")
-           QMessageBox.critical(self, self.tr("Error"), self.tr("Cannot identify the template to remove."))
-           return
+        if not template_id_to_delete:
+            self.logger.error("Could not determine template ID for removal.")
+            QMessageBox.critical(self, self.tr("Error"), self.tr(
+                "Cannot identify the template to remove."))
+            return
 
-       template_to_delete = self.bot_template_manager.get_template(template_id_to_delete)
-       if not template_to_delete:
-           self.logger.error(f"Bot template with ID '{template_id_to_delete}' not found for removal.")
-           # It might have been deleted by another action, refresh list
-           self._update_bot_template_list()
-           QMessageBox.warning(self, self.tr("Warning"), self.tr("Selected bot template could not be found. It may have already been removed."))
-           return
+        template_to_delete = self.bot_template_manager.get_template(
+            template_id_to_delete)
+        if not template_to_delete:
+            self.logger.error(
+                f"Bot template with ID '{template_id_to_delete}' not found for removal.")
+            # It might have been deleted by another action, refresh list
+            self._update_bot_template_list()
+            QMessageBox.warning(self, self.tr("Warning"), self.tr(
+                "Selected bot template could not be found. It may have already been removed."))
+            return
 
-       self.logger.info(f"Attempting to remove bot template '{template_to_delete.name}' (ID: {template_id_to_delete}).")
+        self.logger.info(
+            f"Attempting to remove bot template '{template_to_delete.name}' (ID: {template_id_to_delete}).")
 
-       reply = QMessageBox.question(self, self.tr("Confirm Removal"),
-                                    self.tr("Are you sure you want to remove the bot template '{0}'?").format(template_to_delete.name),
-                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                    QMessageBox.StandardButton.No)
+        reply = QMessageBox.question(self, self.tr("Confirm Removal"),
+                                     self.tr("Are you sure you want to remove the bot template '{0}'?").format(
+                                         template_to_delete.name),
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                     QMessageBox.StandardButton.No)
 
-       if reply == QMessageBox.StandardButton.Yes:
-           if self.bot_template_manager.delete_template(template_id_to_delete):
-               self.logger.info(f"Bot template '{template_to_delete.name}' (ID: {template_id_to_delete}) removed.")
-               self._update_bot_template_list()
-               # No need to show another success message, list update is enough
-           else:
-               # This might happen if the template was deleted between the check and now, though unlikely.
-               self.logger.error(f"Failed to remove bot template '{template_to_delete.name}' (ID: {template_id_to_delete}) via manager.")
-               QMessageBox.critical(self, self.tr("Error"), self.tr("Could not remove the bot template. It might have been removed by another process."))
-               self._update_bot_template_list() # Refresh list
-       else:
-           self.logger.info(f"Removal of bot template '{template_to_delete.name}' cancelled by user.")
+        if reply == QMessageBox.StandardButton.Yes:
+            if self.bot_template_manager.delete_template(template_id_to_delete):
+                self.logger.info(
+                    f"Bot template '{template_to_delete.name}' (ID: {template_id_to_delete}) removed.")
+                self._update_bot_template_list()
+                # No need to show another success message, list update is enough
+            else:
+                # This might happen if the template was deleted between the check and now, though unlikely.
+                self.logger.error(
+                    f"Failed to remove bot template '{template_to_delete.name}' (ID: {template_id_to_delete}) via manager.")
+                QMessageBox.critical(self, self.tr("Error"), self.tr(
+                    "Could not remove the bot template. It might have been removed by another process."))
+                self._update_bot_template_list()  # Refresh list
+        else:
+            self.logger.info(
+                f"Removal of bot template '{template_to_delete.name}' cancelled by user.")
 
     def _add_template_to_chatroom(self, template_id: str):
-       self.logger.info(f"Attempting to add bot from template ID '{template_id}' to current chatroom.")
+        self.logger.info(
+            f"Attempting to add bot from template ID '{template_id}' to current chatroom.")
 
-       current_chatroom_item = self.chatroom_list_widget.currentItem()
-       if not current_chatroom_item:
-           QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected to add the bot to."))
-           return
+        current_chatroom_item = self.chatroom_list_widget.currentItem()
+        if not current_chatroom_item:
+            QMessageBox.warning(self, self.tr("Warning"), self.tr(
+                "No chatroom selected to add the bot to."))
+            return
 
-       chatroom_name = current_chatroom_item.text()
-       chatroom = self.chatroom_manager.get_chatroom(chatroom_name)
-       if not chatroom:
-           self.logger.error(f"Selected chatroom '{chatroom_name}' not found.")
-           QMessageBox.critical(self, self.tr("Error"), self.tr("Selected chatroom not found. Cannot add bot."))
-           return
+        chatroom_name = current_chatroom_item.text()
+        chatroom = self.chatroom_manager.get_chatroom(chatroom_name)
+        if not chatroom:
+            self.logger.error(
+                f"Selected chatroom '{chatroom_name}' not found.")
+            QMessageBox.critical(self, self.tr("Error"), self.tr(
+                "Selected chatroom not found. Cannot add bot."))
+            return
 
-       template_bot_config = self.bot_template_manager.get_template(template_id)
-       if not template_bot_config:
-           self.logger.error(f"Bot template with ID '{template_id}' not found.")
-           QMessageBox.critical(self, self.tr("Error"), self.tr("Bot template not found. Cannot add bot."))
-           self._update_bot_template_list() # Refresh template list
-           return
+        template_bot_config = self.bot_template_manager.get_template(
+            template_id)
+        if not template_bot_config:
+            self.logger.error(
+                f"Bot template with ID '{template_id}' not found.")
+            QMessageBox.critical(self, self.tr("Error"), self.tr(
+                "Bot template not found. Cannot add bot."))
+            self._update_bot_template_list()  # Refresh template list
+            return
 
-       # Create a new Bot instance from the template config
-       # We need to make a copy to avoid modifying the template itself,
-       # especially if we plan to change its name for the chatroom.
-       # import copy # Already imported at the top
-       new_bot_instance = copy.deepcopy(template_bot_config)
+        # Create a new Bot instance from the template config
+        # We need to make a copy to avoid modifying the template itself,
+        # especially if we plan to change its name for the chatroom.
+        # import copy # Already imported at the top
+        new_bot_instance = copy.deepcopy(template_bot_config)
 
-       # Determine a unique name for the bot in the chatroom
-       # Option 1: Use template name, append number if duplicate
-       # Option 2: Prompt user for a new name
-       # For simplicity, let's use Option 1.
-       base_name = new_bot_instance.name
-       bot_name_in_chatroom = base_name
-       suffix = 1
-       existing_bot_names_in_chatroom = [bot.name for bot in chatroom.list_bots()]
-       while bot_name_in_chatroom in existing_bot_names_in_chatroom:
-           bot_name_in_chatroom = f"{base_name} ({suffix})"
-           suffix += 1
-       new_bot_instance.name = bot_name_in_chatroom
+        # Determine a unique name for the bot in the chatroom
+        # Option 1: Use template name, append number if duplicate
+        # Option 2: Prompt user for a new name
+        # For simplicity, let's use Option 1.
+        base_name = new_bot_instance.name
+        bot_name_in_chatroom = base_name
+        suffix = 1
+        existing_bot_names_in_chatroom = [
+            bot.name for bot in chatroom.list_bots()]
+        while bot_name_in_chatroom in existing_bot_names_in_chatroom:
+            bot_name_in_chatroom = f"{base_name} ({suffix})"
+            suffix += 1
+        new_bot_instance.name = bot_name_in_chatroom
 
-       # Potentially, we might need to re-evaluate API key requirements here if they are
-       # stored as part of the template and need to be resolved against current apikey_manager.
-       # However, BotInfoDialog already associates ApiKeyQuery objects.
-       # If the template's apikey_query_list is valid, it should be usable.
+        # Potentially, we might need to re-evaluate API key requirements here if they are
+        # stored as part of the template and need to be resolved against current apikey_manager.
+        # However, BotInfoDialog already associates ApiKeyQuery objects.
+        # If the template's apikey_query_list is valid, it should be usable.
 
-       if chatroom.add_bot(new_bot_instance):
-           self.logger.info(f"Bot '{new_bot_instance.name}' (from template ID '{template_id}') added to chatroom '{chatroom_name}'.")
-           self._update_bot_list(chatroom_name) # Refresh the bot list for the current chatroom
-           QMessageBox.information(self, self.tr("Success"),
-                                     self.tr("Bot '{0}' added to chatroom '{1}' from template.").format(new_bot_instance.name, chatroom_name))
-       else:
-           # This could happen if add_bot has its own validation that fails (e.g. unexpected duplicate after name generation)
-           self.logger.error(f"Failed to add bot '{new_bot_instance.name}' to chatroom '{chatroom_name}'.")
-           QMessageBox.critical(self, self.tr("Error"),
-                                  self.tr("Could not add bot '{0}' to the chatroom. It might already exist or an internal error occurred.").format(new_bot_instance.name))
+        if chatroom.add_bot(new_bot_instance):
+            self.logger.info(
+                f"Bot '{new_bot_instance.name}' (from template ID '{template_id}') added to chatroom '{chatroom_name}'.")
+            # Refresh the bot list for the current chatroom
+            self._update_bot_list(chatroom_name)
+            QMessageBox.information(self, self.tr("Success"),
+                                    self.tr("Bot '{0}' added to chatroom '{1}' from template.").format(new_bot_instance.name, chatroom_name))
+        else:
+            # This could happen if add_bot has its own validation that fails (e.g. unexpected duplicate after name generation)
+            self.logger.error(
+                f"Failed to add bot '{new_bot_instance.name}' to chatroom '{chatroom_name}'.")
+            QMessageBox.critical(self, self.tr("Error"),
+                                 self.tr("Could not add bot '{0}' to the chatroom. It might already exist or an internal error occurred.").format(new_bot_instance.name))
 
     def _update_template_button_states(self):
         has_selection = bool(self.bot_template_list_widget.currentItem())
@@ -2004,7 +2242,7 @@ class MainWindow(QMainWindow):
         self.remove_template_button.setEnabled(has_selection)
         # Add other button state updates if needed
 
-    def _on_selected_bot_template_changed(self, current: QListWidgetItem, _previous: QListWidgetItem):
+    def _on_selected_bot_template_changed(self, _current: QListWidgetItem, _previous: QListWidgetItem):
         self._update_template_button_states()
     # --- End Bot Template Methods ---
 
@@ -2023,14 +2261,18 @@ class MainWindow(QMainWindow):
         """
         current_chatroom_item = self.chatroom_list_widget.currentItem()
         if not current_chatroom_item:
-            QMessageBox.warning(self, self.tr("Warning"), self.tr("No chatroom selected."))
+            QMessageBox.warning(self, self.tr("Warning"),
+                                self.tr("No chatroom selected."))
             return
 
         chatroom_name = current_chatroom_item.text()
         chatroom = self.chatroom_manager.get_chatroom(chatroom_name)
         if not chatroom:
-            self.logger.error(f"Remove bot: Selected chatroom '{chatroom_name}' not found.") # ERROR - prerequisite failed
-            QMessageBox.critical(self, self.tr("Error"), self.tr("Selected chatroom not found."))
+            # ERROR - prerequisite failed
+            self.logger.error(
+                f"Remove bot: Selected chatroom '{chatroom_name}' not found.")
+            QMessageBox.critical(self, self.tr("Error"),
+                                 self.tr("Selected chatroom not found."))
             return
 
         # This method is no longer needed as the button is removed.
@@ -2046,10 +2288,10 @@ def main():
     the application event loop.
     """
     logging.basicConfig(
-        level=logging.DEBUG, # Changed to DEBUG
+        level=logging.DEBUG,  # Changed to DEBUG
         format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
         filename='app.log',
-        filemode='w', # Overwrite log file each time for now, can be changed to 'a' for append
+        filemode='w',  # Overwrite log file each time for now, can be changed to 'a' for append
         encoding='utf-8'  # Ensure UTF-8 encoding for log file
     )
     logging.info("Application starting")
@@ -2058,23 +2300,26 @@ def main():
 
     translator = QTranslator()
     # Try to load system locale, fallback to zh_TW for testing, then to nothing
-    locale_name = QLocale.system().name() # e.g., "en_US", "zh_TW"
+    locale_name = QLocale.system().name()  # e.g., "en_US", "zh_TW"
 
     # Construct path to i18n directory relative to this script
     # This assumes i18n is a sibling to the directory containing this script (e.g. src/main/i18n)
     # More robust path handling might be needed depending on project structure
     current_dir = os.path.dirname(os.path.abspath(__file__))
     # Corrected path: Assume main_window.py is in src/main/, and i18n is in project_root/i18n/
-    project_root = os.path.dirname(os.path.dirname(current_dir)) # up to src, then up to project_root
+    # up to src, then up to project_root
+    project_root = os.path.dirname(os.path.dirname(current_dir))
     i18n_dir = os.path.join(project_root, "i18n")
 
     # translation_loaded = False
     # Try specific locale first
-    if translator.load(locale_name, "app", "_", i18n_dir): # e.g. app_zh_TW.qm or app_en_US.qm
+    # e.g. app_zh_TW.qm or app_en_US.qm
+    if translator.load(locale_name, "app", "_", i18n_dir):
         QApplication.installTranslator(translator)
         # translation_loaded = True
     # Fallback to zh_TW if system locale not found or different
-    elif locale_name != "zh_TW" and translator.load("app_zh_TW", i18n_dir): # Avoid double loading if system is zh_TW
+    # Avoid double loading if system is zh_TW
+    elif locale_name != "zh_TW" and translator.load("app_zh_TW", i18n_dir):
         QApplication.installTranslator(translator)
         # translation_loaded = True
 
@@ -2082,12 +2327,13 @@ def main():
     qt_translator = QTranslator()
     # Try to find Qt's base translations, often in a path like /usr/share/qt6/translations/
     # QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath) is the most reliable way
-    qt_translations_path = QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)
+    qt_translations_path = QLibraryInfo.path(
+        QLibraryInfo.LibraryPath.TranslationsPath)
     if qt_translator.load(QLocale.system(), "qtbase", "_", qt_translations_path):
         QApplication.installTranslator(qt_translator)
-    elif qt_translator.load("qtbase_" + locale_name.split('_')[0], qt_translations_path): # Try just language e.g. qtbase_en
+    # Try just language e.g. qtbase_en
+    elif qt_translator.load("qtbase_" + locale_name.split('_')[0], qt_translations_path):
         QApplication.installTranslator(qt_translator)
-
 
     main_window = MainWindow()
 
@@ -2095,31 +2341,39 @@ def main():
     # Check if __init__ completed enough for basic checks.
     if os.environ.get('QT_QPA_PLATFORM') == 'offscreen':
         if hasattr(main_window, 'apikey_manager') and main_window.apikey_manager is not None:
-            logging.info("MainWindow initialized successfully in offscreen mode (up to ApiKeyManager).")
+            logging.info(
+                "MainWindow initialized successfully in offscreen mode (up to ApiKeyManager).")
             # Test if a master password was created/loaded and encryption service is up
             if main_window.password_manager.has_master_password() and main_window.encryption_service:
-                logging.info("Master password found and encryption service initialized in offscreen mode.")
+                logging.info(
+                    "Master password found and encryption service initialized in offscreen mode.")
             else:
-                 # This will happen if user cancels dialogs, or if it's first run and create dialog is "cancelled" by offscreen mode
-                logging.warning("Master password setup likely did not complete as expected in offscreen mode (dialogs would block).")
-            sys.exit(0) # Exit cleanly for test purposes
+                # This will happen if user cancels dialogs, or if it's first run and create dialog is "cancelled" by offscreen mode
+                logging.warning(
+                    "Master password setup likely did not complete as expected in offscreen mode (dialogs would block).")
+            sys.exit(0)  # Exit cleanly for test purposes
         elif hasattr(main_window, 'password_manager') and not hasattr(main_window, 'apikey_manager'):
             # This means __init__ returned early due to password setup failure/cancellation
-            logging.warning("MainWindow initialization aborted during password setup (as expected in offscreen mode if dialogs block/are cancelled).")
-            sys.exit(0) # Still a "successful" test of the init-blocking mechanism
+            logging.warning(
+                "MainWindow initialization aborted during password setup (as expected in offscreen mode if dialogs block/are cancelled).")
+            # Still a "successful" test of the init-blocking mechanism
+            sys.exit(0)
         else:
-            logging.error("MainWindow initialization appears incomplete in offscreen mode for unknown reasons.")
-            sys.exit(1) # Exit with error for test purposes
+            logging.error(
+                "MainWindow initialization appears incomplete in offscreen mode for unknown reasons.")
+            sys.exit(1)  # Exit with error for test purposes
     else:
         # Normal GUI execution
         # Check if __init__ completed. If apikey_manager is None, it means __init__ returned early.
-        if hasattr(main_window, 'apikey_manager') and main_window.apikey_manager is not None :
+        if hasattr(main_window, 'apikey_manager') and main_window.apikey_manager is not None:
             main_window.show()
             logging.info("Application started successfully.")
             sys.exit(app.exec())
         else:
-            logging.warning("MainWindow initialization failed or was aborted (likely password setup). Application will not show.")
-            sys.exit(1) # Exit with an error code
+            logging.warning(
+                "MainWindow initialization failed or was aborted (likely password setup). Application will not show.")
+            sys.exit(1)  # Exit with an error code
+
 
 if __name__ == "__main__":
     main()

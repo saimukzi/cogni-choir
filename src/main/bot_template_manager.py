@@ -1,26 +1,38 @@
+"""
+bot_template_manager.py
+========================
+This module manages bot templates, including loading, saving, and CRUD operations.
+"""
+
+import time
 import json
 import logging
 import os
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 from .ai_bots import Bot # Assuming Bot class is in ai_bots.py
-from .commons import Commons # For file paths or other common utilities
+# from .commons import Commons # For file paths or other common utilities
 
 BOT_TEMPLATES_FILE = "bot_templates.json"
 
 class BotTemplateManager:
     """Manages bot templates, including loading, saving, and CRUD operations."""
 
-    def __init__(self, data_dir: str = None):
+    def __init__(self, data_dir: str):
         """
         Initializes the BotTemplateManager.
 
         Args:
             data_dir (str): The directory where bot templates data is stored.
-                            Defaults to Commons.get_data_dir().
         """
         self.logger = logging.getLogger(__name__)
-        if data_dir is None:
-            data_dir = Commons.get_data_dir()
+
+        if not data_dir:
+            raise ValueError("data_dir must be provided and cannot be empty.")
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir, exist_ok=True)
+        if not os.path.isdir(data_dir):
+            raise ValueError(f"The provided data_dir '{data_dir}' is not a directory.")
+
         self.templates_file_path = os.path.join(data_dir, BOT_TEMPLATES_FILE)
         self.templates: Dict[str, Bot] = {} # Store templates by ID
         self._load_templates()
@@ -74,7 +86,6 @@ class BotTemplateManager:
     def _generate_id(self) -> str:
         """Generates a unique ID for a new template."""
         # Simple approach: use timestamp. More robust: UUID.
-        import time
         return str(int(time.time() * 1000))
 
     def create_template(self, bot_config: Bot) -> Optional[str]:

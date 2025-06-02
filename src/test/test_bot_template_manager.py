@@ -8,7 +8,6 @@ from unittest.mock import patch, MagicMock
 # This assumes your tests are run from the project root or that src is in PYTHONPATH
 from src.main.bot_template_manager import BotTemplateManager, BOT_TEMPLATES_FILE
 from src.main.ai_bots import Bot
-from src.main.commons import Commons
 from src.main.apikey_manager import ApiKeyQuery
 
 
@@ -31,15 +30,15 @@ class TestBotTemplateManager(unittest.TestCase):
         os.makedirs(self.test_data_dir, exist_ok=True)
 
         # Mock Commons.get_data_dir() to return our temporary directory
-        self.get_data_dir_patch = patch('src.main.commons.Commons.get_data_dir', return_value=self.test_data_dir)
-        self.mock_get_data_dir = self.get_data_dir_patch.start()
+        # self.get_data_dir_patch = patch('src.main.commons.Commons.get_data_dir', return_value=self.test_data_dir)
+        # self.mock_get_data_dir = self.get_data_dir_patch.start()
 
         self.manager = BotTemplateManager(data_dir=self.test_data_dir)
         self.templates_file = os.path.join(self.test_data_dir, BOT_TEMPLATES_FILE)
 
     def tearDown(self):
         # Stop the patcher
-        self.get_data_dir_patch.stop()
+        # self.get_data_dir_patch.stop()
         # Clean up the temporary directory and its contents
         if os.path.exists(self.test_data_dir):
             shutil.rmtree(self.test_data_dir)
