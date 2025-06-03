@@ -10,37 +10,6 @@
 # --- Clear all keys (use with caution) ---
 # manager.clear()
 # print("All keys cleared. Final list:", manager.list_key_names())
-
-# --- Clean up dummy data file and directory ---
-# if os.path.exists(keys_file):
-# os.remove(keys_file)
-# if not os.listdir(data_dir_path): # Check if directory is empty
-# os.rmdir(data_dir_path)
-# print(f"Cleaned up dummy data file and directory: {data_dir_path}")
-# else:
-# print(f"Directory {data_dir_path} not empty, not removed.")
-# else:
-# print(f"Directory {data_dir_path} not found, no cleanup needed for it.")
-# except keyring.errors.NoKeyringError:
-# print("Keyring backend not found. Please ensure a keyring backend is installed and configured.")
-# except Exception as e:
-# print(f"An unexpected error occurred during example usage: {e}")
-# finally:
-# # Ensure cleanup of the temp directory if it was created by this script
-# if os.path.exists(temp_data_dir) and "temp_cc_api_data" in temp_data_dir: # Safety check
-# import shutil
-# shutil.rmtree(temp_data_dir)
-# logger.info(f"Cleaned up temporary directory: {temp_data_dir}")
-# pass # End of example
-```
-
-The previous example usage block was extensive and included file operations
-that might be problematic in some test environments if not carefully managed.
-It's better to keep the `if __name__ == '__main__':` block focused on
-illustrative, contained examples or specific test cases that don't rely
-heavily on external state or filesystem changes without proper setup/teardown.
-The current `if __name__ == '__main__':` block in the tool output for this file
-is more concise and suitable.
 """
 Manages CogniChoir API Keys (CcApiKeys).
 

@@ -1802,15 +1802,16 @@ class MainWindow(QMainWindow):
                         temp_old_encryption_service, self.encryption_service)
                     # Ensure ThirdPartyApiKeyManager instance uses the updated encryption_service
                     self.thirdpartyapikey_manager.encryption_service = self.encryption_service
+                else:
+                    self.logger.warning(
+                        "ThirdPartyApiKeyManager not initialized during master password change. Keys not re-encrypted.")
+
                 # Also update CcApiKeyManager's encryption service and call its re_encrypt_keys
                 if self.ccapikey_manager:
                     self.ccapikey_manager.re_encrypt_keys(temp_old_encryption_service, self.encryption_service)
                     # self.ccapikey_manager.update_encryption_service(self.encryption_service) # re_encrypt_keys does this
                 else:
                     self.logger.warning("CcApiKeyManager not initialized during master password change. CC API Keys not processed for re-encryption.")
-                else:
-                    self.logger.warning(
-                        "ThirdPartyApiKeyManager not initialized during master password change. Keys not re-encrypted.")
 
                 QMessageBox.information(self, self.tr("Success"),
                                     self.tr("Master password changed successfully. All relevant API keys have been re-encrypted."))

@@ -307,4 +307,3 @@ if __name__ == '__main__':
     #     shutil.rmtree(test_data_dir)
 
     sys.exit(app.exec())
-```
