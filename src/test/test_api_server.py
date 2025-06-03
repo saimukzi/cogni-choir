@@ -1,9 +1,11 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import json
+import flask # Added for flask.request
 
 # Adjust import paths as necessary
 from src.main import api_server
+from src.main.api_server import set_api_server_enabled # Added
 from src.main.ccapikey_manager import CcApiKeyManager
 from src.main.encryption_service import EncryptionService # Or your MockEncryptionService if preferred
 
@@ -39,7 +41,8 @@ class TestApiServer(unittest.TestCase):
         """Clean up after each test."""
         # Restore original dependencies if they were changed globally
         api_server.cc_api_key_manager = self.original_cc_api_key_manager
-        # Reset other global states if necessary
+        # Reset API_SERVER_ENABLED to its default state
+        set_api_server_enabled(True)
 
     def test_hello_no_api_key_header(self):
         """Test /hello endpoint without providing an API key header."""
@@ -125,6 +128,58 @@ class TestApiServer(unittest.TestCase):
         self.assertEqual(response.status_code, 500)
         json_data = json.loads(response.data.decode('utf-8'))
         self.assertEqual(json_data, {"error": "Server error during key validation"})
+
+    @patch('src.main.api_server.api_app.run')
+    def test_run_server_starts_when_enabled(self, mock_api_app_run):
+        """Test that api_app.run is called when the server is enabled."""
+        set_api_server_enabled(True) # Ensure it's enabled
+        api_server.run_server(port=5005)
+        mock_api_app_run.assert_called_once()
+
+    @patch('src.main.api_server.api_app.run')
+    def test_run_server_does_not_start_when_disabled(self, mock_api_app_run):
+        """Test that api_app.run is not called when the server is disabled."""
+        set_api_server_enabled(False) # Disable the server
+        api_server.run_server(port=5006)
+        mock_api_app_run.assert_not_called()
+
+    @patch('src.main.api_server.api_app.run')
+    @patch('builtins.print')
+    def test_run_server_prints_message_when_disabled(self, mock_print, mock_api_app_run):
+        """Test that a message is printed when server is disabled and run_server is called."""
+        set_api_server_enabled(False) # Disable the server
+        api_server.run_server(port=5007)
+        mock_api_app_run.assert_not_called()
+        mock_print.assert_called_with("API server is disabled by configuration.")
+
+    @patch('src.main.api_server._get_werkzeug_shutdown_function')
+    def test_shutdown_endpoint(self, mock_get_shutdown_func):
+        """Test the /shutdown endpoint when Werkzeug shutdown is available."""
+        mock_werkzeug_shutdown = MagicMock()
+        mock_get_shutdown_func.return_value = mock_werkzeug_shutdown
+
+        # A request context is still needed for the route to be called
+        with self.client.application.test_request_context('/shutdown', method='POST'):
+            response = self.client.post('/shutdown')
+
+        self.assertEqual(response.status_code, 200)
+        json_data = response.get_json()
+        self.assertEqual(json_data, {"message": "Server shutting down..."})
+        mock_get_shutdown_func.assert_called_once_with(flask.request)
+        mock_werkzeug_shutdown.assert_called_once()
+
+    @patch('src.main.api_server._get_werkzeug_shutdown_function')
+    def test_shutdown_endpoint_no_werkzeug_function(self, mock_get_shutdown_func):
+        """Test /shutdown endpoint when Werkzeug shutdown function is not available."""
+        mock_get_shutdown_func.return_value = None # Simulate function not found
+
+        with self.client.application.test_request_context('/shutdown', method='POST'):
+            response = self.client.post('/shutdown')
+
+        self.assertEqual(response.status_code, 500)
+        json_data = response.get_json()
+        self.assertEqual(json_data, {"error": "Not running with Werkzeug or shutdown not available"})
+        mock_get_shutdown_func.assert_called_once_with(flask.request)
 
 
 if __name__ == '__main__':

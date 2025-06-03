@@ -17,6 +17,9 @@ Attributes:
     server_thread (Optional[threading.Thread]): The thread in which the Flask
         development server runs. This is managed by the main application.
 """
+API_SERVER_ENABLED: bool = True
+"""Global flag to enable or disable the API server."""
+
 from flask import Flask, jsonify, request
 
 # Attempt to import from sibling modules. This structure assumes that when the API server
@@ -57,6 +60,16 @@ def initialize_api_server_dependencies(cc_manager: CcApiKeyManager, enc_service:
     encryption_serv = enc_service
     # Flask's app.logger can be used if it's configured, e.g., api_app.logger.info(...)
     # print("API server dependencies initialized.") # Or use logging module
+
+def set_api_server_enabled(enable: bool):
+    """Sets the global state for enabling or disabling the API server.
+
+    Args:
+        enable (bool): If True, the API server can be started. If False,
+                       calls to `run_server` will not start the server.
+    """
+    global API_SERVER_ENABLED
+    API_SERVER_ENABLED = enable
 
 @api_app.route('/hello', methods=['GET'])
 def hello():
@@ -112,9 +125,57 @@ def hello():
 
     return jsonify({"message": "hello, authenticated user!"})
 
+def _get_werkzeug_shutdown_function(current_request):
+    """
+    Helper function to retrieve the Werkzeug server shutdown function from the request environment.
+    This is done to facilitate mocking during testing.
+
+    Args:
+        current_request: The Flask request object.
+
+    Returns:
+        The Werkzeug shutdown function if available, otherwise None.
+    """
+    return current_request.environ.get('werkzeug.server.shutdown')
+
+@api_app.route('/shutdown', methods=['POST'])
+def shutdown_server():
+    """
+    Shuts down the Werkzeug Flask development server.
+
+    This endpoint is intended for development or controlled environments to
+    programmatically stop the server. It relies on the `werkzeug.server.shutdown`
+    function being available in the request environment, which is typical for
+    Flask's development server. It uses a helper function to obtain the
+    shutdown function to ease testing.
+
+    Returns:
+        Response: A JSON response indicating success or failure.
+                  - `{"message": "Server shutting down..."}` on success (200 OK).
+                  - `{"error": "Not running with Werkzeug or shutdown not available"}`
+                    if shutdown function cannot be accessed (500 Internal Server Error).
+    """
+    werkzeug_shutdown = _get_werkzeug_shutdown_function(request)
+    if werkzeug_shutdown is None:
+        # Consider logging this situation for server diagnostics
+        # api_app.logger.error("Shutdown endpoint called but Werkzeug shutdown function not found.")
+        return jsonify({"error": "Not running with Werkzeug or shutdown not available"}), 500
+
+    try:
+        werkzeug_shutdown()
+        return jsonify({"message": "Server shutting down..."})
+    except Exception as e:
+        # Log unexpected errors during shutdown
+        # api_app.logger.error(f"Error during server shutdown: {e}", exc_info=True)
+        return jsonify({"error": f"Server shutdown failed: {e}"}), 500
+
 def run_server(port: int, debug: bool = False):
     """
-    Starts the Flask development server.
+    Starts the Flask development server if API_SERVER_ENABLED is True.
+
+    If `API_SERVER_ENABLED` is False, this function will print a message
+    to the console and return immediately without starting the server.
+    Otherwise, it starts the Flask development server.
 
     This function is intended to be run in a separate thread from the main
     application to avoid blocking the GUI. It configures the server to listen
@@ -126,6 +187,11 @@ def run_server(port: int, debug: bool = False):
                       `use_reloader=False` is important when running in a thread
                       to prevent issues with the reloader.
     """
+    global API_SERVER_ENABLED
+    if not API_SERVER_ENABLED:
+        print("API server is disabled by configuration.")
+        return
+
     # Note: Flask's built-in development server is not suitable for production use.
     # For production, a WSGI server like Gunicorn or uWSGI should be used.
     # The server runs in a separate thread, so it doesn't block the main application.

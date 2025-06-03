@@ -16,6 +16,7 @@ import logging  # For logging
 import threading
 import copy
 from typing import Optional
+import requests # Added
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -140,13 +141,14 @@ class MainWindow(QMainWindow):
         """Thread object for running the Flask API server."""
         self.api_server_port = 5001 # Default, will be loaded from settings
         """Port number for the API server."""
-        # self.api_server_port is loaded in _load_settings()
+        self.api_server_enabled_on_startup = True # Default, will be loaded from settings
+        """Flag to control if API server starts automatically."""
 
+        self._load_settings() # Load settings first
         self._init_ui()
-        self._load_settings() # Load settings before starting server
         self._update_chatroom_list()  # Initial population
         self._update_bot_template_list()  # Initial population for templates
-        self._start_api_server()
+        self._start_api_server_if_needed() # Modified call
 
     def _init_ui(self):
         """Initializes the main user interface components and layout.
@@ -190,6 +192,13 @@ class MainWindow(QMainWindow):
         configure_api_port_action = QAction(self.tr("Configure API Port"), self)
         configure_api_port_action.triggered.connect(self._show_configure_api_port_dialog)
         settings_menu.addAction(configure_api_port_action)
+
+        self.api_server_toggle_action = QAction(self.tr("Enable API Server"), self)
+        self.api_server_toggle_action.setCheckable(True)
+        # self.api_server_enabled_on_startup is loaded in _load_settings before _init_ui
+        self.api_server_toggle_action.setChecked(self.api_server_enabled_on_startup)
+        self.api_server_toggle_action.toggled.connect(self._handle_api_server_toggle)
+        settings_menu.addAction(self.api_server_toggle_action)
 
         # --- Main Layout (Splitter for resizable panels) ---
         main_splitter = QSplitter(Qt.Orientation.Horizontal, central_widget)
@@ -2323,25 +2332,98 @@ class MainWindow(QMainWindow):
         self._update_template_button_states()
     # --- End Bot Template Methods ---
 
-    def _start_api_server(self):
-        """Initializes dependencies and starts the Flask API server in a separate thread."""
-        if not self.ccapikey_manager or not self.encryption_service:
-            self.logger.error("Cannot start API server: CcApiKeyManager or EncryptionService not initialized.")
-            # Optionally, inform the user via QMessageBox or status bar update
-            QMessageBox.critical(self, self.tr("API Server Error"),
-                                 self.tr("Could not start the API server due to missing critical components (API Key Manager or Encryption Service). Please check logs or restart."))
+    def _handle_api_server_toggle(self, is_checked: bool):
+        """Handles the toggling of the API server enabled state.
+
+        Updates the internal state, saves settings, and attempts to start or
+        stop the API server accordingly.
+
+        Args:
+            is_checked (bool): The new checked state of the toggle action.
+        """
+        self.logger.info(f"API Server toggle changed. Is checked: {is_checked}")
+        self.api_server_enabled_on_startup = is_checked
+        self._save_settings()  # Persist this change immediately
+        api_server.set_api_server_enabled(is_checked) # Update live state
+
+        if is_checked: # User wants to turn it ON
+            if self.api_server_thread is None or not self.api_server_thread.is_alive():
+                self.logger.info("API Server toggle ON: Starting server...")
+                self._start_api_server_if_needed()
+            else:
+                self.logger.info("API Server toggle ON: Server already running or thread exists.")
+        else: # User wants to turn it OFF
+            if self.api_server_thread is not None and self.api_server_thread.is_alive():
+                self.logger.info("API Server toggle OFF: Attempting to shut down API server...")
+                try:
+                    # Ensure the URL scheme is http if not specified
+                    shutdown_url = f"http://localhost:{self.api_server_port}/shutdown"
+                    response = requests.post(shutdown_url, timeout=2) # Timeout of 2 seconds
+                    if response.status_code == 200:
+                        self.logger.info("API server shutdown request successful.")
+                        QMessageBox.information(self, self.tr("API Server"),
+                                                self.tr("API server shutdown request sent. It will stop if it was running."))
+                    else:
+                        self.logger.error(f"API server shutdown request failed with status {response.status_code}: {response.text}")
+                        QMessageBox.warning(self, self.tr("API Server Shutdown"),
+                                            self.tr("Failed to send shutdown request to server (status: {0}). It might not be running or not responding.").format(response.status_code))
+                except requests.exceptions.ConnectionError:
+                    self.logger.warning("API server shutdown: ConnectionError. Server might already be down or port incorrect.")
+                    QMessageBox.information(self, self.tr("API Server Shutdown"),
+                                            self.tr("Could not connect to API server to shut it down. It might already be stopped."))
+                except requests.exceptions.Timeout:
+                    self.logger.warning("API server shutdown: Request timed out.")
+                    QMessageBox.warning(self, self.tr("API Server Shutdown"),
+                                        self.tr("Shutdown request timed out. The server might be busy or unresponsive."))
+                except requests.exceptions.RequestException as e:
+                    self.logger.error(f"API server shutdown: An unexpected error occurred: {e}", exc_info=True)
+                    QMessageBox.critical(self, self.tr("API Server Shutdown Error"),
+                                         self.tr("An error occurred while trying to shut down the API server: {0}").format(e))
+                finally:
+                    # Regardless of shutdown success, if the user toggled it off,
+                    # we should reflect that the thread is no longer considered active from MainWindow's perspective.
+                    # However, joining might block. For now, we rely on the server shutting itself down.
+                    # self.api_server_thread = None # Or join with timeout
+                    pass # Let run_server in api_server.py handle its own exit
+            else:
+                self.logger.info("API Server toggle OFF: Server already stopped or thread does not exist.")
+
+
+    def _start_api_server_if_needed(self):
+        """
+        Initializes dependencies and starts the Flask API server in a separate thread
+        if it's enabled by configuration and not already running.
+        """
+        if not self.api_server_enabled_on_startup:
+            self.logger.info("API Server is disabled by startup configuration. Not starting.")
+            api_server.set_api_server_enabled(False) # Ensure module state is correct
             return
 
-        self.logger.info(f"Initializing API server dependencies and starting server on port {self.api_server_port}")
+        if self.api_server_thread is not None and self.api_server_thread.is_alive():
+            self.logger.info("API Server thread is already running. Not starting another.")
+            # Ensure the api_server module's flag is aligned if logic allows it to run
+            api_server.set_api_server_enabled(True)
+            return
+
+        if not self.ccapikey_manager or not self.encryption_service:
+            self.logger.error("Cannot start API server: CcApiKeyManager or EncryptionService not initialized.")
+            QMessageBox.critical(self, self.tr("API Server Error"),
+                                 self.tr("Could not start the API server due to missing critical components. Please check logs or restart."))
+            api_server.set_api_server_enabled(False) # Ensure it's marked as disabled
+            return
+
+        self.logger.info(f"Initializing API server dependencies and attempting to start server on port {self.api_server_port}")
         try:
             api_server.initialize_api_server_dependencies(
                 cc_manager=self.ccapikey_manager,
                 enc_service=self.encryption_service
             )
+            api_server.set_api_server_enabled(True) # Explicitly enable before starting thread
         except Exception as e:
             self.logger.error(f"Error initializing API server dependencies: {e}", exc_info=True)
             QMessageBox.critical(self, self.tr("API Server Error"),
                                  self.tr("Failed to initialize API server components. The server will not start. See logs for details."))
+            api_server.set_api_server_enabled(False) # Ensure it's marked as disabled
             return
 
         self.api_server_thread = threading.Thread(
@@ -2349,8 +2431,14 @@ class MainWindow(QMainWindow):
             args=(self.api_server_port, False),  # port, debug=False
             daemon=True
         )
-        self.api_server_thread.start()
-        self.logger.info(f"API server thread started on port {self.api_server_port}.")
+        try:
+            self.api_server_thread.start()
+            self.logger.info(f"API server thread started on port {self.api_server_port}.")
+        except Exception as e: # Catch potential errors during thread start itself
+            self.logger.error(f"Failed to start API server thread: {e}", exc_info=True)
+            QMessageBox.critical(self, self.tr("API Server Start Error"),
+                                 self.tr("An unexpected error occurred while trying to start the API server thread. See logs."))
+            api_server.set_api_server_enabled(False)
 
 
     def closeEvent(self, event):
@@ -2384,6 +2472,9 @@ class MainWindow(QMainWindow):
         settings = QSettings("CcOrg", "CogniChoir") # Organization and Application names
         self.api_server_port = settings.value("api_server_port", 5001, type=int)
         self.logger.info(f"Loaded API server port from settings: {self.api_server_port}")
+        self.api_server_enabled_on_startup = settings.value("api_server_enabled_on_startup", True, type=bool)
+        self.logger.info(f"Loaded API server enabled_on_startup: {self.api_server_enabled_on_startup}")
+
 
     def _save_settings(self):
         """
@@ -2396,6 +2487,8 @@ class MainWindow(QMainWindow):
         settings = QSettings("CcOrg", "CogniChoir")
         settings.setValue("api_server_port", self.api_server_port)
         self.logger.info(f"Saved API server port to settings: {self.api_server_port}")
+        settings.setValue("api_server_enabled_on_startup", self.api_server_enabled_on_startup)
+        self.logger.info(f"Saved API server enabled_on_startup: {self.api_server_enabled_on_startup}")
 
     def _show_configure_api_port_dialog(self):
         """
