@@ -5,7 +5,7 @@ EncryptionService is provided.
 This module provides the `ThirdPartyApiKeyManager` class, responsible for abstracting
 the storage and retrieval of API keys for various AI services. It prioritizes
 using the system's keyring for secure storage. If keyring access fails,
-it defaults to a JSON file (`data/apikeeys.json`).
+it defaults to a JSON file (`data/thirdpartyapikeys.json`).
 
 When an `EncryptionService` instance is provided during initialization, all API
 keys are encrypted before being stored and decrypted upon retrieval. This
@@ -35,36 +35,36 @@ class ThirdPartyApiKeyQuery:
     the specific key ID for the service.
 
     Attributes:
-        apikeey_slot_id (str): The slot ID for the API key.
-        apikeey_id (str): The specific ID of the API key within that slot.
+        thirdpartyapikey_slot_id (str): The slot ID for the API key.
+        thirdpartyapikey_id (str): The specific ID of the API key within that slot.
     """
-    def __init__(self, apikeey_slot_id: str, apikeey_id: str):
+    def __init__(self, thirdpartyapikey_slot_id: str, thirdpartyapikey_id: str):
         """Initializes an ThirdPartyApiKeyQuery instance.
 
         Args:
-            apikeey_slot_id: The slot ID for the API key.
-            apikeey_id: The specific ID of the API key within the slot.
+            thirdpartyapikey_slot_id: The slot ID for the API key.
+            thirdpartyapikey_id: The specific ID of the API key within the slot.
         """
-        self._apikeey_slot_id = apikeey_slot_id
-        self._apikeey_id = apikeey_id
+        self._thirdpartyapikey_slot_id = thirdpartyapikey_slot_id
+        self._thirdpartyapikey_id = thirdpartyapikey_id
 
     @property
-    def apikeey_slot_id(self) -> str:
+    def thirdpartyapikey_slot_id(self) -> str:
         """Gets the slot ID for the API key.
 
         Returns:
             str: The slot ID for the API key.
         """
-        return self._apikeey_slot_id
+        return self._thirdpartyapikey_slot_id
 
     @property
-    def apikeey_id(self) -> str:
+    def thirdpartyapikey_id(self) -> str:
         """Gets the specific ID of the API key.
 
         Returns:
             str: The specific ID of the API key within the slot.
         """
-        return self._apikeey_id
+        return self._thirdpartyapikey_id
 
     def to_dict(self) -> dict:
         """Converts the ThirdPartyApiKeyQuery to a dictionary.
@@ -73,8 +73,8 @@ class ThirdPartyApiKeyQuery:
             dict: A dictionary representation of the ThirdPartyApiKeyQuery.
         """
         return {
-            "apikeey_slot_id": self._apikeey_slot_id,
-            "apikeey_id": self._apikeey_id
+            "thirdpartyapikey_slot_id": self._thirdpartyapikey_slot_id,
+            "thirdpartyapikey_id": self._thirdpartyapikey_id
         }
 
     @staticmethod
@@ -88,8 +88,8 @@ class ThirdPartyApiKeyQuery:
             ThirdPartyApiKeyQuery: An instance of ThirdPartyApiKeyQuery initialized with the provided data.
         """
         return ThirdPartyApiKeyQuery(
-            apikeey_slot_id=data.get("apikeey_slot_id", ""),
-            apikeey_id=data.get("apikeey_id", "")
+            thirdpartyapikey_slot_id=data.get("thirdpartyapikey_slot_id", ""),
+            thirdpartyapikey_id=data.get("thirdpartyapikey_id", "")
         )
 
 
@@ -99,7 +99,7 @@ class ThirdPartyApiKeyManager:
     This manager handles saving, loading, and deleting API keys. It attempts
     to use the system's keyring for secure storage. If keyring is unavailable
     or inaccessible, it falls back to storing keys in an encrypted JSON file
-    (`data/apikeey_manager.json`), provided an `EncryptionService` is available.
+    (`data/thirdpartyapikey_manager.json`), provided an `EncryptionService` is available.
 
     Attributes:
         encryption_service (EncryptionService): Service used for
@@ -119,7 +119,7 @@ class ThirdPartyApiKeyManager:
         """
 
         if not data_path:
-            data_path = os.path.join("data", "apikeey_manager.json")
+            data_path = os.path.join("data", "thirdpartyapikey_manager.json")
 
         if not encryption_service:
             raise RuntimeError("Encryption service must be provided for ThirdPartyApiKeyManager.")
@@ -163,12 +163,12 @@ class ThirdPartyApiKeyManager:
 
         If `self._data` is None (e.g., file didn't exist), it initializes it
         as an empty dictionary. It also ensures that the nested dictionary
-        `apikeey_slot_id_to_apikeey_id_list_dict` exists.
+        `thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict` exists.
         """
         if not self._data:
             self._data = {}
-        if 'apikeey_slot_id_to_apikeey_id_list_dict' not in self._data:
-            self._data['apikeey_slot_id_to_apikeey_id_list_dict'] = {}
+        if 'thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict' not in self._data:
+            self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict'] = {}
 
     def _save_data(self):
         """Saves the current data to the fallback JSON file."""
@@ -177,11 +177,11 @@ class ThirdPartyApiKeyManager:
         with open(self.data_path, 'w', encoding='utf-8') as f:
             json.dump(self._data, f, indent=4)
 
-    def _get_keyring_service_name(self, apikeey_slot_id: str) -> str:
+    def _get_keyring_service_name(self, thirdpartyapikey_slot_id: str) -> str:
         """Generates a unique service name for keyring storage."""
-        return f"{ENCRYPTED_SERVICE_NAME_PREFIX}_{apikeey_slot_id}"
+        return f"{ENCRYPTED_SERVICE_NAME_PREFIX}_{thirdpartyapikey_slot_id}"
 
-    def set_apikeey(self, apikeey_query: ThirdPartyApiKeyQuery, apikeey: str):
+    def set_thirdpartyapikey(self, thirdpartyapikey_query: ThirdPartyApiKeyQuery, thirdpartyapikey: str):
         """Saves an API key for a given service, encrypting it before storage.
 
         The API key is encrypted using the configured `EncryptionService`.
@@ -191,34 +191,34 @@ class ThirdPartyApiKeyManager:
 
         Args:
             service_name (str): The name of the service (e.g., "OpenAI", "Gemini").
-            apikeey (str): The API key to save.
+            thirdpartyapikey (str): The API key to save.
 
         Raises:
             RuntimeError: If the `EncryptionService` is not available.
-            ValueError: If `service_name` or `apikeey` is empty.
+            ValueError: If `service_name` or `thirdpartyapikey` is empty.
         """
         if not self.encryption_service:
             raise RuntimeError("Encryption service not available. Cannot save key.")
-        if not apikeey_query: # Checks if the ThirdPartyApiKeyQuery object itself is None
+        if not thirdpartyapikey_query: # Checks if the ThirdPartyApiKeyQuery object itself is None
             # This message might need refinement given ThirdPartyApiKeyQuery structure.
-            # For now, the critical check is for the apikeey string itself.
+            # For now, the critical check is for the thirdpartyapikey string itself.
             raise ValueError("ThirdPartyApiKeyQuery object cannot be None.")
-        if not apikeey: # Check for empty API key string
+        if not thirdpartyapikey: # Check for empty API key string
             raise ValueError("API key cannot be empty.")
 
-        apikeey_slot_id = apikeey_query.apikeey_slot_id
-        apikeey_id = apikeey_query.apikeey_id
-        encrypted_key = self.encryption_service.encrypt(apikeey)
+        thirdpartyapikey_slot_id = thirdpartyapikey_query.thirdpartyapikey_slot_id
+        thirdpartyapikey_id = thirdpartyapikey_query.thirdpartyapikey_id
+        encrypted_key = self.encryption_service.encrypt(thirdpartyapikey)
 
-        keyring.set_password(self._get_keyring_service_name(apikeey_slot_id), apikeey_id, encrypted_key)
+        keyring.set_password(self._get_keyring_service_name(thirdpartyapikey_slot_id), thirdpartyapikey_id, encrypted_key)
 
-        if apikeey_slot_id not in self._data['apikeey_slot_id_to_apikeey_id_list_dict']:
-            self._data['apikeey_slot_id_to_apikeey_id_list_dict'][apikeey_slot_id] = []
-        if apikeey_id not in self._data['apikeey_slot_id_to_apikeey_id_list_dict'][apikeey_slot_id]:
-            self._data['apikeey_slot_id_to_apikeey_id_list_dict'][apikeey_slot_id].append(apikeey_id)
+        if thirdpartyapikey_slot_id not in self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict']:
+            self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict'][thirdpartyapikey_slot_id] = []
+        if thirdpartyapikey_id not in self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict'][thirdpartyapikey_slot_id]:
+            self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict'][thirdpartyapikey_slot_id].append(thirdpartyapikey_id)
         self._save_data()
 
-    def get_apikeey(self, apikeey_query: ThirdPartyApiKeyQuery) -> str | None:
+    def get_thirdpartyapikey(self, thirdpartyapikey_query: ThirdPartyApiKeyQuery) -> str | None:
         """Loads and decrypts an API key for a given service.
 
         Retrieves the encrypted key from the system keyring or fallback JSON file,
@@ -233,43 +233,43 @@ class ThirdPartyApiKeyManager:
         """
         if not self.encryption_service:
             raise RuntimeError("Encryption service not available. Cannot load key.")
-        if not apikeey_query:
+        if not thirdpartyapikey_query:
             raise ValueError("ThirdPartyApiKeyQuery object cannot be None.")
-        if not apikeey_query.apikeey_slot_id or not apikeey_query.apikeey_id:
+        if not thirdpartyapikey_query.thirdpartyapikey_slot_id or not thirdpartyapikey_query.thirdpartyapikey_id:
             # Or handle differently, e.g., return None if keyring would fail with empty strings
-            print(f"Warning: Attempting to get API key with empty slot_id or key_id in query: {apikeey_query.to_dict()}", file=sys.stderr)
+            print(f"Warning: Attempting to get API key with empty slot_id or key_id in query: {thirdpartyapikey_query.to_dict()}", file=sys.stderr)
             # Keyring might return None or error with empty strings; let it try, or return None early.
             # For now, let keyring handle it, as behavior might vary by backend.
             # Consider raising ValueError here if empty slot/key ID is strictly invalid.
 
-        apikeey_slot_id = apikeey_query.apikeey_slot_id
-        apikeey_id = apikeey_query.apikeey_id
-        encrypted_key = keyring.get_password(self._get_keyring_service_name(apikeey_slot_id), apikeey_id)
+        thirdpartyapikey_slot_id = thirdpartyapikey_query.thirdpartyapikey_slot_id
+        thirdpartyapikey_id = thirdpartyapikey_query.thirdpartyapikey_id
+        encrypted_key = keyring.get_password(self._get_keyring_service_name(thirdpartyapikey_slot_id), thirdpartyapikey_id)
 
         decrypted_key = self.encryption_service.decrypt(encrypted_key)
         if decrypted_key is None:
-            print(f"Failed to decrypt key for {apikeey_id}. It might be corrupted or an old format.", file=sys.stderr)
+            print(f"Failed to decrypt key for {thirdpartyapikey_id}. It might be corrupted or an old format.", file=sys.stderr)
             return None
         return decrypted_key
 
-    def delete_apikeey(self, apikeey_query: ThirdPartyApiKeyQuery):
+    def delete_thirdpartyapikey(self, thirdpartyapikey_query: ThirdPartyApiKeyQuery):
         """Deletes an API key from keyring and the local data index.
 
         Args:
-            apikeey_query: An `ThirdPartyApiKeyQuery` object specifying the key to delete.
+            thirdpartyapikey_query: An `ThirdPartyApiKeyQuery` object specifying the key to delete.
         """
-        if not apikeey_query:
+        if not thirdpartyapikey_query:
             return
-        apikeey_slot_id = apikeey_query.apikeey_slot_id
-        apikeey_id = apikeey_query.apikeey_id
+        thirdpartyapikey_slot_id = thirdpartyapikey_query.thirdpartyapikey_slot_id
+        thirdpartyapikey_id = thirdpartyapikey_query.thirdpartyapikey_id
 
-        keyring.delete_password(self._get_keyring_service_name(apikeey_slot_id), apikeey_id)
-        if apikeey_slot_id in self._data['apikeey_slot_id_to_apikeey_id_list_dict']:
-            if apikeey_id in self._data['apikeey_slot_id_to_apikeey_id_list_dict'][apikeey_slot_id]:
-                self._data['apikeey_slot_id_to_apikeey_id_list_dict'][apikeey_slot_id].remove(apikeey_id)
+        keyring.delete_password(self._get_keyring_service_name(thirdpartyapikey_slot_id), thirdpartyapikey_id)
+        if thirdpartyapikey_slot_id in self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict']:
+            if thirdpartyapikey_id in self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict'][thirdpartyapikey_slot_id]:
+                self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict'][thirdpartyapikey_slot_id].remove(thirdpartyapikey_id)
         self._save_data()
 
-    def get_apikeey_list(self, query_list: list[ThirdPartyApiKeyQuery]) -> list[str]:
+    def get_thirdpartyapikey_list(self, query_list: list[ThirdPartyApiKeyQuery]) -> list[str]:
         """Retrieves a list of API keys for the specified services.
 
         This method returns a list of decrypted API keys for the provided
@@ -285,12 +285,12 @@ class ThirdPartyApiKeyManager:
         if not self.encryption_service:
             raise RuntimeError("Encryption service not available. Cannot get keys.")
 
-        ret_apikeey_list = []
+        ret_thirdpartyapikey_list = []
         for query in query_list:
-            apikeey = self.get_apikeey(query)
-            if apikeey is not None:
-                ret_apikeey_list.append(apikeey)
-        return ret_apikeey_list
+            thirdpartyapikey = self.get_thirdpartyapikey(query)
+            if thirdpartyapikey is not None:
+                ret_thirdpartyapikey_list.append(thirdpartyapikey)
+        return ret_thirdpartyapikey_list
 
     def re_encrypt(self, old_encryption_service: EncryptionService, new_encryption_service: EncryptionService):
         """Re-encrypts all stored API keys with a new encryption service.
@@ -313,28 +313,28 @@ class ThirdPartyApiKeyManager:
         """
         print("Re-encrypting all API keys...")
 
-        if 'apikeey_slot_id_to_apikeey_id_list_dict' not in self._data:
+        if 'thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict' not in self._data:
             return # Nothing to re-encrypt if no keys are stored
 
-        apikeey_slot_id_to_apikeey_id_list_dict = self._data['apikeey_slot_id_to_apikeey_id_list_dict']
-        for apikeey_slot_id, apikeey_id_list in apikeey_slot_id_to_apikeey_id_list_dict.items():
-            for apikeey_id in apikeey_id_list:
+        thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict = self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict']
+        for thirdpartyapikey_slot_id, thirdpartyapikey_id_list in thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict.items():
+            for thirdpartyapikey_id in thirdpartyapikey_id_list:
                 try:
-                    encrypted_val = keyring.get_password(self._get_keyring_service_name(apikeey_slot_id), apikeey_id)
+                    encrypted_val = keyring.get_password(self._get_keyring_service_name(thirdpartyapikey_slot_id), thirdpartyapikey_id)
                     if not encrypted_val:
-                        print(f"No key found in keyring for {apikeey_id}, skipping re-encryption.", file=sys.stderr)
+                        print(f"No key found in keyring for {thirdpartyapikey_id}, skipping re-encryption.", file=sys.stderr)
                         continue
 
                     plain_key = old_encryption_service.decrypt(encrypted_val)
                     if not plain_key:
-                        print(f"Failed to decrypt key for {apikeey_id} using old encryption service. Cannot re-encrypt.", file=sys.stderr)
+                        print(f"Failed to decrypt key for {thirdpartyapikey_id} using old encryption service. Cannot re-encrypt.", file=sys.stderr)
                         continue
 
                     new_encrypted_key = new_encryption_service.encrypt(plain_key)
-                    keyring.set_password(self._get_keyring_service_name(apikeey_slot_id), apikeey_id, new_encrypted_key)
-                    print(f"Successfully re-encrypted key for {apikeey_id} in keyring.")
+                    keyring.set_password(self._get_keyring_service_name(thirdpartyapikey_slot_id), thirdpartyapikey_id, new_encrypted_key)
+                    print(f"Successfully re-encrypted key for {thirdpartyapikey_id} in keyring.")
                 except Exception as e:
-                    print(f"Error re-encrypting key for {apikeey_id} in keyring: {e}", file=sys.stderr)
+                    print(f"Error re-encrypting key for {thirdpartyapikey_id} in keyring: {e}", file=sys.stderr)
 
 
     def clear(self):
@@ -354,14 +354,14 @@ class ThirdPartyApiKeyManager:
           was cleared), it attempts to remove the default salt file directly.
         """
         print("Clearing all API keys and data...")
-        apikeey_slot_id_to_apikeey_id_list_dict = self._data['apikeey_slot_id_to_apikeey_id_list_dict']
-        for apikeey_slot_id, apikeey_id_list in apikeey_slot_id_to_apikeey_id_list_dict.items():
-            for apikeey_id in apikeey_id_list:
+        thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict = self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict']
+        for thirdpartyapikey_slot_id, thirdpartyapikey_id_list in thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict.items():
+            for thirdpartyapikey_id in thirdpartyapikey_id_list:
                 try:
-                    keyring.delete_password(self._get_keyring_service_name(apikeey_slot_id), apikeey_id)
-                    print(f"Deleted key for {apikeey_id} from keyring.")
+                    keyring.delete_password(self._get_keyring_service_name(thirdpartyapikey_slot_id), thirdpartyapikey_id)
+                    print(f"Deleted key for {thirdpartyapikey_id} from keyring.")
                 except Exception as e:
-                    print(f"Error deleting key for {apikeey_id} from keyring: {e}", file=sys.stderr)
+                    print(f"Error deleting key for {thirdpartyapikey_id} from keyring: {e}", file=sys.stderr)
 
         self._data = None
 
@@ -374,7 +374,7 @@ class ThirdPartyApiKeyManager:
 
         self._fix_data()  # Reset to empty structure
 
-    def get_available_apikeey_query_list(self) -> list[ThirdPartyApiKeyQuery]:
+    def get_available_thirdpartyapikey_query_list(self) -> list[ThirdPartyApiKeyQuery]:
         """Retrieves a list of all available API key queries.
 
         This method returns a list of `ThirdPartyApiKeyQuery` instances for all
@@ -384,11 +384,11 @@ class ThirdPartyApiKeyManager:
         Returns:
             list[ThirdPartyApiKeyQuery]: A list of ThirdPartyApiKeyQuery instances for all available API keys.
         """
-        if not self._data or 'apikeey_slot_id_to_apikeey_id_list_dict' not in self._data:
+        if not self._data or 'thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict' not in self._data:
             return []
 
-        apikeey_query_list = []
-        for apikeey_slot_id, apikeey_id_list in self._data['apikeey_slot_id_to_apikeey_id_list_dict'].items():
-            for apikeey_id in apikeey_id_list:
-                apikeey_query_list.append(ThirdPartyApiKeyQuery(apikeey_slot_id, apikeey_id))
-        return apikeey_query_list
+        thirdpartyapikey_query_list = []
+        for thirdpartyapikey_slot_id, thirdpartyapikey_id_list in self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict'].items():
+            for thirdpartyapikey_id in thirdpartyapikey_id_list:
+                thirdpartyapikey_query_list.append(ThirdPartyApiKeyQuery(thirdpartyapikey_slot_id, thirdpartyapikey_id))
+        return thirdpartyapikey_query_list

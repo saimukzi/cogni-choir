@@ -12,15 +12,15 @@ from . import third_party
 
 class ThirdPartyApiKeyDialog(QDialog):
     """A dialog for managing API keys for various AI services."""
-    def __init__(self, apikeey_slot_info_list: list[third_party.ThirdPartyApiKeySlotInfo], apikeey_manager: ThirdPartyApiKeyManager, parent=None):
+    def __init__(self, thirdpartyapikey_slot_info_list: list[third_party.ThirdPartyApiKeySlotInfo], thirdpartyapikey_manager: ThirdPartyApiKeyManager, parent=None):
         """Initializes the ThirdPartyApiKeyDialog.
 
         Args:
-            apikeey_manager: An instance of ThirdPartyApiKeyManager to handle key storage.
+            thirdpartyapikey_manager: An instance of ThirdPartyApiKeyManager to handle key storage.
             parent: The parent widget, if any.
         """
         super().__init__(parent)
-        self.apikeey_manager = apikeey_manager
+        self.thirdpartyapikey_manager = thirdpartyapikey_manager
         self.setWindowTitle(self.tr("API Key Management"))
         self.setMinimumWidth(400)
 
@@ -28,14 +28,14 @@ class ThirdPartyApiKeyDialog(QDialog):
         form_layout = QFormLayout()
 
         self.service_combo = QComboBox()
-        for apikeey_slot_info in apikeey_slot_info_list:
-            self.service_combo.addItem(apikeey_slot_info.name, apikeey_slot_info.apikeey_slot_id)
+        for thirdpartyapikey_slot_info in thirdpartyapikey_slot_info_list:
+            self.service_combo.addItem(thirdpartyapikey_slot_info.name, thirdpartyapikey_slot_info.thirdpartyapikey_slot_id)
         self.service_combo.currentTextChanged.connect(self._load_key_for_display)
         form_layout.addRow(self.tr("Service:"), self.service_combo)
 
-        self.apikeey_input = QLineEdit()
-        self.apikeey_input.setEchoMode(QLineEdit.EchoMode.Password) # Mask API key
-        form_layout.addRow(self.tr("API Key:"), self.apikeey_input)
+        self.thirdpartyapikey_input = QLineEdit()
+        self.thirdpartyapikey_input.setEchoMode(QLineEdit.EchoMode.Password) # Mask API key
+        form_layout.addRow(self.tr("API Key:"), self.thirdpartyapikey_input)
 
         layout.addLayout(form_layout)
 
@@ -58,42 +58,42 @@ class ThirdPartyApiKeyDialog(QDialog):
 
     def _load_key_for_display(self):
         """Loads and displays the API key for the currently selected service."""
-        apikeey_slot_id = self.service_combo.currentData()
-        apikeey_id = apikeey_slot_id # TODO: Handle multiple keys per service if needed
-        if apikeey_slot_id: # Ensure a service is actually selected
-            key = self.apikeey_manager.get_apikeey(ThirdPartyApiKeyQuery(apikeey_slot_id, apikeey_id))
-            self.apikeey_input.setText(key if key else "")
+        thirdpartyapikey_slot_id = self.service_combo.currentData()
+        thirdpartyapikey_id = thirdpartyapikey_slot_id # TODO: Handle multiple keys per service if needed
+        if thirdpartyapikey_slot_id: # Ensure a service is actually selected
+            key = self.thirdpartyapikey_manager.get_thirdpartyapikey(ThirdPartyApiKeyQuery(thirdpartyapikey_slot_id, thirdpartyapikey_id))
+            self.thirdpartyapikey_input.setText(key if key else "")
         else:
-            self.apikeey_input.clear()
+            self.thirdpartyapikey_input.clear()
 
 
     def _save_key(self):
         """Saves the API key entered in the input field for the selected service."""
-        apikeey_slot_id = self.service_combo.currentData()
-        apikeey_id = apikeey_slot_id # TODO: Handle multiple keys per service if needed
-        key_text = self.apikeey_input.text()
-        if not apikeey_slot_id:
+        thirdpartyapikey_slot_id = self.service_combo.currentData()
+        thirdpartyapikey_id = thirdpartyapikey_slot_id # TODO: Handle multiple keys per service if needed
+        key_text = self.thirdpartyapikey_input.text()
+        if not thirdpartyapikey_slot_id:
             QMessageBox.warning(self, self.tr("Warning"), self.tr("Please select a service."))
             return
         if not key_text:
             QMessageBox.warning(self, self.tr("Warning"), self.tr("API Key cannot be empty."))
             return
 
-        self.apikeey_manager.set_apikeey(ThirdPartyApiKeyQuery(apikeey_slot_id, apikeey_id), key_text)
+        self.thirdpartyapikey_manager.set_thirdpartyapikey(ThirdPartyApiKeyQuery(thirdpartyapikey_slot_id, thirdpartyapikey_id), key_text)
         QMessageBox.information(self, self.tr("Success"), self.tr("API Key saved."))
 
     def _delete_key(self):
         """Deletes the API key for the selected service after confirmation."""
-        apikeey_slot_id = self.service_combo.currentData()
-        apikeey_id = apikeey_slot_id # TODO: Handle multiple keys per service if needed
-        if not apikeey_slot_id:
+        thirdpartyapikey_slot_id = self.service_combo.currentData()
+        thirdpartyapikey_id = thirdpartyapikey_slot_id # TODO: Handle multiple keys per service if needed
+        if not thirdpartyapikey_slot_id:
             QMessageBox.warning(self, self.tr("Warning"), self.tr("Please select a service to delete the key for."))
             return
 
         reply = QMessageBox.question(self, self.tr("Confirm Delete"),
-                                     self.tr("Are you sure you want to delete the API key for {0}?").format(apikeey_slot_id),
+                                     self.tr("Are you sure you want to delete the API key for {0}?").format(thirdpartyapikey_slot_id),
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            self.apikeey_manager.delete_apikeey(ThirdPartyApiKeyQuery(apikeey_slot_id, apikeey_id))
-            self.apikeey_input.clear()
+            self.thirdpartyapikey_manager.delete_thirdpartyapikey(ThirdPartyApiKeyQuery(thirdpartyapikey_slot_id, thirdpartyapikey_id))
+            self.thirdpartyapikey_input.clear()
             QMessageBox.information(self, self.tr("Success"), self.tr("API Key deleted."))
