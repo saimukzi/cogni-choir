@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 # This assumes your tests are run from the project root or that src is in PYTHONPATH
 from src.main.bot_template_manager import BotTemplateManager, BOT_TEMPLATES_FILE
 from src.main.ai_bots import Bot
-from src.main.apikey_manager import ApiKeyQuery
+from main.apikeey_manager import ApiKeeyQuery
 
 
 # Helper to create a dummy Bot instance for testing
@@ -17,9 +17,9 @@ def create_dummy_bot(name="TestBot", aiengine_id="test_engine", model="gpt-test"
     bot.name = name
     bot.aiengine_id = aiengine_id
     bot.aiengine_arg_dict = {"model_name": model, "system_prompt": prompt}
-    # Example ApiKeyQuery, adjust if your structure is different
-    # Assuming ApiKeyQuery can be instantiated like this and has a to_dict method
-    bot.apikey_query_list = [ApiKeyQuery(apikey_slot_id="test_api_key_slot", apikey_id="Test API Key")]
+    # Example ApiKeeyQuery, adjust if your structure is different
+    # Assuming ApiKeeyQuery can be instantiated like this and has a to_dict method
+    bot.apikeey_query_list = [ApiKeeyQuery(apikeey_slot_id="test_api_key_slot", apikeey_id="Test API Key")]
     return bot
 
 class TestBotTemplateManager(unittest.TestCase):
@@ -143,7 +143,7 @@ class TestBotTemplateManager(unittest.TestCase):
         template_id = self.manager.create_template(bot_config_orig)
 
         bot_config_updated = create_dummy_bot(name="UpdatedName", model="gpt-4-updated")
-        bot_config_updated.apikey_query_list = [ApiKeyQuery(apikey_slot_id="updated_slot", apikey_id="Updated Key")]
+        bot_config_updated.apikeey_query_list = [ApiKeeyQuery(apikeey_slot_id="updated_slot", apikeey_id="Updated Key")]
 
 
         update_success = self.manager.update_template(template_id, bot_config_updated)
@@ -154,12 +154,12 @@ class TestBotTemplateManager(unittest.TestCase):
         self.assertEqual(retrieved_template.name, "UpdatedName")
         self.assertEqual(retrieved_template.aiengine_arg_dict.get("model_name"), "gpt-4-updated")
 
-        self.assertEqual(len(retrieved_template.apikey_query_list), 1)
-        if retrieved_template.apikey_query_list:
-            # Ensure ApiKeyQuery objects are being compared meaningfully or check attributes
-            # This assumes ApiKeyQuery has .apikey_slot_id and .apikey_id attributes
-            self.assertEqual(retrieved_template.apikey_query_list[0].apikey_slot_id, "updated_slot")
-            self.assertEqual(retrieved_template.apikey_query_list[0].apikey_id, "Updated Key")
+        self.assertEqual(len(retrieved_template.apikeey_query_list), 1)
+        if retrieved_template.apikeey_query_list:
+            # Ensure ApiKeeyQuery objects are being compared meaningfully or check attributes
+            # This assumes ApiKeeyQuery has .apikeey_slot_id and .apikeey_id attributes
+            self.assertEqual(retrieved_template.apikeey_query_list[0].apikeey_slot_id, "updated_slot")
+            self.assertEqual(retrieved_template.apikeey_query_list[0].apikeey_id, "Updated Key")
 
 
         update_fail = self.manager.update_template("non_id", bot_config_updated)
@@ -191,11 +191,11 @@ class TestBotTemplateManager(unittest.TestCase):
     def test_09_load_templates_from_file(self):
         """Test loading templates from an existing file."""
         bot1 = create_dummy_bot(name="FileBot1", model="model1", prompt="prompt1")
-        bot1.apikey_query_list = [ApiKeyQuery(apikey_slot_id="slot1", apikey_id="key_id1")]
+        bot1.apikeey_query_list = [ApiKeeyQuery(apikeey_slot_id="slot1", apikeey_id="key_id1")]
         bot2 = create_dummy_bot(name="FileBot2", model="model2", prompt="prompt2")
-        bot2.apikey_query_list = [ApiKeyQuery(apikey_slot_id="slot2", apikey_id="key_id2")]
+        bot2.apikeey_query_list = [ApiKeeyQuery(apikeey_slot_id="slot2", apikeey_id="key_id2")]
 
-        # Helper for consistent serialization, matching Bot.to_dict and ApiKeyQuery.to_dict
+        # Helper for consistent serialization, matching Bot.to_dict and ApiKeeyQuery.to_dict
         def bot_to_savable_dict(bot_instance: Bot) -> dict:
             return bot_instance.to_dict()
 
@@ -219,12 +219,12 @@ class TestBotTemplateManager(unittest.TestCase):
         self.assertIsNotNone(bot1_loaded)
         self.assertEqual(bot1_loaded.name, "FileBot1")
         self.assertEqual(bot1_loaded.aiengine_arg_dict.get("model_name"), "model1")
-        self.assertEqual(len(bot1_loaded.apikey_query_list), 1)
-        if bot1_loaded.apikey_query_list:
-            query = bot1_loaded.apikey_query_list[0]
-            self.assertTrue(isinstance(query, ApiKeyQuery))
-            self.assertEqual(query.apikey_slot_id, "slot1")
-            self.assertEqual(query.apikey_id, "key_id1")
+        self.assertEqual(len(bot1_loaded.apikeey_query_list), 1)
+        if bot1_loaded.apikeey_query_list:
+            query = bot1_loaded.apikeey_query_list[0]
+            self.assertTrue(isinstance(query, ApiKeeyQuery))
+            self.assertEqual(query.apikeey_slot_id, "slot1")
+            self.assertEqual(query.apikeey_id, "key_id1")
 
 
     def test_10_load_malformed_json_file(self):

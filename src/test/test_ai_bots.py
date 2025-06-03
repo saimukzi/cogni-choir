@@ -42,7 +42,7 @@ class TestBot(unittest.TestCase):
             "system_prompt": "Be helpful.", # System prompt is now an engine argument
             "model_name": "mocked-model-001"  # Model name is also an engine argument
         }
-        # apikey_query_list is initialized to None by Bot.__init__
+        # apikeey_query_list is initialized to None by Bot.__init__
 
     def test_bot_creation(self): # Ensure basic attributes are set
         """Tests basic Bot attributes after creation."""
@@ -50,7 +50,7 @@ class TestBot(unittest.TestCase):
         self.assertEqual(self.bot.aiengine_id, "mock_engine_id_001")
         self.assertEqual(self.bot.get_aiengine_arg("system_prompt"), "Be helpful.")
         self.assertEqual(self.bot.get_aiengine_arg("model_name"), "mocked-model-001")
-        self.assertListEqual(self.bot.apikey_query_list, []) # Ensure it's an empty list if not set
+        self.assertListEqual(self.bot.apikeey_query_list, []) # Ensure it's an empty list if not set
 
     def test_bot_to_dict(self):
         """Tests the serialization of a Bot instance to a dictionary."""
@@ -61,7 +61,7 @@ class TestBot(unittest.TestCase):
                 "system_prompt": "Be helpful.",
                 "model_name": "mocked-model-001"
             },
-            "apikey_query_list": []
+            "apikeey_query_list": []
         }
         self.assertEqual(self.bot.to_dict(), expected_dict)
 
@@ -76,13 +76,13 @@ class TestGoogleEngine(unittest.TestCase): # Renamed from TestGeminiEngine
     def test_google_init_success(self, mock_genai_sdk): # Renamed
         """Tests successful initialization of Google engine with a mock SDK."""
         mock_genai_sdk.Client.return_value = self.mock_genai_client_instance
-        # Google class __init__ takes no apikey or model_name. These are passed to generate_response.
+        # Google class __init__ takes no apikeey or model_name. These are passed to generate_response.
         engine = Google()
         # To test _get_client behavior, we'd call generate_response.
         # For an "init_success" test, we mostly ensure it can be instantiated.
         self.assertIsInstance(engine, Google)
         # We can also test that the internal client dict is empty initially.
-        self.assertEqual(len(engine._apikey_to_client_dict), 0)
+        self.assertEqual(len(engine._apikeey_to_client_dict), 0)
 
 
     @patch('src.main.third_parties.google.genai') # Patched to new location
@@ -94,13 +94,13 @@ class TestGoogleEngine(unittest.TestCase): # Renamed from TestGeminiEngine
 
         engine = Google()
         aiengine_arg_dict = {"model_name": "gemini-custom", "system_prompt": "System prompt ASFWDYPWYL"}
-        apikey_list = ["fake_google_key"]
+        apikeey_list = ["fake_google_key"]
         conversation_history = [Message(sender='user', content='Test message OETMTOCXPR')]
 
         response = engine.generate_response(
             _aiengine_id="google_gemini", # Matches AIEngineInfo
             aiengine_arg_dict=aiengine_arg_dict,
-            apikey_list=apikey_list,
+            apikeey_list=apikeey_list,
             role_name='FakeGoogleBot',
             conversation_history=conversation_history
         )
@@ -117,24 +117,24 @@ class TestGoogleEngine(unittest.TestCase): # Renamed from TestGeminiEngine
 
         engine = Google()
         aiengine_arg_dict = {"model_name": "gemini-error", "system_prompt": "System Prompt for API Error Test"}
-        apikey_list = ["fake_google_key_error"]
+        apikeey_list = ["fake_google_key_error"]
         conversation_history = [Message(sender='user', content='Test message')]
 
         response = engine.generate_response(
             _aiengine_id="google_gemini",
             aiengine_arg_dict=aiengine_arg_dict,
-            apikey_list=apikey_list,
+            apikeey_list=apikeey_list,
             role_name="TestRole",
             conversation_history=conversation_history
         )
         self.assertTrue(response.startswith("Error: Gemini API call failed: Google API Error"))
 
     @patch('src.main.third_parties.google.genai') # Patched to new location
-    def test_google_no_apikey(self, mock_genai_sdk): # Renamed
+    def test_google_no_apikeey(self, mock_genai_sdk): # Renamed
         """Tests Google engine's behavior when an API key is not provided in list."""
         engine = Google()
         aiengine_arg_dict = {"model_name": "gemini-no-key"}
-        # generate_response in Google class asserts `len(apikey_list) == 1`.
+        # generate_response in Google class asserts `len(apikeey_list) == 1`.
         with self.assertRaises(AssertionError):
             engine.generate_response("google_gemini", aiengine_arg_dict, [], "TestRole", [])
 
@@ -167,7 +167,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
 
         # Define arguments for generate_response, which triggers _get_client
         aiengine_arg_dict = {"model_name": "test_deployment", "system_prompt": "Test system prompt"}
-        apikey_list = ["test_api_key"]
+        apikeey_list = ["test_api_key"]
 
         # Mock commons.read_str as it's used in _get_client via generate_response
         with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_init"):
@@ -175,20 +175,20 @@ class TestAzureOpenAIEngine(unittest.TestCase):
             engine.generate_response(
                 _aiengine_id="azure_openai",
                 aiengine_arg_dict=aiengine_arg_dict,
-                apikey_list=apikey_list,
+                apikeey_list=apikeey_list,
                 role_name="TestRoleInit",
                 conversation_history=[]
             )
 
         # Assert that the underlying SDK client was initialized by _get_client
         mock_sdk_azure_openai_class.assert_called_once_with(
-            api_key=apikey_list[0],
+            api_key=apikeey_list[0],
             azure_endpoint="fake_endpoint_init",
             api_version='2024-12-01-preview' # As hardcoded in azure_openai.py
         )
         # Check if the client instance is cached (optional, depends on desired test depth)
-        # self.assertIn((apikey_list[0], "fake_endpoint_init", '2024-12-01-preview'), engine._client_dict)
-        # self.assertEqual(engine._client_dict[(apikey_list[0], "fake_endpoint_init", '2024-12-01-preview')], self.mock_openai_client_instance)
+        # self.assertIn((apikeey_list[0], "fake_endpoint_init", '2024-12-01-preview'), engine._client_dict)
+        # self.assertEqual(engine._client_dict[(apikeey_list[0], "fake_endpoint_init", '2024-12-01-preview')], self.mock_openai_client_instance)
 
 
     @patch('src.main.third_parties.azure_openai.openai.AzureOpenAI') # Mock the actual SDK client
@@ -201,7 +201,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
             "model_name": "gpt-custom-deployment",
             "system_prompt": "System instructions for AI."
         }
-        apikey_list_for_test = ["fake_azure_openai_key"]
+        apikeey_list_for_test = ["fake_azure_openai_key"]
         role_name_for_test = "TestBot"
         conversation_history_for_test = [Message(sender='User1', content='Hello AI, this is my first message.')]
         
@@ -209,7 +209,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
             response = engine.generate_response(
                 _aiengine_id="azure_openai",
                 aiengine_arg_dict=aiengine_arg_dict_for_test,
-                apikey_list=apikey_list_for_test,
+                apikeey_list=apikeey_list_for_test,
                 role_name=role_name_for_test,
                 conversation_history=conversation_history_for_test
             )
@@ -226,7 +226,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
             messages=expected_api_messages
         )
         mock_sdk_azure_openai_class.assert_called_once_with(
-            api_key=apikey_list_for_test[0],
+            api_key=apikeey_list_for_test[0],
             azure_endpoint="fake_endpoint_success",
             api_version='2024-12-01-preview'
         )
@@ -240,14 +240,14 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         
         engine = AzureOpenAI()
         aiengine_arg_dict_for_test = {"model_name": "deployment-error", "system_prompt": "SysPrompt"}
-        apikey_list_for_test = ["fake_key_error"]
+        apikeey_list_for_test = ["fake_key_error"]
         conversation_history_for_test = [Message(sender='user', content='Test message')]
 
         with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_error"):
             response = engine.generate_response(
                 _aiengine_id="azure_openai",
                 aiengine_arg_dict=aiengine_arg_dict_for_test,
-                apikey_list=apikey_list_for_test,
+                apikeey_list=apikeey_list_for_test,
                 role_name="TestRole",
                 conversation_history=conversation_history_for_test
             )
@@ -262,9 +262,9 @@ class TestAzureOpenAIEngine(unittest.TestCase):
 
         engine = AzureOpenAI()
         aiengine_arg_dict = {"model_name": "deployment-rl-error", "system_prompt": "SysPrompt"}
-        apikey_list = ["fake_key_rl_error"]
+        apikeey_list = ["fake_key_rl_error"]
         with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_rl_error"):
-            response = engine.generate_response("azure_openai", aiengine_arg_dict, apikey_list, "TestRoleRL", [])
+            response = engine.generate_response("azure_openai", aiengine_arg_dict, apikeey_list, "TestRoleRL", [])
         self.assertTrue(response.startswith("Error: Azure OpenAI API rate limit exceeded. Details:"))
 
     @patch('src.main.third_parties.azure_openai.openai.AzureOpenAI')
@@ -276,9 +276,9 @@ class TestAzureOpenAIEngine(unittest.TestCase):
 
         engine = AzureOpenAI()
         aiengine_arg_dict = {"model_name": "deployment-auth-error", "system_prompt": "SysPrompt"}
-        apikey_list = ["fake_key_auth_error"]
+        apikeey_list = ["fake_key_auth_error"]
         with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_auth_error"):
-            response = engine.generate_response("azure_openai", aiengine_arg_dict, apikey_list, "TestRoleAuth", [])
+            response = engine.generate_response("azure_openai", aiengine_arg_dict, apikeey_list, "TestRoleAuth", [])
         self.assertTrue(response.startswith("Error: Azure OpenAI API authentication failed."))
 
     @patch('src.main.third_parties.azure_openai.openai.AzureOpenAI')
@@ -291,12 +291,12 @@ class TestAzureOpenAIEngine(unittest.TestCase):
 
         engine = AzureOpenAI()
         aiengine_arg_dict = {"model_name": "deployment-generic-api-error", "system_prompt": "SysPrompt"}
-        apikey_list = ["fake_key_generic_api_error"]
+        apikeey_list = ["fake_key_generic_api_error"]
         with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_generic_api_error"):
-            response = engine.generate_response("azure_openai", aiengine_arg_dict, apikey_list, "TestRoleGenericAPI", [])
+            response = engine.generate_response("azure_openai", aiengine_arg_dict, apikeey_list, "TestRoleGenericAPI", [])
         self.assertTrue(response.startswith("Error: An unexpected error occurred with the Azure OpenAI API. Details:"))
 
-    def test_openai_no_apikey_or_improper_config(self):
+    def test_openai_no_apikeey_or_improper_config(self):
         """
         Tests AzureOpenAI's behavior when no API key is provided or if the configuration is improper.
         """
@@ -304,7 +304,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         aiengine_arg_dict = {"model_name": "deployment-no-key", "system_prompt": ""}
 
         with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_no_key"):
-            # Test with empty apikey list (AssertionError)
+            # Test with empty apikeey list (AssertionError)
             with self.assertRaisesRegex(AssertionError, "Azure OpenAI requires exactly one API key."):
                  engine.generate_response("azure_openai", aiengine_arg_dict, [], "TestRole", [])
 
@@ -342,7 +342,7 @@ class TestXAIEngine(unittest.TestCase): # Renamed from TestGrokEngine
 
         engine = XAI() # Renamed, XAI takes no args in __init__
         aiengine_arg_dict = {"model_name": "grok-test-model", "system_prompt": "System prompt for XAI."}
-        apikey_list = ["fake_xai_key"]
+        apikeey_list = ["fake_xai_key"]
         role_name = "TestXAIBot"
         conversation_history = [
             Message(sender='User', content='Hello XAI!'),
@@ -353,7 +353,7 @@ class TestXAIEngine(unittest.TestCase): # Renamed from TestGrokEngine
         response = engine.generate_response( # Call with full args
             _aiengine_id="xai_grok", # Matches AIEngineInfo
             aiengine_arg_dict=aiengine_arg_dict,
-            apikey_list=apikey_list,
+            apikeey_list=apikeey_list,
             role_name=role_name,
             conversation_history=conversation_history
         )
@@ -378,16 +378,16 @@ class TestXAIEngine(unittest.TestCase): # Renamed from TestGrokEngine
         """Tests successful initialization of XAI engine."""
         engine = XAI()
         self.assertIsInstance(engine, XAI)
-        self.assertEqual(len(engine._apikey_to_client_dict), 0)
+        self.assertEqual(len(engine._apikeey_to_client_dict), 0)
         # _get_client is tested via generate_response, checking mock_openai_class call there.
 
-    def test_xai_init_no_apikey(self): # Renamed
-        """XAI class takes no apikey in __init__. This test might be obsolete or test generate_response."""
+    def test_xai_init_no_apikeey(self): # Renamed
+        """XAI class takes no apikeey in __init__. This test might be obsolete or test generate_response."""
         # This test as-is for __init__ is not applicable.
-        # Testing no apikey for generate_response:
+        # Testing no apikeey for generate_response:
         engine = XAI()
         aiengine_arg_dict = {"model_name": "grok-no-key"}
-        with self.assertRaises(AssertionError): # XAI asserts len(apikey_list) == 1
+        with self.assertRaises(AssertionError): # XAI asserts len(apikeey_list) == 1
             engine.generate_response("xai_grok", aiengine_arg_dict, [], "TestRole", [])
 
     # Test for APIConnectionError
@@ -402,8 +402,8 @@ class TestXAIEngine(unittest.TestCase): # Renamed from TestGrokEngine
 
         engine = XAI()
         aiengine_arg_dict = {"model_name": "grok-conn-error"}
-        apikey_list = ["fake_xai_key_conn_error"]
-        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikey_list, "TestRole", [])
+        apikeey_list = ["fake_xai_key_conn_error"]
+        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikeey_list, "TestRole", [])
         
         self.assertTrue(response.startswith("Error: Could not connect to Grok API."))
         mock_logging_error.assert_called_once()
@@ -418,8 +418,8 @@ class TestXAIEngine(unittest.TestCase): # Renamed from TestGrokEngine
 
         engine = XAI()
         aiengine_arg_dict = {"model_name": "grok-rate-limit"}
-        apikey_list = ["fake_xai_key_rate_limit"]
-        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikey_list, "TestRole", [])
+        apikeey_list = ["fake_xai_key_rate_limit"]
+        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikeey_list, "TestRole", [])
 
         self.assertTrue(response.startswith("Error: Grok API rate limit exceeded."))
         mock_logging_error.assert_called_once()
@@ -434,8 +434,8 @@ class TestXAIEngine(unittest.TestCase): # Renamed from TestGrokEngine
         
         engine = XAI()
         aiengine_arg_dict = {"model_name": "grok-auth-error"}
-        apikey_list = ["fake_xai_key_auth_error"]
-        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikey_list, "TestRole", [])
+        apikeey_list = ["fake_xai_key_auth_error"]
+        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikeey_list, "TestRole", [])
 
         self.assertTrue(response.startswith("Error: Grok API authentication failed."))
         mock_logging_error.assert_called_once()
@@ -450,8 +450,8 @@ class TestXAIEngine(unittest.TestCase): # Renamed from TestGrokEngine
 
         engine = XAI()
         aiengine_arg_dict = {"model_name": "grok-api-error"}
-        apikey_list = ["fake_xai_key_api_error"]
-        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikey_list, "TestRole", [])
+        apikeey_list = ["fake_xai_key_api_error"]
+        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikeey_list, "TestRole", [])
 
         self.assertTrue(response.startswith("Error: An unexpected error occurred with the Grok API."))
         mock_logging_error.assert_called_once()
@@ -466,14 +466,14 @@ class TestXAIEngine(unittest.TestCase): # Renamed from TestGrokEngine
 
         engine = XAI()
         aiengine_arg_dict = {"model_name": "grok-unexpected-error"}
-        apikey_list = ["fake_xai_key_unexpected_error"]
-        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikey_list, "TestRole", [])
+        apikeey_list = ["fake_xai_key_unexpected_error"]
+        response = engine.generate_response("xai_grok", aiengine_arg_dict, apikeey_list, "TestRole", [])
 
         self.assertTrue(response.startswith("Error: An unexpected error occurred. Details: Something totally unexpected happened"))
         mock_logging_error.assert_called_once()
 
     # This test seems to be misplaced as it was testing AIEngine/GrokEngine base class behavior.
-    # For XAI (which inherits ThirdPartyBase), the apikey and model_name are not direct __init__ args.
+    # For XAI (which inherits ThirdPartyBase), the apikeey and model_name are not direct __init__ args.
     # We can remove this or adapt it to test ThirdPartyBase if a generic test for it is needed.
     # For now, removing as XAI's specific init is tested in test_xai_init_success.
     # @patch('src.main.third_parties.google.genai')
@@ -481,8 +481,8 @@ class TestXAIEngine(unittest.TestCase): # Renamed from TestGrokEngine
     #     """Tests that XAI correctly initializes attributes from AIEngine."""
     #     with patch('src.main.third_parties.xai.openai.OpenAI'):
     #         engine = XAI() # XAI init takes no args
-    #         # Attributes like apikey, model_name are not stored on XAI instance from __init__
-    #         # self.assertEqual(engine.apikey, "key123")
+    #         # Attributes like apikeey, model_name are not stored on XAI instance from __init__
+    #         # self.assertEqual(engine.apikeey, "key123")
     #         # self.assertEqual(engine.model_name, "model-abc")
     #         pass # Test can be removed or re-purposed for ThirdPartyBase if needed.
 
@@ -498,35 +498,35 @@ class TestXAIEngine(unittest.TestCase): # Renamed from TestGrokEngine
 #         """Tests successful creation of a Bot with Google engine."""
 #         # This test would need to be completely rewritten based on how bots are now created.
 #         # Assuming create_bot still exists and works similarly for demonstration:
-#         # engine_config = {"engine_type": "Google", "apikey": "test_google_key"}
+#         # engine_config = {"engine_type": "Google", "apikeey": "test_google_key"}
 #         # bot = create_bot(bot_name="GoogleTestBot", system_prompt="Test", engine_config=engine_config)
 #         # self.assertIsInstance(bot, Bot)
 #         # self.assertIsInstance(bot.get_engine(), Google) # Check for Google instance
-#         # self.assertEqual(bot.get_engine().apikey, "test_google_key") # If apikey is stored on engine
+#         # self.assertEqual(bot.get_engine().apikeey, "test_google_key") # If apikeey is stored on engine
 #         pass
 
 #     def test_create_azure_openai_bot_success(self): # Renamed from test_create_openai_bot_success
-#         # engine_config = {"engine_type": "AzureOpenAI", "apikey": "test_openai_key"}
+#         # engine_config = {"engine_type": "AzureOpenAI", "apikeey": "test_openai_key"}
 #         # bot = create_bot(bot_name="OpenAITestBot", system_prompt="Test", engine_config=engine_config)
 #         # self.assertIsInstance(bot, Bot)
 #         # self.assertIsInstance(bot.get_engine(), AzureOpenAI)
-#         # self.assertEqual(bot.get_engine().apikey, "test_openai_key")
+#         # self.assertEqual(bot.get_engine().apikeey, "test_openai_key")
 #         pass
 
 #     @patch('src.main.third_parties.xai.openai.OpenAI') # Example
 #     def test_create_xai_bot_success(self, mock_xai_sdk): # Renamed
-#         # engine_config = {"engine_type": "XAI", "apikey": "test_xai_key"}
+#         # engine_config = {"engine_type": "XAI", "apikeey": "test_xai_key"}
 #         # bot = create_bot(bot_name="XAITestBot", system_prompt="Test", engine_config=engine_config)
 #         # self.assertIsInstance(bot, Bot)
 #         # self.assertIsInstance(bot.get_engine(), XAI)
-#         # self.assertEqual(bot.get_engine().apikey, "test_xai_key")
+#         # self.assertEqual(bot.get_engine().apikeey, "test_xai_key")
 #         pass
 #
 #    # ... other create_bot tests would also need similar renaming and logic updates ...
 #
 #    @patch('src.main.third_parties.google.genai') # Example patch for the Google/Gemini engine
 #    def test_create_google_bot_default_model(self, mock_genai_sdk): # Renamed
-#        # engine_config = {"engine_type": "Google", "apikey": "test_key_default_model"}
+#        # engine_config = {"engine_type": "Google", "apikeey": "test_key_default_model"}
 #        # bot = create_bot(bot_name="DefaultModelGoogle", system_prompt="Test", engine_config=engine_config)
 #        # self.assertIsInstance(bot.get_engine(), Google)
 #        # Assuming Google class sets a default model_name if not provided.

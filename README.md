@@ -66,14 +66,14 @@ set PYTHONPATH=.    # For Windows (in Command Prompt)
 - **`src/main/`**: Contains the main application source code.
   - **`ai_bots.py`**: Core `Bot` and `AIEngine` abstract class.
   - **`ai_engines/`**: Concrete AI engine implementations (Gemini, OpenAI, Grok placeholder).
-  - **`apikey_manager.py`**: Handles storage and retrieval of API keys.
+  - **`apikeey_manager.py`**: Handles storage and retrieval of API keys.
   - **`chatroom.py`**: `Chatroom` and `ChatroomManager` logic.
   - **`main_window.py`**: Main application window (PyQt6 UI).
   - **`message.py`**: `Message` class definition.
 - **`src/test/`**: Contains unit tests.
 - **`data/`**: Used for storing application data.
   - **`chatrooms/`**: Stores chatroom data (JSON files).
-  - (Fallback `apikeys.json` might appear here if keyring fails).
+  - (Fallback `apikeeys.json` might appear here if keyring fails).
 - **`design/`**: Contains design documents and use cases.
 - **`i18n/`**: Contains internationalization files (e.g., `app_zh_TW.ts`, `app_zh_TW.qm`).
 - **`requirements.txt`**: Lists Python package dependencies.

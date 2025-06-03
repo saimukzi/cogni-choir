@@ -2,7 +2,7 @@
 
 This module defines the structure for integrating various third-party AI services.
 It includes:
-- `ApiKeySlotInfo`: Describes an API key slot required by a third-party service.
+- `ApiKeeySlotInfo`: Describes an API key slot required by a third-party service.
 - `AIEngineArgInfo`: Describes an argument for a specific AI engine.
 - `AIEngineInfo`: Describes a specific AI engine provided by a third-party.
 - `ThirdPartyBase`: An abstract base class that all third-party integration
@@ -16,26 +16,26 @@ from enum import Enum
 
 from .message import Message
 
-class ApiKeySlotInfo:
+class ApiKeeySlotInfo:
     """Information about an API key slot for a third-party service.
 
     Attributes:
-        apikey_slot_id (str): A unique identifier for this API key slot (e.g., "OPENAI_API_KEY").
+        apikeey_slot_id (str): A unique identifier for this API key slot (e.g., "OPENAI_API_KEY").
         name (str): A user-friendly name for this API key slot (e.g., "OpenAI API Key").
     """
-    def __init__(self, apikey_slot_id: str, name: str):
-        """Initializes ApiKeySlotInfo.
+    def __init__(self, apikeey_slot_id: str, name: str):
+        """Initializes ApiKeeySlotInfo.
 
         Args:
-            apikey_slot_id (str): Unique identifier for the API key slot.
+            apikeey_slot_id (str): Unique identifier for the API key slot.
             name (str): Name of the API key slot.
         """
-        self.apikey_slot_id = apikey_slot_id
+        self.apikeey_slot_id = apikeey_slot_id
         self.name = name
 
     def __repr__(self):
-        """Returns a string representation of the ApiKeySlotInfo instance."""
-        return f"ApiKeySlotInfo(apikey_slot_id={self.apikey_slot_id}, name={self.name})"
+        """Returns a string representation of the ApiKeeySlotInfo instance."""
+        return f"ApiKeeySlotInfo(apikeey_slot_id={self.apikeey_slot_id}, name={self.name})"
 
 
 class AIEngineArgType(Enum):
@@ -87,24 +87,24 @@ class AIEngineInfo:
     Attributes:
         aiengine_id (str): A unique identifier for this AI engine (e.g., "OPENAI_GPT4").
         name (str): A user-friendly name for the AI engine (e.g., "OpenAI GPT-4").
-        apikey_slot_id_list (list[str]): A list of `apikey_slot_id` strings
-            that this engine requires. These IDs should correspond to `ApiKeySlotInfo`
+        apikeey_slot_id_list (list[str]): A list of `apikeey_slot_id` strings
+            that this engine requires. These IDs should correspond to `ApiKeeySlotInfo`
             instances.
         arg_list (list[AIEngineArgInfo]): A list of `AIEngineArgInfo` objects
             describing the arguments this engine accepts or requires.
     """
-    def __init__(self, aiengine_id: str, name: str, apikey_slot_id_list: list[str], arg_list: list[AIEngineArgInfo]):
+    def __init__(self, aiengine_id: str, name: str, apikeey_slot_id_list: list[str], arg_list: list[AIEngineArgInfo]):
         """Initializes AIEngineInfo.
 
         Args:
             aiengine_id (str): Unique identifier for the AI engine.
             name (str): Name of the AI engine.
-            apikey_slot_id_list (list[str]): List of API key slot IDs associated with this engine.
+            apikeey_slot_id_list (list[str]): List of API key slot IDs associated with this engine.
             arg_list (list[AIEngineArgInfo]): List of additional arguments or configurations for the engine.
         """
         self.aiengine_id = aiengine_id
         self.name = name
-        self.apikey_slot_id_list = apikey_slot_id_list
+        self.apikeey_slot_id_list = apikeey_slot_id_list
         self.arg_list = arg_list
 
     def get_aiengine_arg_info(self, arg_id: str) -> AIEngineArgInfo | None:
@@ -142,7 +142,7 @@ class ThirdPartyBase(abc.ABC):
         self.thirdparty_id = thirdparty_id
 
     @abc.abstractmethod
-    def get_apikey_slot_info_list(self) -> list[ApiKeySlotInfo]:
+    def get_apikeey_slot_info_list(self) -> list[ApiKeeySlotInfo]:
         """
         Returns a list of API key information for the third-party service.
 
@@ -168,14 +168,14 @@ class ThirdPartyBase(abc.ABC):
         raise NotImplementedError("Subclasses must implement this method.")
 
     @abc.abstractmethod
-    def generate_response(self, aiengine_id:str, aiengine_arg_dict:dict[str,str], apikey_list:list[str], role_name: str, conversation_history: list[Message]) -> str:
+    def generate_response(self, aiengine_id:str, aiengine_arg_dict:dict[str,str], apikeey_list:list[str], role_name: str, conversation_history: list[Message]) -> str:
         """
         Generates a response from the AI engine.
 
         Args:
             aiengine_id (str): The ID of the AI engine to use.
             aiengine_args (dict[str,str]): Arguments for the AI engine.
-            apikey_list (list[str]): List of API keys to use for authentication.
+            apikeey_list (list[str]): List of API keys to use for authentication.
             role_name (str): The name of the role for the AI.
             conversation_history (list[Message]): A list of Message objects representing the current conversation.
 
@@ -206,17 +206,17 @@ class ThirdPartyGroup:
 
         self._third_party_list:list[ThirdPartyBase] = [cls() for cls in self.third_party_classes]
 
-        self.apikey_slot_info_list: list[ApiKeySlotInfo] = []
+        self.apikeey_slot_info_list: list[ApiKeeySlotInfo] = []
         for third_party in self._third_party_list:
             self._logger.info(f"Loading API key slot info from {third_party.thirdparty_id}.")
-            self.apikey_slot_info_list.extend(third_party.get_apikey_slot_info_list())
+            self.apikeey_slot_info_list.extend(third_party.get_apikeey_slot_info_list())
 
-        # self.aiengine_id_to_apikey_slot_info_dict: dict[str,ApiKeySlotInfo] = {}
+        # self.aiengine_id_to_apikeey_slot_info_dict: dict[str,ApiKeeySlotInfo] = {}
         # for third_party in self._third_party_list:
-        #     for apikey_slot_info in third_party.get_apikey_slot_info_list():
-        #         assert(apikey_slot_info.apikey_slot_id not in self.aiengine_id_to_apikey_slot_info_dict), \
-        #             f"Duplicate API key slot ID found: {apikey_slot_info.apikey_slot_id} in {third_party.thirdparty_id}."
-        #         self.aiengine_id_to_apikey_slot_info_dict[apikey_slot_info.apikey_slot_id] = apikey_slot_info
+        #     for apikeey_slot_info in third_party.get_apikeey_slot_info_list():
+        #         assert(apikeey_slot_info.apikeey_slot_id not in self.aiengine_id_to_apikeey_slot_info_dict), \
+        #             f"Duplicate API key slot ID found: {apikeey_slot_info.apikeey_slot_id} in {third_party.thirdparty_id}."
+        #         self.aiengine_id_to_apikeey_slot_info_dict[apikeey_slot_info.apikeey_slot_id] = apikeey_slot_info
 
         self.aiengine_info_list: list[AIEngineInfo] = []
         for third_party in self._third_party_list:
@@ -238,7 +238,7 @@ class ThirdPartyGroup:
     def generate_response(self,
                           aiengine_id:str,
                           aiengine_arg_dict:dict[str,str],
-                          apikey_list:list[str],
+                          apikeey_list:list[str],
                           role_name: str,
                           conversation_history: list[Message]
                           ) -> str:
@@ -247,7 +247,7 @@ class ThirdPartyGroup:
         Args:
             aiengine_id (str): The ID of the AI engine to use.
             aiengine_arg_dict (dict[str,str]): Arguments for the AI engine.
-            apikey_list (list[str]): List of API keys to use for authentication.
+            apikeey_list (list[str]): List of API keys to use for authentication.
             role_name (str): The name of the role for the AI.
             conversation_history (list[Message]): A list of Message objects representing the current conversation.
         Returns:
@@ -257,4 +257,4 @@ class ThirdPartyGroup:
             raise ValueError(f"AI engine ID {aiengine_id} not found in third-party services.")
         third_party = self.aiengine_id_to_thirdparty_dict[aiengine_id]
         self._logger.info(f"Generating response using AI engine {aiengine_id} from {third_party.thirdparty_id}.")
-        return third_party.generate_response(aiengine_id, aiengine_arg_dict, apikey_list, role_name, conversation_history)
+        return third_party.generate_response(aiengine_id, aiengine_arg_dict, apikeey_list, role_name, conversation_history)

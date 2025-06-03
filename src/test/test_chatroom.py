@@ -19,12 +19,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 
 from src.main.chatroom import Chatroom, ChatroomManager, _sanitize_filename, DATA_DIR
 from src.main.ai_bots import Bot
-from src.main.third_party import ThirdPartyBase, ApiKeySlotInfo, AIEngineInfo, AIEngineArgInfo # For NoKeyEngine
+from src.main.third_party import ThirdPartyBase, ApiKeeySlotInfo, AIEngineInfo, AIEngineArgInfo # For NoKeyEngine
 from src.main.third_parties.google import Google as GeminiEngine # Alias for consistency if needed, or use Google
 from src.main.third_parties.azure_openai import AzureOpenAI as AzureOpenAIEngine # Alias
 from src.main.third_parties.xai import XAI as GrokEngine # Alias
 from src.main.message import Message
-from src.main.apikey_manager import ApiKeyManager, ApiKeyQuery # Added ApiKeyQuery
+from main.apikeey_manager import ApiKeeyManager, ApiKeeyQuery # Added ApiKeeyQuery
 
 
 class TestChatroom(unittest.TestCase):
@@ -32,7 +32,7 @@ class TestChatroom(unittest.TestCase):
     def setUp(self):
         """Sets up a Chatroom instance with a mock manager for each test."""
         self.mock_manager = MagicMock(spec=ChatroomManager)
-        self.mock_manager.apikey_manager = MagicMock(spec=ApiKeyManager) # Mock ApiKeyManager on the mock manager
+        self.mock_manager.apikeey_manager = MagicMock(spec=ApiKeeyManager) # Mock ApiKeeyManager on the mock manager
         
         self.chatroom = Chatroom("Test Room")
         self.chatroom.manager = self.mock_manager # Assign the mock manager
@@ -57,7 +57,7 @@ class TestChatroom(unittest.TestCase):
         bot1.name = "Bot1"
         bot1.aiengine_id = "gemini_test"
         bot1.aiengine_arg_dict = {"system_prompt": "System prompt 1", "model_name": "gemini-pro"}
-        # bot1.apikey_query_list = [ApiKeyQuery("google_gemini", "Bot1_google_gemini")] # Example
+        # bot1.apikeey_query_list = [ApiKeeyQuery("google_gemini", "Bot1_google_gemini")] # Example
 
         bot2 = Bot()
         bot2.name = "Bot2"
@@ -134,19 +134,19 @@ class TestChatroom(unittest.TestCase):
                 # model_name is usually part of aiengine_arg_dict in Bot, not directly on engine instance
                 # self.model_name = "no-key-model" # Store if needed for specific test assertions
 
-            def get_apikey_slot_info_list(self) -> list[ApiKeySlotInfo]:
+            def get_apikeey_slot_info_list(self) -> list[ApiKeeySlotInfo]:
                 return [] # No API key needed
 
             def get_aiengine_info_list(self) -> list[AIEngineInfo]:
                 return [AIEngineInfo(
                     aiengine_id="nokey_engine_001",
                     name="NoKey Test Engine",
-                    apikey_slot_id_list=[],
+                    apikeey_slot_id_list=[],
                     arg_list=[AIEngineArgInfo("model_name", "Model", False, "no-key-model")]
                 )]
 
             def generate_response(self, aiengine_id: str, aiengine_arg_dict: dict[str, str],
-                                  apikey_list: list[str], role_name: str,
+                                  apikeey_list: list[str], role_name: str,
                                   conversation_history: list[Message]) -> str:
                 return "NoKeyEngine response"
 
@@ -155,20 +155,20 @@ class TestChatroom(unittest.TestCase):
         bot1.name = "BotAlpha"
         bot1.aiengine_id = "google_gemini" # Corresponds to AIEngineInfo.aiengine_id
         bot1.aiengine_arg_dict = {"system_prompt": "Prompt Alpha", "model_name": "gemini-alpha"}
-        bot1.apikey_query_list = [ApiKeyQuery(apikey_slot_id="google_gemini", apikey_id="BotAlpha_google_gemini")]
+        bot1.apikeey_query_list = [ApiKeeyQuery(apikeey_slot_id="google_gemini", apikeey_id="BotAlpha_google_gemini")]
 
         bot2 = Bot()
         bot2.name = "BotBeta"
         bot2.aiengine_id = "azure_openai" # Corresponds to AIEngineInfo.aiengine_id
         bot2.aiengine_arg_dict = {"system_prompt": "Prompt Beta", "model_name": "azureopenai-beta"}
-        bot2.apikey_query_list = [ApiKeyQuery(apikey_slot_id="azure_openai", apikey_id="BotBeta_azure_openai")]
+        bot2.apikeey_query_list = [ApiKeeyQuery(apikeey_slot_id="azure_openai", apikeey_id="BotBeta_azure_openai")]
 
         # For BotGamma with NoKeyEngine, its aiengine_id should match what NoKeyEngine.get_aiengine_info_list provides
         bot3 = Bot()
         bot3.name = "BotGamma"
         bot3.aiengine_id = "nokey_engine_001"
         bot3.aiengine_arg_dict = {"system_prompt": "Prompt Gamma", "model_name": "no-key-gamma"}
-        # No apikey_query_list for bot3 as NoKeyEngine doesn't require API keys
+        # No apikeey_query_list for bot3 as NoKeyEngine doesn't require API keys
 
         self.chatroom.add_bot(bot1)
         self.chatroom.add_bot(bot2)
@@ -179,7 +179,7 @@ class TestChatroom(unittest.TestCase):
         dict_data = self.chatroom.to_dict()
 
         # Chatroom.from_dict now directly uses Bot.from_dict.
-        # The complex mocking of create_bot and apikey_manager.load_key in the test
+        # The complex mocking of create_bot and apikeey_manager.load_key in the test
         # is no longer representative of how Chatroom.from_dict works.
         # Bot.from_dict simply deserializes the bot's data.
         # Any API key loading or engine instantiation happens later when the bot is used.
@@ -192,7 +192,7 @@ class TestChatroom(unittest.TestCase):
             dict_data,
             manager=self.mock_manager, # manager is still passed
             filepath="dummy_reloaded.json"
-            # apikey_manager is no longer an argument to Chatroom.from_dict
+            # apikeey_manager is no longer an argument to Chatroom.from_dict
         )
 
         self.assertEqual(self.chatroom.name, reloaded_chatroom.name)
@@ -205,10 +205,10 @@ class TestChatroom(unittest.TestCase):
         self.assertEqual(reloaded_bot_alpha.aiengine_id, "google_gemini")
         self.assertEqual(reloaded_bot_alpha.get_aiengine_arg("system_prompt"), "Prompt Alpha")
         self.assertEqual(reloaded_bot_alpha.get_aiengine_arg("model_name"), "gemini-alpha")
-        self.assertIsNotNone(reloaded_bot_alpha.apikey_query_list)
-        self.assertEqual(len(reloaded_bot_alpha.apikey_query_list), 1)
-        self.assertEqual(reloaded_bot_alpha.apikey_query_list[0].apikey_slot_id, "google_gemini")
-        self.assertEqual(reloaded_bot_alpha.apikey_query_list[0].apikey_id, "BotAlpha_google_gemini")
+        self.assertIsNotNone(reloaded_bot_alpha.apikeey_query_list)
+        self.assertEqual(len(reloaded_bot_alpha.apikeey_query_list), 1)
+        self.assertEqual(reloaded_bot_alpha.apikeey_query_list[0].apikeey_slot_id, "google_gemini")
+        self.assertEqual(reloaded_bot_alpha.apikeey_query_list[0].apikeey_id, "BotAlpha_google_gemini")
 
 
         # Verify BotBeta
@@ -216,10 +216,10 @@ class TestChatroom(unittest.TestCase):
         self.assertIsNotNone(reloaded_bot_beta)
         self.assertEqual(reloaded_bot_beta.aiengine_id, "azure_openai")
         self.assertEqual(reloaded_bot_beta.get_aiengine_arg("system_prompt"), "Prompt Beta")
-        self.assertIsNotNone(reloaded_bot_beta.apikey_query_list)
-        self.assertEqual(len(reloaded_bot_beta.apikey_query_list), 1)
-        self.assertEqual(reloaded_bot_beta.apikey_query_list[0].apikey_slot_id, "azure_openai")
-        self.assertEqual(reloaded_bot_beta.apikey_query_list[0].apikey_id, "BotBeta_azure_openai")
+        self.assertIsNotNone(reloaded_bot_beta.apikeey_query_list)
+        self.assertEqual(len(reloaded_bot_beta.apikeey_query_list), 1)
+        self.assertEqual(reloaded_bot_beta.apikeey_query_list[0].apikeey_slot_id, "azure_openai")
+        self.assertEqual(reloaded_bot_beta.apikeey_query_list[0].apikeey_id, "BotBeta_azure_openai")
 
 
         # Verify BotGamma (NoKeyEngine)
@@ -227,7 +227,7 @@ class TestChatroom(unittest.TestCase):
         self.assertIsNotNone(reloaded_bot_gamma)
         self.assertEqual(reloaded_bot_gamma.aiengine_id, "nokey_engine_001")
         self.assertEqual(reloaded_bot_gamma.get_aiengine_arg("system_prompt"), "Prompt Gamma")
-        self.assertListEqual(reloaded_bot_gamma.apikey_query_list, [])
+        self.assertListEqual(reloaded_bot_gamma.apikeey_query_list, [])
 
         # Verify messages
         self.assertEqual(len(self.chatroom.get_messages()), len(reloaded_chatroom.get_messages()))
@@ -245,17 +245,17 @@ class TestChatroom(unittest.TestCase):
 class TestChatroomManager(unittest.TestCase):
     """Tests for the ChatroomManager class."""
     def setUp(self):
-        """Sets up a ChatroomManager instance with a mock ApiKeyManager.
+        """Sets up a ChatroomManager instance with a mock ApiKeeyManager.
         
         Also ensures the test data directory for chatroom files is clean.
         The _load_chatrooms_from_disk method is patched during manager
         initialization for most tests to prevent actual file system access unless
         specifically testing that method.
         """
-        self.mock_apikey_manager = MagicMock(spec=ApiKeyManager)
+        self.mock_apikeey_manager = MagicMock(spec=ApiKeeyManager)
         # Prevent _load_chatrooms_from_disk from running in __init__ for most tests
         with patch.object(ChatroomManager, '_load_chatrooms_from_disk', lambda self: None):
-            self.manager = ChatroomManager(apikey_manager=self.mock_apikey_manager)
+            self.manager = ChatroomManager(apikeey_manager=self.mock_apikeey_manager)
 
         # Clean up test data directory before and after tests if it exists
         self.test_data_dir_path = DATA_DIR 
@@ -293,7 +293,7 @@ class TestChatroomManager(unittest.TestCase):
         mock_chatroom_from_dict.side_effect = [mock_chatroom_instance1, mock_chatroom_instance2]
 
         # Re-initialize manager to trigger actual _load_chatrooms_from_disk
-        manager = ChatroomManager(apikey_manager=self.mock_apikey_manager)
+        manager = ChatroomManager(apikeey_manager=self.mock_apikeey_manager)
 
         # Assertions
         self.assertEqual(len(manager.chatrooms), 2)
@@ -302,8 +302,8 @@ class TestChatroomManager(unittest.TestCase):
         mock_glob_glob.assert_called_once_with(os.path.join(DATA_DIR, "*.json"))
         self.assertEqual(mock_open_file.call_count, 2)
         self.assertEqual(mock_json_load.call_count, 2)
-        mock_chatroom_from_dict.assert_any_call(mock_room_data1, manager, dummy_filepath1) # Removed apikey_manager
-        mock_chatroom_from_dict.assert_any_call(mock_room_data2, manager, dummy_filepath2) # Removed apikey_manager
+        mock_chatroom_from_dict.assert_any_call(mock_room_data1, manager, dummy_filepath1) # Removed apikeey_manager
+        mock_chatroom_from_dict.assert_any_call(mock_room_data2, manager, dummy_filepath2) # Removed apikeey_manager
 
 
     @patch('src.main.chatroom.Chatroom.save') # Patched public save
@@ -388,14 +388,14 @@ class TestChatroomManager(unittest.TestCase):
         original_bot.name = "OrigBot"
         original_bot.aiengine_id = "google_gemini"
         original_bot.aiengine_arg_dict = {"system_prompt": "Prompt", "model_name": "gemini-orig"}
-        original_bot.apikey_query_list = [ApiKeyQuery("google_gemini", "orig_bot_key")]
+        original_bot.apikeey_query_list = [ApiKeeyQuery("google_gemini", "orig_bot_key")]
 
         original_chatroom.add_bot(original_bot)
         original_chatroom.add_message("User", "Hello clone test")
 
     # ChatroomManager.clone_chatroom now uses copy.deepcopy(bot)
-    # So, ApiKeyManager.load_key is not directly involved in the cloning of the bot object itself.
-    # The apikey_query_list is deepcopied.
+    # So, ApiKeeyManager.load_key is not directly involved in the cloning of the bot object itself.
+    # The apikeey_query_list is deepcopied.
 
         with patch('src.main.chatroom.Chatroom.save') as mock_cloned_save: # Patched public save
             cloned_chatroom = self.manager.clone_chatroom(original_room_name)
@@ -416,18 +416,18 @@ class TestChatroomManager(unittest.TestCase):
         self.assertEqual(cloned_bot.get_aiengine_arg("system_prompt"), "Prompt") # Corrected access
         self.assertEqual(cloned_bot.get_aiengine_arg("model_name"), "gemini-orig") # Corrected access
 
-        self.assertIsNotNone(cloned_bot.apikey_query_list)
-        self.assertEqual(len(cloned_bot.apikey_query_list), 1)
-        self.assertEqual(cloned_bot.apikey_query_list[0].apikey_slot_id, "google_gemini")
-        self.assertNotEqual(cloned_bot.apikey_query_list, original_bot.apikey_query_list) # Should be a deepcopy
+        self.assertIsNotNone(cloned_bot.apikeey_query_list)
+        self.assertEqual(len(cloned_bot.apikeey_query_list), 1)
+        self.assertEqual(cloned_bot.apikeey_query_list[0].apikeey_slot_id, "google_gemini")
+        self.assertNotEqual(cloned_bot.apikeey_query_list, original_bot.apikeey_query_list) # Should be a deepcopy
 
         # Assert message history IS copied by deepcopy as per SUT change
         self.assertEqual(len(cloned_chatroom.get_messages()), 1)
         self.assertNotEqual(cloned_chatroom.get_messages()[0], original_chatroom.get_messages()[0]) # Deepcopied
         self.assertEqual(cloned_chatroom.get_messages()[0].content, "Hello clone test")
         
-        # ApiKeyManager is not involved in bot cloning process itself anymore
-        self.mock_apikey_manager.get_apikey.assert_not_called()
+        # ApiKeeyManager is not involved in bot cloning process itself anymore
+        self.mock_apikeey_manager.get_apikeey.assert_not_called()
 
         # Check that the cloned chatroom's _save was called (by create_chatroom and add_bot)
         # create_chatroom for clone + add_bot for the cloned bot

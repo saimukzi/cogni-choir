@@ -2,10 +2,10 @@
 otherwise falling back to a JSON file. Keys are encrypted if an
 EncryptionService is provided.
 
-This module provides the `ApiKeyManager` class, responsible for abstracting
+This module provides the `ApiKeeyManager` class, responsible for abstracting
 the storage and retrieval of API keys for various AI services. It prioritizes
 using the system's keyring for secure storage. If keyring access fails,
-it defaults to a JSON file (`data/apikeys.json`).
+it defaults to a JSON file (`data/apikeeys.json`).
 
 When an `EncryptionService` instance is provided during initialization, all API
 keys are encrypted before being stored and decrypted upon retrieval. This
@@ -27,86 +27,86 @@ from .encryption_service import EncryptionService # Assuming EncryptionService i
 ENCRYPTED_SERVICE_NAME_PREFIX = "CogniChoir_Encrypted"
 
 
-class ApiKeyQuery:
+class ApiKeeyQuery:
     """Represents a query for an API key.
 
     This class is used to encapsulate the parameters needed to retrieve
-    an API key from the `ApiKeyManager`. It includes the slot ID and
+    an API key from the `ApiKeeyManager`. It includes the slot ID and
     the specific key ID for the service.
 
     Attributes:
-        apikey_slot_id (str): The slot ID for the API key.
-        apikey_id (str): The specific ID of the API key within that slot.
+        apikeey_slot_id (str): The slot ID for the API key.
+        apikeey_id (str): The specific ID of the API key within that slot.
     """
-    def __init__(self, apikey_slot_id: str, apikey_id: str):
-        """Initializes an ApiKeyQuery instance.
+    def __init__(self, apikeey_slot_id: str, apikeey_id: str):
+        """Initializes an ApiKeeyQuery instance.
 
         Args:
-            apikey_slot_id: The slot ID for the API key.
-            apikey_id: The specific ID of the API key within the slot.
+            apikeey_slot_id: The slot ID for the API key.
+            apikeey_id: The specific ID of the API key within the slot.
         """
-        self._apikey_slot_id = apikey_slot_id
-        self._apikey_id = apikey_id
+        self._apikeey_slot_id = apikeey_slot_id
+        self._apikeey_id = apikeey_id
 
     @property
-    def apikey_slot_id(self) -> str:
+    def apikeey_slot_id(self) -> str:
         """Gets the slot ID for the API key.
 
         Returns:
             str: The slot ID for the API key.
         """
-        return self._apikey_slot_id
+        return self._apikeey_slot_id
 
     @property
-    def apikey_id(self) -> str:
+    def apikeey_id(self) -> str:
         """Gets the specific ID of the API key.
 
         Returns:
             str: The specific ID of the API key within the slot.
         """
-        return self._apikey_id
+        return self._apikeey_id
 
     def to_dict(self) -> dict:
-        """Converts the ApiKeyQuery to a dictionary.
+        """Converts the ApiKeeyQuery to a dictionary.
 
         Returns:
-            dict: A dictionary representation of the ApiKeyQuery.
+            dict: A dictionary representation of the ApiKeeyQuery.
         """
         return {
-            "apikey_slot_id": self._apikey_slot_id,
-            "apikey_id": self._apikey_id
+            "apikeey_slot_id": self._apikeey_slot_id,
+            "apikeey_id": self._apikeey_id
         }
 
     @staticmethod
-    def from_dict(data: dict) -> 'ApiKeyQuery':
-        """Creates an ApiKeyQuery from a dictionary.
+    def from_dict(data: dict) -> 'ApiKeeyQuery':
+        """Creates an ApiKeeyQuery from a dictionary.
 
         Args:
             data (dict): A dictionary containing the API key query parameters.
 
         Returns:
-            ApiKeyQuery: An instance of ApiKeyQuery initialized with the provided data.
+            ApiKeeyQuery: An instance of ApiKeeyQuery initialized with the provided data.
         """
-        return ApiKeyQuery(
-            apikey_slot_id=data.get("apikey_slot_id", ""),
-            apikey_id=data.get("apikey_id", "")
+        return ApiKeeyQuery(
+            apikeey_slot_id=data.get("apikeey_slot_id", ""),
+            apikeey_id=data.get("apikeey_id", "")
         )
 
 
-class ApiKeyManager:
+class ApiKeeyManager:
     """Manages API keys, using system keyring or an encrypted JSON fallback.
 
     This manager handles saving, loading, and deleting API keys. It attempts
     to use the system's keyring for secure storage. If keyring is unavailable
     or inaccessible, it falls back to storing keys in an encrypted JSON file
-    (`data/apikey_manager.json`), provided an `EncryptionService` is available.
+    (`data/apikeey_manager.json`), provided an `EncryptionService` is available.
 
     Attributes:
         encryption_service (EncryptionService): Service used for
             encrypting/decrypting keys. If None, secure operations will fail.
     """
     def __init__(self, encryption_service: EncryptionService, data_path: str = None):
-        """Initializes the ApiKeyManager.
+        """Initializes the ApiKeeyManager.
 
         Determines if keyring is available and sets up the fallback storage path.
         Loads keys from the fallback file, which might include a manifest of
@@ -119,10 +119,10 @@ class ApiKeyManager:
         """
 
         if not data_path:
-            data_path = os.path.join("data", "apikey_manager.json")
+            data_path = os.path.join("data", "apikeey_manager.json")
 
         if not encryption_service:
-            raise RuntimeError("Encryption service must be provided for ApiKeyManager.")
+            raise RuntimeError("Encryption service must be provided for ApiKeeyManager.")
 
         self.encryption_service = encryption_service
         self.data_path = data_path
@@ -163,12 +163,12 @@ class ApiKeyManager:
 
         If `self._data` is None (e.g., file didn't exist), it initializes it
         as an empty dictionary. It also ensures that the nested dictionary
-        `apikey_slot_id_to_apikey_id_list_dict` exists.
+        `apikeey_slot_id_to_apikeey_id_list_dict` exists.
         """
         if not self._data:
             self._data = {}
-        if 'apikey_slot_id_to_apikey_id_list_dict' not in self._data:
-            self._data['apikey_slot_id_to_apikey_id_list_dict'] = {}
+        if 'apikeey_slot_id_to_apikeey_id_list_dict' not in self._data:
+            self._data['apikeey_slot_id_to_apikeey_id_list_dict'] = {}
 
     def _save_data(self):
         """Saves the current data to the fallback JSON file."""
@@ -177,11 +177,11 @@ class ApiKeyManager:
         with open(self.data_path, 'w', encoding='utf-8') as f:
             json.dump(self._data, f, indent=4)
 
-    def _get_keyring_service_name(self, apikey_slot_id: str) -> str:
+    def _get_keyring_service_name(self, apikeey_slot_id: str) -> str:
         """Generates a unique service name for keyring storage."""
-        return f"{ENCRYPTED_SERVICE_NAME_PREFIX}_{apikey_slot_id}"
+        return f"{ENCRYPTED_SERVICE_NAME_PREFIX}_{apikeey_slot_id}"
 
-    def set_apikey(self, apikey_query: ApiKeyQuery, apikey: str):
+    def set_apikeey(self, apikeey_query: ApiKeeyQuery, apikeey: str):
         """Saves an API key for a given service, encrypting it before storage.
 
         The API key is encrypted using the configured `EncryptionService`.
@@ -191,34 +191,34 @@ class ApiKeyManager:
 
         Args:
             service_name (str): The name of the service (e.g., "OpenAI", "Gemini").
-            apikey (str): The API key to save.
+            apikeey (str): The API key to save.
 
         Raises:
             RuntimeError: If the `EncryptionService` is not available.
-            ValueError: If `service_name` or `apikey` is empty.
+            ValueError: If `service_name` or `apikeey` is empty.
         """
         if not self.encryption_service:
             raise RuntimeError("Encryption service not available. Cannot save key.")
-        if not apikey_query: # Checks if the ApiKeyQuery object itself is None
-            # This message might need refinement given ApiKeyQuery structure.
-            # For now, the critical check is for the apikey string itself.
-            raise ValueError("ApiKeyQuery object cannot be None.")
-        if not apikey: # Check for empty API key string
+        if not apikeey_query: # Checks if the ApiKeeyQuery object itself is None
+            # This message might need refinement given ApiKeeyQuery structure.
+            # For now, the critical check is for the apikeey string itself.
+            raise ValueError("ApiKeeyQuery object cannot be None.")
+        if not apikeey: # Check for empty API key string
             raise ValueError("API key cannot be empty.")
 
-        apikey_slot_id = apikey_query.apikey_slot_id
-        apikey_id = apikey_query.apikey_id
-        encrypted_key = self.encryption_service.encrypt(apikey)
+        apikeey_slot_id = apikeey_query.apikeey_slot_id
+        apikeey_id = apikeey_query.apikeey_id
+        encrypted_key = self.encryption_service.encrypt(apikeey)
 
-        keyring.set_password(self._get_keyring_service_name(apikey_slot_id), apikey_id, encrypted_key)
+        keyring.set_password(self._get_keyring_service_name(apikeey_slot_id), apikeey_id, encrypted_key)
 
-        if apikey_slot_id not in self._data['apikey_slot_id_to_apikey_id_list_dict']:
-            self._data['apikey_slot_id_to_apikey_id_list_dict'][apikey_slot_id] = []
-        if apikey_id not in self._data['apikey_slot_id_to_apikey_id_list_dict'][apikey_slot_id]:
-            self._data['apikey_slot_id_to_apikey_id_list_dict'][apikey_slot_id].append(apikey_id)
+        if apikeey_slot_id not in self._data['apikeey_slot_id_to_apikeey_id_list_dict']:
+            self._data['apikeey_slot_id_to_apikeey_id_list_dict'][apikeey_slot_id] = []
+        if apikeey_id not in self._data['apikeey_slot_id_to_apikeey_id_list_dict'][apikeey_slot_id]:
+            self._data['apikeey_slot_id_to_apikeey_id_list_dict'][apikeey_slot_id].append(apikeey_id)
         self._save_data()
 
-    def get_apikey(self, apikey_query: ApiKeyQuery) -> str | None:
+    def get_apikeey(self, apikeey_query: ApiKeeyQuery) -> str | None:
         """Loads and decrypts an API key for a given service.
 
         Retrieves the encrypted key from the system keyring or fallback JSON file,
@@ -233,50 +233,50 @@ class ApiKeyManager:
         """
         if not self.encryption_service:
             raise RuntimeError("Encryption service not available. Cannot load key.")
-        if not apikey_query:
-            raise ValueError("ApiKeyQuery object cannot be None.")
-        if not apikey_query.apikey_slot_id or not apikey_query.apikey_id:
+        if not apikeey_query:
+            raise ValueError("ApiKeeyQuery object cannot be None.")
+        if not apikeey_query.apikeey_slot_id or not apikeey_query.apikeey_id:
             # Or handle differently, e.g., return None if keyring would fail with empty strings
-            print(f"Warning: Attempting to get API key with empty slot_id or key_id in query: {apikey_query.to_dict()}", file=sys.stderr)
+            print(f"Warning: Attempting to get API key with empty slot_id or key_id in query: {apikeey_query.to_dict()}", file=sys.stderr)
             # Keyring might return None or error with empty strings; let it try, or return None early.
             # For now, let keyring handle it, as behavior might vary by backend.
             # Consider raising ValueError here if empty slot/key ID is strictly invalid.
 
-        apikey_slot_id = apikey_query.apikey_slot_id
-        apikey_id = apikey_query.apikey_id
-        encrypted_key = keyring.get_password(self._get_keyring_service_name(apikey_slot_id), apikey_id)
+        apikeey_slot_id = apikeey_query.apikeey_slot_id
+        apikeey_id = apikeey_query.apikeey_id
+        encrypted_key = keyring.get_password(self._get_keyring_service_name(apikeey_slot_id), apikeey_id)
 
         decrypted_key = self.encryption_service.decrypt(encrypted_key)
         if decrypted_key is None:
-            print(f"Failed to decrypt key for {apikey_id}. It might be corrupted or an old format.", file=sys.stderr)
+            print(f"Failed to decrypt key for {apikeey_id}. It might be corrupted or an old format.", file=sys.stderr)
             return None
         return decrypted_key
 
-    def delete_apikey(self, apikey_query: ApiKeyQuery):
+    def delete_apikeey(self, apikeey_query: ApiKeeyQuery):
         """Deletes an API key from keyring and the local data index.
 
         Args:
-            apikey_query: An `ApiKeyQuery` object specifying the key to delete.
+            apikeey_query: An `ApiKeeyQuery` object specifying the key to delete.
         """
-        if not apikey_query:
+        if not apikeey_query:
             return
-        apikey_slot_id = apikey_query.apikey_slot_id
-        apikey_id = apikey_query.apikey_id
+        apikeey_slot_id = apikeey_query.apikeey_slot_id
+        apikeey_id = apikeey_query.apikeey_id
 
-        keyring.delete_password(self._get_keyring_service_name(apikey_slot_id), apikey_id)
-        if apikey_slot_id in self._data['apikey_slot_id_to_apikey_id_list_dict']:
-            if apikey_id in self._data['apikey_slot_id_to_apikey_id_list_dict'][apikey_slot_id]:
-                self._data['apikey_slot_id_to_apikey_id_list_dict'][apikey_slot_id].remove(apikey_id)
+        keyring.delete_password(self._get_keyring_service_name(apikeey_slot_id), apikeey_id)
+        if apikeey_slot_id in self._data['apikeey_slot_id_to_apikeey_id_list_dict']:
+            if apikeey_id in self._data['apikeey_slot_id_to_apikeey_id_list_dict'][apikeey_slot_id]:
+                self._data['apikeey_slot_id_to_apikeey_id_list_dict'][apikeey_slot_id].remove(apikeey_id)
         self._save_data()
 
-    def get_apikey_list(self, query_list: list[ApiKeyQuery]) -> list[str]:
+    def get_apikeey_list(self, query_list: list[ApiKeeyQuery]) -> list[str]:
         """Retrieves a list of API keys for the specified services.
 
         This method returns a list of decrypted API keys for the provided
         API key queries. If a key cannot be found or decrypted, it is skipped.
 
         Args:
-            query_list (list[ApiKeyQuery]): List of `ApiKeyQuery` objects
+            query_list (list[ApiKeeyQuery]): List of `ApiKeeyQuery` objects
                 specifying which keys to retrieve.
 
         Returns:
@@ -285,12 +285,12 @@ class ApiKeyManager:
         if not self.encryption_service:
             raise RuntimeError("Encryption service not available. Cannot get keys.")
 
-        ret_apikey_list = []
+        ret_apikeey_list = []
         for query in query_list:
-            apikey = self.get_apikey(query)
-            if apikey is not None:
-                ret_apikey_list.append(apikey)
-        return ret_apikey_list
+            apikeey = self.get_apikeey(query)
+            if apikeey is not None:
+                ret_apikeey_list.append(apikeey)
+        return ret_apikeey_list
 
     def re_encrypt(self, old_encryption_service: EncryptionService, new_encryption_service: EncryptionService):
         """Re-encrypts all stored API keys with a new encryption service.
@@ -313,28 +313,28 @@ class ApiKeyManager:
         """
         print("Re-encrypting all API keys...")
 
-        if 'apikey_slot_id_to_apikey_id_list_dict' not in self._data:
+        if 'apikeey_slot_id_to_apikeey_id_list_dict' not in self._data:
             return # Nothing to re-encrypt if no keys are stored
 
-        apikey_slot_id_to_apikey_id_list_dict = self._data['apikey_slot_id_to_apikey_id_list_dict']
-        for apikey_slot_id, apikey_id_list in apikey_slot_id_to_apikey_id_list_dict.items():
-            for apikey_id in apikey_id_list:
+        apikeey_slot_id_to_apikeey_id_list_dict = self._data['apikeey_slot_id_to_apikeey_id_list_dict']
+        for apikeey_slot_id, apikeey_id_list in apikeey_slot_id_to_apikeey_id_list_dict.items():
+            for apikeey_id in apikeey_id_list:
                 try:
-                    encrypted_val = keyring.get_password(self._get_keyring_service_name(apikey_slot_id), apikey_id)
+                    encrypted_val = keyring.get_password(self._get_keyring_service_name(apikeey_slot_id), apikeey_id)
                     if not encrypted_val:
-                        print(f"No key found in keyring for {apikey_id}, skipping re-encryption.", file=sys.stderr)
+                        print(f"No key found in keyring for {apikeey_id}, skipping re-encryption.", file=sys.stderr)
                         continue
 
                     plain_key = old_encryption_service.decrypt(encrypted_val)
                     if not plain_key:
-                        print(f"Failed to decrypt key for {apikey_id} using old encryption service. Cannot re-encrypt.", file=sys.stderr)
+                        print(f"Failed to decrypt key for {apikeey_id} using old encryption service. Cannot re-encrypt.", file=sys.stderr)
                         continue
 
                     new_encrypted_key = new_encryption_service.encrypt(plain_key)
-                    keyring.set_password(self._get_keyring_service_name(apikey_slot_id), apikey_id, new_encrypted_key)
-                    print(f"Successfully re-encrypted key for {apikey_id} in keyring.")
+                    keyring.set_password(self._get_keyring_service_name(apikeey_slot_id), apikeey_id, new_encrypted_key)
+                    print(f"Successfully re-encrypted key for {apikeey_id} in keyring.")
                 except Exception as e:
-                    print(f"Error re-encrypting key for {apikey_id} in keyring: {e}", file=sys.stderr)
+                    print(f"Error re-encrypting key for {apikeey_id} in keyring: {e}", file=sys.stderr)
 
 
     def clear(self):
@@ -354,14 +354,14 @@ class ApiKeyManager:
           was cleared), it attempts to remove the default salt file directly.
         """
         print("Clearing all API keys and data...")
-        apikey_slot_id_to_apikey_id_list_dict = self._data['apikey_slot_id_to_apikey_id_list_dict']
-        for apikey_slot_id, apikey_id_list in apikey_slot_id_to_apikey_id_list_dict.items():
-            for apikey_id in apikey_id_list:
+        apikeey_slot_id_to_apikeey_id_list_dict = self._data['apikeey_slot_id_to_apikeey_id_list_dict']
+        for apikeey_slot_id, apikeey_id_list in apikeey_slot_id_to_apikeey_id_list_dict.items():
+            for apikeey_id in apikeey_id_list:
                 try:
-                    keyring.delete_password(self._get_keyring_service_name(apikey_slot_id), apikey_id)
-                    print(f"Deleted key for {apikey_id} from keyring.")
+                    keyring.delete_password(self._get_keyring_service_name(apikeey_slot_id), apikeey_id)
+                    print(f"Deleted key for {apikeey_id} from keyring.")
                 except Exception as e:
-                    print(f"Error deleting key for {apikey_id} from keyring: {e}", file=sys.stderr)
+                    print(f"Error deleting key for {apikeey_id} from keyring: {e}", file=sys.stderr)
 
         self._data = None
 
@@ -374,21 +374,21 @@ class ApiKeyManager:
 
         self._fix_data()  # Reset to empty structure
 
-    def get_available_apikey_query_list(self) -> list[ApiKeyQuery]:
+    def get_available_apikeey_query_list(self) -> list[ApiKeeyQuery]:
         """Retrieves a list of all available API key queries.
 
-        This method returns a list of `ApiKeyQuery` instances for all
+        This method returns a list of `ApiKeeyQuery` instances for all
         API keys stored in the system keyring or the fallback JSON file.
         It includes both the slot ID and the specific key ID for each service.
 
         Returns:
-            list[ApiKeyQuery]: A list of ApiKeyQuery instances for all available API keys.
+            list[ApiKeeyQuery]: A list of ApiKeeyQuery instances for all available API keys.
         """
-        if not self._data or 'apikey_slot_id_to_apikey_id_list_dict' not in self._data:
+        if not self._data or 'apikeey_slot_id_to_apikeey_id_list_dict' not in self._data:
             return []
 
-        apikey_query_list = []
-        for apikey_slot_id, apikey_id_list in self._data['apikey_slot_id_to_apikey_id_list_dict'].items():
-            for apikey_id in apikey_id_list:
-                apikey_query_list.append(ApiKeyQuery(apikey_slot_id, apikey_id))
-        return apikey_query_list
+        apikeey_query_list = []
+        for apikeey_slot_id, apikeey_id_list in self._data['apikeey_slot_id_to_apikeey_id_list_dict'].items():
+            for apikeey_id in apikeey_id_list:
+                apikeey_query_list.append(ApiKeeyQuery(apikeey_slot_id, apikeey_id))
+        return apikeey_query_list

@@ -252,14 +252,14 @@ class Chatroom:
 
         for bot_data in data.get("bots", []):
             # engine_type_name = bot_data.get("engine_type")
-            # apikey = None # Default to None
-            # if engine_type_name and apikey_manager: # Ensure engine_type_name exists before trying to use it
+            # apikeey = None # Default to None
+            # if engine_type_name and apikeey_manager: # Ensure engine_type_name exists before trying to use it
             #     service_name_for_key = engine_type_name
-            #     apikey = apikey_manager.load_key(service_name_for_key)
+            #     apikeey = apikeey_manager.load_key(service_name_for_key)
 
             # engine_config = {
             #     "engine_type": engine_type_name,
-            #     "apikey": apikey,
+            #     "apikeey": apikeey,
             #     "model_name": bot_data.get("model_name")
             # }
 
@@ -274,7 +274,7 @@ class Chatroom:
             #     # However, create_bot itself doesn't have visibility to print this warning directly.
             #     # For now, we rely on the existing warning mechanism if a bot fails to operate later.
             #     # A more sophisticated approach might involve create_bot returning a status or the engine instance for checks.
-            #     if not apikey and bot.get_engine().requires_apikey():
+            #     if not apikeey and bot.get_engine().requires_apikeey():
             #          logger.warning(f"API key for {engine_type_name.replace('Engine','')} not found for bot '{bot.get_name()}' in chatroom '{chatroom.name}'. Bot may not function as it requires an API key.")
 
             #     chatroom.bots[bot.get_name()] = bot
@@ -301,19 +301,19 @@ class ChatroomManager:
     Attributes:
         logger: Logger instance for the manager.
         chatrooms (dict[str, Chatroom]): A dictionary of chatrooms, keyed by chatroom name.
-        apikey_manager: An instance of `ApiKeyManager` for handling API keys for bots.
+        apikeey_manager: An instance of `ApiKeeyManager` for handling API keys for bots.
     """
-    def __init__(self, apikey_manager): # apikey_manager is now required
+    def __init__(self, apikeey_manager): # apikeey_manager is now required
         """Initializes the ChatroomManager.
 
         Loads existing chatrooms from disk.
 
         Args:
-            apikey_manager: An instance of `ApiKeyManager`.
+            apikeey_manager: An instance of `ApiKeeyManager`.
         """
         self.logger = logging.getLogger(__name__ + ".ChatroomManager")
         self.chatrooms: dict[str, Chatroom] = {}
-        self.apikey_manager = apikey_manager # Store it
+        self.apikeey_manager = apikeey_manager # Store it
         self.logger.info(f"ChatroomManager initialized. Data directory: {os.path.abspath(DATA_DIR)}") # INFO
         self._load_chatrooms_from_disk()
 
@@ -334,7 +334,7 @@ class ChatroomManager:
             try:
                 with open(filepath, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                # Pass self.apikey_manager to from_dict
+                # Pass self.apikeey_manager to from_dict
                 chatroom = Chatroom.from_dict(data, self, filepath)
                 self.chatrooms[chatroom.name] = chatroom
                 loaded_count +=1
@@ -518,12 +518,12 @@ class ChatroomManager:
             # engine_type_name = type(original_engine).__name__
             # service_name_for_key = engine_type_name
 
-            # apikey = self.apikey_manager.load_key(service_name_for_key)
+            # apikeey = self.apikeey_manager.load_key(service_name_for_key)
             # model_name = original_engine.model_name # Get model_name from original engine
 
             # engine_config = {
             #     "engine_type": engine_type_name,
-            #     "apikey": apikey,
+            #     "apikeey": apikeey,
             #     "model_name": model_name
             # }
 
@@ -535,7 +535,7 @@ class ChatroomManager:
             #     # )
             #     cloned_bot = original_bot.clone() # Use the clone method of Bot
             #     # Similar to from_dict, API key warning logic after bot creation
-            #     if not apikey and cloned_bot.get_engine().requires_apikey():
+            #     if not apikeey and cloned_bot.get_engine().requires_apikeey():
             #         self.logger.warning(f"API key for {service_name_for_key} not found for cloned bot '{cloned_bot.get_name()}' in chatroom '{cloned_chatroom.name}'. Bot may not function as it requires an API key.")
 
             #     cloned_chatroom.add_bot(cloned_bot)
