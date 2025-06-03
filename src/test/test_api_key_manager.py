@@ -302,10 +302,8 @@ class TestThirdPartyApiKeyManagerWithEncryption(unittest.TestCase):
         # The SUT now prints a warning for empty slot/key ID and proceeds to call keyring.
         # Mock keyring.get_password for this specific call to avoid NoKeyringError
         # and simulate keyring returning None for such a query.
-        with patch('keyring.get_password') as mock_keyring_get_empty:
-            mock_keyring_get_empty.return_value = None
-            self.assertIsNone(self.api_manager.get_thirdpartyapikey(ThirdPartyApiKeyQuery("", "")),
-                              "Loading with empty query fields should return None after keyring call.")
+        with self.assertRaisesRegex(ValueError, "Both thirdpartyapikey_slot_id and thirdpartyapikey_id must be provided in the query."):
+            self.api_manager.get_thirdpartyapikey(ThirdPartyApiKeyQuery("", "")) # Test None query
 
 
 if __name__ == '__main__':

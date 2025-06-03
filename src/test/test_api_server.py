@@ -79,10 +79,11 @@ class TestApiServerHttp(unittest.TestCase):
             return
 
         # Ensure any previous server instance is shut down
-        if api_server.httpd:
-            api_server.httpd.shutdown()
-            api_server.httpd.server_close()
-            api_server.httpd = None
+        # if api_server.httpd:
+        #     api_server.httpd.shutdown()
+        #     api_server.httpd.server_close()
+        #     api_server.httpd = None
+        api_server.shutdown_server()
         if self.server_thread and self.server_thread.is_alive():
             self.server_thread.join(timeout=1)
             self.server_thread = None
@@ -92,7 +93,8 @@ class TestApiServerHttp(unittest.TestCase):
         time.sleep(0.1) # Give the server a moment to start
 
         # Check if server started (httpd should be set)
-        for _ in range(20): # Wait up to 2 seconds
+        # print('TestHelper _start_server: Waiting for server to start...')
+        for _ in range(20): # Wait up to 5 seconds
             if api_server.httpd:
                 break
             time.sleep(0.1)
@@ -101,6 +103,12 @@ class TestApiServerHttp(unittest.TestCase):
 
     def _stop_server(self):
         api_server.shutdown_server()
+
+        for _ in range(20): # Wait up to 2 seconds
+            if not api_server.httpd:
+                break
+            time.sleep(0.1)
+        self.assertIsNone(api_server.httpd, "Server did not stop in time.")
 
         # """Stops the HTTP server thread, primarily by using the /shutdown endpoint."""
         # if self.server_thread and self.server_thread.is_alive():

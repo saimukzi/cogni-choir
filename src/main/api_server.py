@@ -207,6 +207,8 @@ def run_server(port: int, debug: bool = False): # pylint: disable=unused-argumen
         server_address = ('0.0.0.0', port)
         server_instance_for_this_call = http.server.HTTPServer(server_address, ApiRequestHandler)
 
+        # print('pre-httpd_lock')
+
         # Assign to the global `httpd` variable *after* successful creation.
         with httpd_lock:
             httpd = server_instance_for_this_call

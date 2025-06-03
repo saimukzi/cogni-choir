@@ -236,11 +236,13 @@ class ThirdPartyApiKeyManager:
         if not thirdpartyapikey_query:
             raise ValueError("ThirdPartyApiKeyQuery object cannot be None.")
         if not thirdpartyapikey_query.thirdpartyapikey_slot_id or not thirdpartyapikey_query.thirdpartyapikey_id:
-            # Or handle differently, e.g., return None if keyring would fail with empty strings
-            print(f"Warning: Attempting to get API key with empty slot_id or key_id in query: {thirdpartyapikey_query.to_dict()}", file=sys.stderr)
-            # Keyring might return None or error with empty strings; let it try, or return None early.
-            # For now, let keyring handle it, as behavior might vary by backend.
-            # Consider raising ValueError here if empty slot/key ID is strictly invalid.
+            raise ValueError("Both thirdpartyapikey_slot_id and thirdpartyapikey_id must be provided in the query.")
+        if thirdpartyapikey_query.thirdpartyapikey_slot_id not in self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict']:
+            print(f"No keys found for slot ID {thirdpartyapikey_query.thirdpartyapikey_slot_id}.", file=sys.stderr)
+            return None
+        if thirdpartyapikey_query.thirdpartyapikey_id not in self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict'][thirdpartyapikey_query.thirdpartyapikey_slot_id]:
+            print(f"No key found for ID {thirdpartyapikey_query.thirdpartyapikey_id} in slot {thirdpartyapikey_query.thirdpartyapikey_slot_id}.", file=sys.stderr)
+            return None
 
         thirdpartyapikey_slot_id = thirdpartyapikey_query.thirdpartyapikey_slot_id
         thirdpartyapikey_id = thirdpartyapikey_query.thirdpartyapikey_id

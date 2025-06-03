@@ -1,4 +1,6 @@
 """Dialog for adding a new AI bot to a chatroom."""
+import logging
+
 from PyQt6.QtWidgets import (
     QApplication, QVBoxLayout, QLabel, QMessageBox,
     QDialog, QComboBox, QLineEdit, QFormLayout,
@@ -31,11 +33,16 @@ class BotInfoDialog(QDialog):
             parent: The parent widget, if any.
         """
         super().__init__(parent)
+
+        self._logger = logging.getLogger(__name__)
+
         self.existing_bot_names = existing_bot_names
         self.aiengine_info_list = aiengine_info_list
         self.thirdpartyapikey_query_list = thirdpartyapikey_query_list
         self._dynamic_widgets = []
         self._dynamic_input_widgets = {}
+
+        # self._logger.debug(f"len(thirdpartyapikey_query_list) = {len(thirdpartyapikey_query_list)}")
 
         self.setWindowTitle(self.tr("Add New Bot"))
         self.setMinimumWidth(400) # Set a reasonable minimum width
