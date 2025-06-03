@@ -2355,36 +2355,41 @@ class MainWindow(QMainWindow):
         else: # User wants to turn it OFF
             if self.api_server_thread is not None and self.api_server_thread.is_alive():
                 self.logger.info("API Server toggle OFF: Attempting to shut down API server...")
-                try:
-                    # Ensure the URL scheme is http if not specified
-                    shutdown_url = f"http://localhost:{self.api_server_port}/shutdown"
-                    response = requests.post(shutdown_url, timeout=2) # Timeout of 2 seconds
-                    if response.status_code == 200:
-                        self.logger.info("API server shutdown request successful.")
-                        QMessageBox.information(self, self.tr("API Server"),
-                                                self.tr("API server shutdown request sent. It will stop if it was running."))
-                    else:
-                        self.logger.error(f"API server shutdown request failed with status {response.status_code}: {response.text}")
-                        QMessageBox.warning(self, self.tr("API Server Shutdown"),
-                                            self.tr("Failed to send shutdown request to server (status: {0}). It might not be running or not responding.").format(response.status_code))
-                except requests.exceptions.ConnectionError:
-                    self.logger.warning("API server shutdown: ConnectionError. Server might already be down or port incorrect.")
-                    QMessageBox.information(self, self.tr("API Server Shutdown"),
-                                            self.tr("Could not connect to API server to shut it down. It might already be stopped."))
-                except requests.exceptions.Timeout:
-                    self.logger.warning("API server shutdown: Request timed out.")
-                    QMessageBox.warning(self, self.tr("API Server Shutdown"),
-                                        self.tr("Shutdown request timed out. The server might be busy or unresponsive."))
-                except requests.exceptions.RequestException as e:
-                    self.logger.error(f"API server shutdown: An unexpected error occurred: {e}", exc_info=True)
-                    QMessageBox.critical(self, self.tr("API Server Shutdown Error"),
-                                         self.tr("An error occurred while trying to shut down the API server: {0}").format(e))
-                finally:
-                    # Regardless of shutdown success, if the user toggled it off,
-                    # we should reflect that the thread is no longer considered active from MainWindow's perspective.
-                    # However, joining might block. For now, we rely on the server shutting itself down.
-                    # self.api_server_thread = None # Or join with timeout
-                    pass # Let run_server in api_server.py handle its own exit
+                threading.Thread(
+                    target=api_server.shutdown_server,
+                    daemon=True
+                ).start()
+
+                # try:
+                #     # Ensure the URL scheme is http if not specified
+                #     shutdown_url = f"http://localhost:{self.api_server_port}/shutdown"
+                #     response = requests.post(shutdown_url, timeout=2) # Timeout of 2 seconds
+                #     if response.status_code == 200:
+                #         self.logger.info("API server shutdown request successful.")
+                #         QMessageBox.information(self, self.tr("API Server"),
+                #                                 self.tr("API server shutdown request sent. It will stop if it was running."))
+                #     else:
+                #         self.logger.error(f"API server shutdown request failed with status {response.status_code}: {response.text}")
+                #         QMessageBox.warning(self, self.tr("API Server Shutdown"),
+                #                             self.tr("Failed to send shutdown request to server (status: {0}). It might not be running or not responding.").format(response.status_code))
+                # except requests.exceptions.ConnectionError:
+                #     self.logger.warning("API server shutdown: ConnectionError. Server might already be down or port incorrect.")
+                #     QMessageBox.information(self, self.tr("API Server Shutdown"),
+                #                             self.tr("Could not connect to API server to shut it down. It might already be stopped."))
+                # except requests.exceptions.Timeout:
+                #     self.logger.warning("API server shutdown: Request timed out.")
+                #     QMessageBox.warning(self, self.tr("API Server Shutdown"),
+                #                         self.tr("Shutdown request timed out. The server might be busy or unresponsive."))
+                # except requests.exceptions.RequestException as e:
+                #     self.logger.error(f"API server shutdown: An unexpected error occurred: {e}", exc_info=True)
+                #     QMessageBox.critical(self, self.tr("API Server Shutdown Error"),
+                #                          self.tr("An error occurred while trying to shut down the API server: {0}").format(e))
+                # finally:
+                #     # Regardless of shutdown success, if the user toggled it off,
+                #     # we should reflect that the thread is no longer considered active from MainWindow's perspective.
+                #     # However, joining might block. For now, we rely on the server shutting itself down.
+                #     # self.api_server_thread = None # Or join with timeout
+                #     pass # Let run_server in api_server.py handle its own exit
             else:
                 self.logger.info("API Server toggle OFF: Server already stopped or thread does not exist.")
 

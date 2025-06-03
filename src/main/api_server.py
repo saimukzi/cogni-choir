@@ -41,6 +41,9 @@ server_thread: Optional[threading.Thread] = None
 httpd: Optional[http.server.HTTPServer] = None
 """The HTTP server instance."""
 
+httpd_lock = threading.Lock()
+# Lock to manage access to the httpd instance across threads.
+
 class ApiRequestHandler(http.server.BaseHTTPRequestHandler):
     """
     Request handler for the CogniChoir API server.
@@ -114,15 +117,14 @@ class ApiRequestHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         """Handles POST requests.
 
-        Responds to /shutdown to stop the server.
         Responds with 404 for other paths.
         """
-        if self.path == '/shutdown':
-            self._send_json_response(200, {"message": "Server shutting down..."})
-            # Schedule shutdown in a new thread to allow response to complete.
-            threading.Thread(target=self.server.shutdown).start() # type: ignore[attr-defined]
-        else:
-            self._send_json_response(404, {"error": "Not Found"})
+        # if self.path == '/shutdown':
+        #     self._send_json_response(200, {"message": "Server shutting down..."})
+        #     # Schedule shutdown in a new thread to allow response to complete.
+        #     threading.Thread(target=self.server.shutdown).start() # type: ignore[attr-defined]
+
+        self._send_json_response(404, {"error": "Not Found"})
 
 def initialize_api_server_dependencies(cc_manager: CcApiKeyManager, enc_service: EncryptionService):
     """
@@ -161,14 +163,15 @@ def shutdown_server():
     running the server, or as a result of a specific request (e.g., /shutdown).
     """
     global httpd
-    if httpd:
-        print("Attempting to shut down API server...")
-        httpd.shutdown() # Signal the server to stop
-        httpd.server_close() # Close the server socket
-        httpd = None
-        print("API server shut down.")
-    else:
-        print("API server is not running or already shut down.")
+    with httpd_lock:  # Ensure thread-safe access to httpd
+        if httpd:
+            print("Attempting to shut down API server...")
+            httpd.shutdown() # Signal the server to stop
+            httpd.server_close() # Close the server socket
+            httpd = None
+            print("API server shut down.")
+        else:
+            print("API server is not running or already shut down.")
 
 
 def run_server(port: int, debug: bool = False): # pylint: disable=unused-argument
@@ -205,7 +208,8 @@ def run_server(port: int, debug: bool = False): # pylint: disable=unused-argumen
         server_instance_for_this_call = http.server.HTTPServer(server_address, ApiRequestHandler)
 
         # Assign to the global `httpd` variable *after* successful creation.
-        httpd = server_instance_for_this_call
+        with httpd_lock:
+            httpd = server_instance_for_this_call
 
         print(f"Starting HTTP server on port {port} (global httpd is now set)...")
         httpd.serve_forever() # Blocks until httpd.shutdown() is called from another thread.
@@ -220,12 +224,14 @@ def run_server(port: int, debug: bool = False): # pylint: disable=unused-argumen
         print(f"OSError starting or running API server on port {port}: {e}")
         # If the error occurred after server_instance_for_this_call was assigned to httpd,
         # we should clear the global httpd as it's no longer valid.
-        if httpd == server_instance_for_this_call:
-            httpd = None
+        with httpd_lock:
+            if httpd == server_instance_for_this_call:
+                httpd = None
     except Exception as e: # pylint: disable=broad-except
         print(f"An unexpected error occurred in API server on port {port}: {e}")
-        if httpd == server_instance_for_this_call: # If this instance was the global one
-            httpd = None
+        with httpd_lock:
+            if httpd == server_instance_for_this_call: # If this instance was the global one
+                httpd = None
     finally:
         # This block executes after serve_forever() returns (normal shutdown)
         # or if an exception occurs in the try block.
@@ -233,13 +239,14 @@ def run_server(port: int, debug: bool = False): # pylint: disable=unused-argumen
             print(f"Server on port {port}: Closing server socket (server_instance_for_this_call exists).")
             server_instance_for_this_call.server_close() # Ensure the server socket is closed.
 
-            # If the global `httpd` is still pointing to this instance, clear it.
-            if httpd == server_instance_for_this_call:
-                httpd = None
-                print(f"Server on port {port}: Global httpd cleared.")
-            else:
-                # This might happen if another thread/call modified global httpd in the meantime.
-                print(f"Server on port {port}: Global httpd (port: {httpd.server_port if httpd else 'None'}) did not match this instance, not clearing global httpd from this finally block.")
+            with httpd_lock:
+                # If the global `httpd` is still pointing to this instance, clear it.
+                if httpd == server_instance_for_this_call:
+                    httpd = None
+                    print(f"Server on port {port}: Global httpd cleared.")
+                else:
+                    # This might happen if another thread/call modified global httpd in the meantime.
+                    print(f"Server on port {port}: Global httpd (port: {httpd.server_port if httpd else 'None'}) did not match this instance, not clearing global httpd from this finally block.")
         else:
             # This means server_instance_for_this_call was never created (e.g. error in constructor)
             # If global httpd somehow points to something related, it's an inconsistent state.
