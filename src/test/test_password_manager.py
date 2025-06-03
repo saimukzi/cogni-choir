@@ -8,43 +8,47 @@ import json
 # If run from root with `python -m unittest discover src/test`:
 from src.main.password_manager import PasswordManager
 
-TEST_MASTER_KEY_FILE = os.path.join("data", "test_master_key.json")
-DATA_DIR = "data"
+# Use a unique data directory for this test class
+TEST_DATA_DIR_PWD_MGR = "test_data_pwd_mgr"
+TEST_MASTER_KEY_FILE = os.path.join(TEST_DATA_DIR_PWD_MGR, "test_master_key.json")
+
 
 class TestPasswordManager(unittest.TestCase):
 
     def setUp(self):
-        self._cleanup_test_file() # Ensure specific test file is gone before test
-
-        # Ensure data directory exists before each test, as PasswordManager expects to write into it.
-        if not os.path.exists(DATA_DIR):
-            try:
-                os.makedirs(DATA_DIR)
-            except OSError as e:
-                # If it fails (e.g. race condition if another test creates it), check if it exists now
-                if not os.path.isdir(DATA_DIR):
-                    raise RuntimeError(f"Failed to create data directory {DATA_DIR} for tests: {e}")
+        self._ensure_data_dir_exists() # Ensure unique test data directory exists
+        self._cleanup_test_file()    # Ensure specific test file is gone before test
 
         # Override the master key file path for testing
         self.pm = PasswordManager(TEST_MASTER_KEY_FILE)
 
     def tearDown(self):
         self._cleanup_test_file()
-        # Attempt to remove data directory if it's empty
-        try:
-            if os.path.exists(DATA_DIR) and not os.listdir(DATA_DIR):
-                os.rmdir(DATA_DIR)
-        except OSError:
-            # Silently pass if rmdir fails (e.g. .gitkeep or other files present)
-            # This directory is shared by other tests, so cleanup should be cautious.
-            pass
+        # Attempt to remove the unique test data directory if it's empty
+        if os.path.exists(TEST_DATA_DIR_PWD_MGR) and not os.listdir(TEST_DATA_DIR_PWD_MGR):
+            try:
+                os.rmdir(TEST_DATA_DIR_PWD_MGR)
+            except OSError as e: # pragma: no cover
+                print(f"Warning: Error removing directory {TEST_DATA_DIR_PWD_MGR} in cleanup: {e}")
+        elif os.path.exists(TEST_DATA_DIR_PWD_MGR) and os.listdir(TEST_DATA_DIR_PWD_MGR):
+             print(f"Warning: Test data directory {TEST_DATA_DIR_PWD_MGR} not empty during cleanup.")
+
+
+    def _ensure_data_dir_exists(self):
+        """Ensures the unique test data directory exists."""
+        if not os.path.exists(TEST_DATA_DIR_PWD_MGR):
+            try:
+                os.makedirs(TEST_DATA_DIR_PWD_MGR)
+            except OSError as e: # pragma: no cover
+                if not os.path.isdir(TEST_DATA_DIR_PWD_MGR):
+                    raise RuntimeError(f"Failed to create data directory {TEST_DATA_DIR_PWD_MGR} for tests: {e}")
 
     def _cleanup_test_file(self):
         """Removes only the specific test file used by this test class."""
         if os.path.exists(TEST_MASTER_KEY_FILE):
             try:
                 os.remove(TEST_MASTER_KEY_FILE)
-            except OSError as e:
+            except OSError as e: # pragma: no cover
                 print(f"Warning: Error removing {TEST_MASTER_KEY_FILE} in cleanup: {e}")
 
 

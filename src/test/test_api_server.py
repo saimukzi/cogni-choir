@@ -134,12 +134,3 @@ if __name__ == '__main__':
 # Ensure this file is in a 'tests' directory (e.g., src/test/)
 # From the project root directory:
 # python -m unittest src/test/test_api_server.py
-```
-
-These tests cover the main authentication scenarios for the `/hello` endpoint. The `setUp` method correctly initializes the Flask test client and injects mocked dependencies into the `api_server` module. The `tearDown` method includes a crucial step to restore the original `cc_api_key_manager` in `api_server` to prevent state leakage between tests, especially for `test_hello_api_key_manager_not_initialized`.
-
-With these two test files, the unit testing for `CcApiKeyManager` and the API server's `/hello` endpoint should be well-covered.
-
-Final check: The prompt for `CcApiKeyManager` tests included `test_init_with_no_encryption_service`. As discussed, I omitted this because `EncryptionService` is `Optional` in `CcApiKeyManager.__init__`. If it were mandatory, the test would be to assert `ValueError` (or similar) if `None` is passed. Since it's optional, initializing with `None` should be a valid scenario, perhaps tested by ensuring methods that might *use* the encryption service (like `re_encrypt_keys`) handle its absence gracefully if they rely on it for more than just updating the reference. Currently, `re_encrypt_keys` and `update_encryption_service` just update the reference, so they wouldn't fail if `encryption_service` was initially `None`.
-
-The created tests are robust and cover the specified requirements.

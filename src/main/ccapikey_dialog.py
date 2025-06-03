@@ -19,10 +19,11 @@ keyring for secure storage of key values.
 import logging
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QListWidget, QPushButton,
-    QLabel, QLineEdit, QMessageBox, QInputDialog, QListWidgetItem
+    QLabel, QLineEdit, QMessageBox, QInputDialog, QListWidgetItem, QApplication
     # QSizePolicy was imported but not used, so removed.
 )
 from PyQt6.QtCore import Qt
+import secrets
 
 # Assuming CcApiKeyManager is in the same package/directory.
 from .ccapikey_manager import CcApiKeyManager
@@ -32,8 +33,8 @@ class CcApiKeyDialog(QDialog):
     A dialog window for managing CogniChoir API Keys (CcApiKeys).
 
     This dialog provides a user interface to interact with a `CcApiKeyManager`
-    instance, allowing for the listing, addition, viewing (masked), and deletion
-    of CcApiKeys.
+    instance, allowing for the listing, addition, viewing (masked), copying,
+    and deletion of CcApiKeys.
 
     Attributes:
         logger: Logger instance for this class.
@@ -97,6 +98,10 @@ class CcApiKeyDialog(QDialog):
         self.view_key_button.clicked.connect(self._view_key)
         buttons_layout.addWidget(self.view_key_button)
 
+        self.copy_key_button = QPushButton(self.tr("Copy Key"))
+        self.copy_key_button.clicked.connect(self._copy_key_to_clipboard)
+        buttons_layout.addWidget(self.copy_key_button)
+
         self.delete_key_button = QPushButton(self.tr("Delete Key"))
         self.delete_key_button.clicked.connect(self._delete_key)
         buttons_layout.addWidget(self.delete_key_button)
@@ -134,60 +139,105 @@ class CcApiKeyDialog(QDialog):
         """
         has_selection = bool(self.keys_list_widget.selectedItems())
         self.view_key_button.setEnabled(has_selection)
+        self.copy_key_button.setEnabled(has_selection)
         self.delete_key_button.setEnabled(has_selection)
+
+    def _generate_api_key(self) -> str:
+        """Generates a cryptographically secure random API key.
+
+        The key is 64 characters long, generated using secrets.token_hex(32).
+
+        Returns:
+            str: The generated API key.
+        """
+        return secrets.token_hex(32)
 
     def _add_key(self):
         """
         Handles the process of adding a new CcApiKey.
 
-        Prompts the user for a name for the new key and then for the key value
-        itself (using a password input field for masking). Validates that the
-        name is not empty and does not already exist. Validates that the key
-        value is not empty. If validations pass, it calls the `CcApiKeyManager`
+        Prompts the user for a name for the new key. Generates a secure key
+        value automatically. Validates that the name is not empty and does not
+        already exist. If validations pass, it calls the `CcApiKeyManager`
         to add the key. Shows success or error messages to the user.
+        The newly generated key is copied to the clipboard.
         """
         # Prompt for key name
         key_name, ok_name = QInputDialog.getText(self,
                                                  self.tr("Add CogniChoir API Key"),
                                                  self.tr("Enter a unique name for the new API key:"))
         if not ok_name or not key_name.strip():
-            if ok_name: # User pressed OK but input was empty or spaces
+            if ok_name:  # User pressed OK but input was empty or spaces
                 QMessageBox.warning(self, self.tr("Invalid Name"), self.tr("API key name cannot be empty."))
-            return # User cancelled or entered empty name
+            return  # User cancelled or entered empty name
 
-        key_name = key_name.strip() # Clean up whitespace
+        key_name = key_name.strip()  # Clean up whitespace
 
         if self.ccapikey_manager.has_key(key_name):
             QMessageBox.warning(self, self.tr("Name Exists"),
                                 self.tr("An API key with the name '{0}' already exists.").format(key_name))
             return
 
-        # Prompt for key value
-        api_key_value, ok_value = QInputDialog.getText(self,
-                                                       self.tr("Add CogniChoir API Key"),
-                                                       self.tr("Enter the API key value for '{0}':").format(key_name),
-                                                       QLineEdit.EchoMode.Password) # Mask input
-        if not ok_value or not api_key_value.strip():
-            if ok_value: # User pressed OK but input was empty or spaces
-                QMessageBox.warning(self, self.tr("Invalid Key Value"), self.tr("API key value cannot be empty."))
-            return # User cancelled or entered empty value
-
-        api_key_value = api_key_value.strip() # Clean up whitespace
+        # Generate key value
+        api_key_value = self._generate_api_key()
 
         # Attempt to add the key via the manager
         if self.ccapikey_manager.add_key(key_name, api_key_value):
             self.logger.info(f"CcAPIKey '{key_name}' added successfully via dialog.")
-            self._load_keys_to_list() # Refresh the list
+            self._load_keys_to_list()  # Refresh the list
             # Try to select the newly added key for user convenience
             items = self.keys_list_widget.findItems(key_name, Qt.MatchFlag.MatchExactly)
             if items:
                 self.keys_list_widget.setCurrentItem(items[0])
-            QMessageBox.information(self, self.tr("Success"),
-                                    self.tr("CogniChoir API key '{0}' was added successfully.").format(key_name))
+
+            # Inform user and copy to clipboard
+            clipboard = QApplication.clipboard()
+            if clipboard:
+                clipboard.setText(api_key_value)
+                QMessageBox.information(self, self.tr("Success"),
+                                        self.tr("CogniChoir API key '{0}' was added successfully and copied to your clipboard.").format(key_name))
+            else:
+                # Fallback if clipboard is not available, though rare in GUI apps
+                QMessageBox.information(self, self.tr("Success"),
+                                        self.tr("CogniChoir API key '{0}' was added successfully. Please copy it manually if needed.").format(key_name))
+                self.logger.warning("QApplication.clipboard() returned None. Cannot copy new API key.")
+
         else:
             self.logger.error(f"Failed to add CcAPIKey '{key_name}' via dialog (manager returned false).")
             QMessageBox.critical(self, self.tr("Error Adding Key"),
                                  self.tr("Could not add the API key. This might be due to an issue with the system keyring. Please check the application logs for more details."))
+
+    def _copy_key_to_clipboard(self):
+        """Copies the selected API key's value to the clipboard.
+
+        If a key is selected in the list, its value is retrieved from the
+        CcApiKeyManager and copied to the system clipboard. Confirmation or
+        error messages are displayed to the user.
+        """
+        selected_items = self.keys_list_widget.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, self.tr("No Key Selected"),
+                                self.tr("Please select a key from the list to copy its value."))
+            return
+
+        key_name = selected_items[0].text()
+        api_key_value = self.ccapikey_manager.get_key(key_name)
+
+        if api_key_value is not None:
+            clipboard = QApplication.clipboard()
+            if clipboard:
+                clipboard.setText(api_key_value)
+                self.logger.info(f"Copied value of CcAPIKey '{key_name}' to clipboard.")
+                QMessageBox.information(self, self.tr("Key Copied"),
+                                        self.tr("The value of API key '{0}' has been copied to your clipboard.").format(key_name))
+            else:
+                self.logger.warning("QApplication.clipboard() returned None. Cannot copy API key.")
+                QMessageBox.warning(self, self.tr("Clipboard Error"),
+                                    self.tr("Could not access the system clipboard to copy the key."))
+        else:
+            self.logger.warning(f"Attempted to copy CcAPIKey '{key_name}', but its value could not be retrieved.")
+            QMessageBox.warning(self, self.tr("Key Value Not Found"),
+                                self.tr("Could not retrieve the value for API key '{0}'. It might have been deleted or an error occurred.").format(key_name))
 
     def _view_key(self):
         """

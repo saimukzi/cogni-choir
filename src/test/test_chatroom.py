@@ -14,9 +14,6 @@ import os
 # import json # json.load is patched directly where used
 import time # For message timestamp tests
 
-# Adjusting sys.path for direct imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-
 from src.main.chatroom import Chatroom, ChatroomManager, _sanitize_filename, DATA_DIR
 from src.main.ai_bots import Bot
 from src.main.third_party import ThirdPartyBase, ThirdPartyApiKeySlotInfo, AIEngineInfo, AIEngineArgInfo # For NoKeyEngine
@@ -24,7 +21,7 @@ from src.main.third_parties.google import Google as GeminiEngine # Alias for con
 from src.main.third_parties.azure_openai import AzureOpenAI as AzureOpenAIEngine # Alias
 from src.main.third_parties.xai import XAI as GrokEngine # Alias
 from src.main.message import Message
-from main.thirdpartyapikey_manager import ThirdPartyApiKeyManager, ThirdPartyApiKeyQuery # Added ThirdPartyApiKeyQuery
+from src.main.thirdpartyapikey_manager import ThirdPartyApiKeyManager, ThirdPartyApiKeyQuery # Added ThirdPartyApiKeyQuery
 
 
 class TestChatroom(unittest.TestCase):

@@ -6,11 +6,7 @@ import os
 import json
 import io
 
-# Adjusting sys.path for direct imports from src.main
-# This assumes tests are run from the root of the project or src/test is in PYTHONPATH
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-
-from main.thirdpartyapikey_manager import ThirdPartyApiKeyManager, ThirdPartyApiKeyQuery, ENCRYPTED_SERVICE_NAME_PREFIX # Removed _KEYRING_MANAGED_SERVICES_KEY, Added ThirdPartyApiKeyQuery
+from src.main.thirdpartyapikey_manager import ThirdPartyApiKeyManager, ThirdPartyApiKeyQuery, ENCRYPTED_SERVICE_NAME_PREFIX # Removed _KEYRING_MANAGED_SERVICES_KEY, Added ThirdPartyApiKeyQuery
 from src.main.encryption_service import EncryptionService
 # Import the module itself to patch its global constant for salt file path
 import src.main.encryption_service as encryption_service_module

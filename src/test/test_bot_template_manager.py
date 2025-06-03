@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 # This assumes your tests are run from the project root or that src is in PYTHONPATH
 from src.main.bot_template_manager import BotTemplateManager, BOT_TEMPLATES_FILE
 from src.main.ai_bots import Bot
-from main.thirdpartyapikey_manager import ThirdPartyApiKeyQuery
+from src.main.thirdpartyapikey_manager import ThirdPartyApiKeyQuery
 
 
 # Helper to create a dummy Bot instance for testing

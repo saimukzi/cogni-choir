@@ -7,8 +7,9 @@ from cryptography.fernet import Fernet, InvalidToken
 # Adjust import path
 from src.main.encryption_service import EncryptionService, ENCRYPTION_SALT_FILE as MODULE_SALT_FILE_CONSTANT
 
-TEST_ENCRYPTION_SALT_FILE = os.path.join("data", "test_encryption_salt.json")
-DATA_DIR = "data"
+# Use a unique data directory for this test class
+TEST_DATA_DIR_ENC_SVC = "test_data_enc_svc"
+TEST_ENCRYPTION_SALT_FILE = os.path.join(TEST_DATA_DIR_ENC_SVC, "test_encryption_salt.json")
 
 class TestEncryptionService(unittest.TestCase):
 
@@ -34,8 +35,8 @@ class TestEncryptionService(unittest.TestCase):
         self.es_module_ref = es_module
         self.es_module_ref.ENCRYPTION_SALT_FILE = TEST_ENCRYPTION_SALT_FILE
 
-        self._ensure_data_dir_exists()
-        self._cleanup() # Clean up before creating the service instance
+        self._ensure_data_dir_exists() # Ensures TEST_DATA_DIR_ENC_SVC exists
+        self._cleanup() # Clean up specific files before creating the service instance
 
         self.es = EncryptionService(self.master_password)
 
@@ -46,17 +47,25 @@ class TestEncryptionService(unittest.TestCase):
 
 
     def _ensure_data_dir_exists(self):
-        if not os.path.exists(DATA_DIR):
-            os.makedirs(DATA_DIR)
+        if not os.path.exists(TEST_DATA_DIR_ENC_SVC):
+            os.makedirs(TEST_DATA_DIR_ENC_SVC)
 
     def _cleanup(self):
+        # Removes the specific salt file if it exists
         if os.path.exists(TEST_ENCRYPTION_SALT_FILE):
             os.remove(TEST_ENCRYPTION_SALT_FILE)
-        if os.path.exists(DATA_DIR) and not os.listdir(DATA_DIR):
+        # Remove the unique test directory if it exists and is empty (after file removal)
+        # This is now safer as the directory is unique to this test class.
+        if os.path.exists(TEST_DATA_DIR_ENC_SVC) and not os.listdir(TEST_DATA_DIR_ENC_SVC):
             try:
-                os.rmdir(DATA_DIR)
-            except OSError:
-                pass
+                os.rmdir(TEST_DATA_DIR_ENC_SVC)
+            except OSError: # pragma: no cover
+                pass # Should not happen if listdir is empty
+        elif os.path.exists(TEST_DATA_DIR_ENC_SVC) and os.listdir(TEST_DATA_DIR_ENC_SVC):
+            # If other files are somehow in this unique dir, log it but don't fail cleanup.
+            # This might indicate an issue with a test not cleaning up its own specific files.
+            print(f"Warning: Test data directory {TEST_DATA_DIR_ENC_SVC} not empty during cleanup.") # Or use logger
+
 
     def test_init_creates_salt_and_key(self):
         self.assertTrue(os.path.exists(TEST_ENCRYPTION_SALT_FILE), "Salt file should be created on init.")
