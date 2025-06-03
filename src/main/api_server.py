@@ -48,7 +48,7 @@ class ApiRequestHandler(http.server.BaseHTTPRequestHandler):
     """
     Request handler for the CogniChoir API server.
 
-    Handles GET requests for /hello and POST requests for /shutdown.
+    Handles GET requests for /hello.
     """
 
     def _send_response(self, status_code: int, content_type: str, body: str):

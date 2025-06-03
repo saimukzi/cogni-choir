@@ -100,39 +100,41 @@ class TestApiServerHttp(unittest.TestCase):
 
 
     def _stop_server(self):
-        """Stops the HTTP server thread, primarily by using the /shutdown endpoint."""
-        if self.server_thread and self.server_thread.is_alive():
-            if api_server.httpd: # Check if the server believes it's running
-                try:
-                    print(f"TestHelper _stop_server: Attempting graceful shutdown via POST to {BASE_URL}/shutdown")
-                    # Increased timeout for the shutdown request itself.
-                    requests.post(f"{BASE_URL}/shutdown", timeout=1.0)
-                    # Wait for the server thread to process shutdown and for serve_forever() to return.
-                    # The join() timeout should be generous enough for the server's finally block to run.
-                    self.server_thread.join(timeout=2.0)
-                except requests.exceptions.RequestException as e:
-                    print(f"TestHelper _stop_server: Request to /shutdown failed (server might be already down or unresponsive): {e}")
-                    # If POST fails, the server might already be in shutdown.
-                    # We still try to join the thread.
-                    if self.server_thread.is_alive():
-                        self.server_thread.join(timeout=1.0)
-            else:
-                # If api_server.httpd is None, but thread is alive, it's an odd state.
-                # Try to join anyway.
-                print("TestHelper _stop_server: api_server.httpd is None, but server_thread is alive. Joining thread.")
-                if self.server_thread.is_alive(): # Re-check, condition might have changed
-                    self.server_thread.join(timeout=1.0)
+        api_server.shutdown_server()
 
-        # After attempts to shut down and join, if thread is *still* alive, it's problematic.
-        if self.server_thread and self.server_thread.is_alive():
-            print("TestHelper _stop_server: Server thread still alive after shutdown attempts. This may indicate an issue.")
-            # At this point, forcefully trying to shutdown global httpd (if any) might be too late or risky
-            # as the thread might be stuck. The test for this scenario will likely fail on assertion.
+        # """Stops the HTTP server thread, primarily by using the /shutdown endpoint."""
+        # if self.server_thread and self.server_thread.is_alive():
+        #     if api_server.httpd: # Check if the server believes it's running
+        #         try:
+        #             print(f"TestHelper _stop_server: Attempting graceful shutdown via POST to {BASE_URL}/shutdown")
+        #             # Increased timeout for the shutdown request itself.
+        #             requests.post(f"{BASE_URL}/shutdown", timeout=1.0)
+        #             # Wait for the server thread to process shutdown and for serve_forever() to return.
+        #             # The join() timeout should be generous enough for the server's finally block to run.
+        #             self.server_thread.join(timeout=2.0)
+        #         except requests.exceptions.RequestException as e:
+        #             print(f"TestHelper _stop_server: Request to /shutdown failed (server might be already down or unresponsive): {e}")
+        #             # If POST fails, the server might already be in shutdown.
+        #             # We still try to join the thread.
+        #             if self.server_thread.is_alive():
+        #                 self.server_thread.join(timeout=1.0)
+        #     else:
+        #         # If api_server.httpd is None, but thread is alive, it's an odd state.
+        #         # Try to join anyway.
+        #         print("TestHelper _stop_server: api_server.httpd is None, but server_thread is alive. Joining thread.")
+        #         if self.server_thread.is_alive(): # Re-check, condition might have changed
+        #             self.server_thread.join(timeout=1.0)
 
-        self.server_thread = None
-        # `api_server.httpd` should be set to None by the `run_server`'s `finally` block.
-        # `api_server.server_thread` is not managed by api_server.py itself, but by its caller.
-        time.sleep(0.2) # Brief pause to help ensure resources are released system-wide.
+        # # After attempts to shut down and join, if thread is *still* alive, it's problematic.
+        # if self.server_thread and self.server_thread.is_alive():
+        #     print("TestHelper _stop_server: Server thread still alive after shutdown attempts. This may indicate an issue.")
+        #     # At this point, forcefully trying to shutdown global httpd (if any) might be too late or risky
+        #     # as the thread might be stuck. The test for this scenario will likely fail on assertion.
+
+        # self.server_thread = None
+        # # `api_server.httpd` should be set to None by the `run_server`'s `finally` block.
+        # # `api_server.server_thread` is not managed by api_server.py itself, but by its caller.
+        # time.sleep(0.2) # Brief pause to help ensure resources are released system-wide.
 
 
     def test_hello_no_api_key_header(self):
@@ -250,35 +252,35 @@ class TestApiServerHttp(unittest.TestCase):
         mock_print.assert_any_call("API server is disabled by configuration.")
 
 
-    def test_shutdown_endpoint(self):
-        """Test the /shutdown endpoint."""
-        self._start_server()
-        self.assertIsNotNone(api_server.httpd, "Server should be running before shutdown test.")
-        self.assertTrue(self.server_thread and self.server_thread.is_alive(), "Server thread should be alive.")
+    # def test_shutdown_endpoint(self):
+    #     """Test the /shutdown endpoint."""
+    #     self._start_server()
+    #     self.assertIsNotNone(api_server.httpd, "Server should be running before shutdown test.")
+    #     self.assertTrue(self.server_thread and self.server_thread.is_alive(), "Server thread should be alive.")
 
-        response = requests.post(f"{BASE_URL}/shutdown")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"message": "Server shutting down..."})
+    #     response = requests.post(f"{BASE_URL}/shutdown")
+    #     self.assertEqual(response.status_code, 200)
+    #     self.assertEqual(response.json(), {"message": "Server shutting down..."})
 
-        # Wait for server to shut down
-        if self.server_thread:
-            self.server_thread.join(timeout=2) # Wait for thread to terminate
+    #     # Wait for server to shut down
+    #     if self.server_thread:
+    #         self.server_thread.join(timeout=2) # Wait for thread to terminate
 
-        self.assertFalse(self.server_thread and self.server_thread.is_alive(), "Server thread should have terminated.")
+    #     self.assertFalse(self.server_thread and self.server_thread.is_alive(), "Server thread should have terminated.")
 
-        # Wait a bit longer for the server's finally block in run_server to complete fully,
-        # which includes setting api_server.httpd to None.
-        time.sleep(0.3) # Increased from 0.2 to 0.3 for more buffer
+    #     # Wait a bit longer for the server's finally block in run_server to complete fully,
+    #     # which includes setting api_server.httpd to None.
+    #     time.sleep(0.3) # Increased from 0.2 to 0.3 for more buffer
 
-        self.assertIsNone(api_server.httpd, "Global api_server.httpd should be None after server shutdown sequence.")
+    #     self.assertIsNone(api_server.httpd, "Global api_server.httpd should be None after server shutdown sequence.")
 
-        with self.assertRaises(requests.exceptions.ConnectionError):
-            print(f"TestClient: Attempting to connect to {BASE_URL}/hello to confirm server is down...")
-            # Increased timeout for this check, as the port might take a moment to be fully unlistenable.
-            requests.get(f"{BASE_URL}/hello", timeout=1.0)
+    #     with self.assertRaises(requests.exceptions.ConnectionError):
+    #         print(f"TestClient: Attempting to connect to {BASE_URL}/hello to confirm server is down...")
+    #         # Increased timeout for this check, as the port might take a moment to be fully unlistenable.
+    #         requests.get(f"{BASE_URL}/hello", timeout=1.0)
 
-        # api_server.httpd should already be None due to run_server's finally block.
-        # api_server.server_thread is not managed by api_server.py; self.server_thread is the test's handle.
+    #     # api_server.httpd should already be None due to run_server's finally block.
+    #     # api_server.server_thread is not managed by api_server.py; self.server_thread is the test's handle.
 
 
 if __name__ == '__main__':
