@@ -2,7 +2,7 @@
 otherwise falling back to a JSON file. Keys are encrypted if an
 EncryptionService is provided.
 
-This module provides the `ApiKeeyManager` class, responsible for abstracting
+This module provides the `ThirdPartyApiKeyManager` class, responsible for abstracting
 the storage and retrieval of API keys for various AI services. It prioritizes
 using the system's keyring for secure storage. If keyring access fails,
 it defaults to a JSON file (`data/apikeeys.json`).
@@ -27,11 +27,11 @@ from .encryption_service import EncryptionService # Assuming EncryptionService i
 ENCRYPTED_SERVICE_NAME_PREFIX = "CogniChoir_Encrypted"
 
 
-class ApiKeeyQuery:
+class ThirdPartyApiKeyQuery:
     """Represents a query for an API key.
 
     This class is used to encapsulate the parameters needed to retrieve
-    an API key from the `ApiKeeyManager`. It includes the slot ID and
+    an API key from the `ThirdPartyApiKeyManager`. It includes the slot ID and
     the specific key ID for the service.
 
     Attributes:
@@ -39,7 +39,7 @@ class ApiKeeyQuery:
         apikeey_id (str): The specific ID of the API key within that slot.
     """
     def __init__(self, apikeey_slot_id: str, apikeey_id: str):
-        """Initializes an ApiKeeyQuery instance.
+        """Initializes an ThirdPartyApiKeyQuery instance.
 
         Args:
             apikeey_slot_id: The slot ID for the API key.
@@ -67,10 +67,10 @@ class ApiKeeyQuery:
         return self._apikeey_id
 
     def to_dict(self) -> dict:
-        """Converts the ApiKeeyQuery to a dictionary.
+        """Converts the ThirdPartyApiKeyQuery to a dictionary.
 
         Returns:
-            dict: A dictionary representation of the ApiKeeyQuery.
+            dict: A dictionary representation of the ThirdPartyApiKeyQuery.
         """
         return {
             "apikeey_slot_id": self._apikeey_slot_id,
@@ -78,22 +78,22 @@ class ApiKeeyQuery:
         }
 
     @staticmethod
-    def from_dict(data: dict) -> 'ApiKeeyQuery':
-        """Creates an ApiKeeyQuery from a dictionary.
+    def from_dict(data: dict) -> 'ThirdPartyApiKeyQuery':
+        """Creates an ThirdPartyApiKeyQuery from a dictionary.
 
         Args:
             data (dict): A dictionary containing the API key query parameters.
 
         Returns:
-            ApiKeeyQuery: An instance of ApiKeeyQuery initialized with the provided data.
+            ThirdPartyApiKeyQuery: An instance of ThirdPartyApiKeyQuery initialized with the provided data.
         """
-        return ApiKeeyQuery(
+        return ThirdPartyApiKeyQuery(
             apikeey_slot_id=data.get("apikeey_slot_id", ""),
             apikeey_id=data.get("apikeey_id", "")
         )
 
 
-class ApiKeeyManager:
+class ThirdPartyApiKeyManager:
     """Manages API keys, using system keyring or an encrypted JSON fallback.
 
     This manager handles saving, loading, and deleting API keys. It attempts
@@ -106,7 +106,7 @@ class ApiKeeyManager:
             encrypting/decrypting keys. If None, secure operations will fail.
     """
     def __init__(self, encryption_service: EncryptionService, data_path: str = None):
-        """Initializes the ApiKeeyManager.
+        """Initializes the ThirdPartyApiKeyManager.
 
         Determines if keyring is available and sets up the fallback storage path.
         Loads keys from the fallback file, which might include a manifest of
@@ -122,7 +122,7 @@ class ApiKeeyManager:
             data_path = os.path.join("data", "apikeey_manager.json")
 
         if not encryption_service:
-            raise RuntimeError("Encryption service must be provided for ApiKeeyManager.")
+            raise RuntimeError("Encryption service must be provided for ThirdPartyApiKeyManager.")
 
         self.encryption_service = encryption_service
         self.data_path = data_path
@@ -181,7 +181,7 @@ class ApiKeeyManager:
         """Generates a unique service name for keyring storage."""
         return f"{ENCRYPTED_SERVICE_NAME_PREFIX}_{apikeey_slot_id}"
 
-    def set_apikeey(self, apikeey_query: ApiKeeyQuery, apikeey: str):
+    def set_apikeey(self, apikeey_query: ThirdPartyApiKeyQuery, apikeey: str):
         """Saves an API key for a given service, encrypting it before storage.
 
         The API key is encrypted using the configured `EncryptionService`.
@@ -199,10 +199,10 @@ class ApiKeeyManager:
         """
         if not self.encryption_service:
             raise RuntimeError("Encryption service not available. Cannot save key.")
-        if not apikeey_query: # Checks if the ApiKeeyQuery object itself is None
-            # This message might need refinement given ApiKeeyQuery structure.
+        if not apikeey_query: # Checks if the ThirdPartyApiKeyQuery object itself is None
+            # This message might need refinement given ThirdPartyApiKeyQuery structure.
             # For now, the critical check is for the apikeey string itself.
-            raise ValueError("ApiKeeyQuery object cannot be None.")
+            raise ValueError("ThirdPartyApiKeyQuery object cannot be None.")
         if not apikeey: # Check for empty API key string
             raise ValueError("API key cannot be empty.")
 
@@ -218,7 +218,7 @@ class ApiKeeyManager:
             self._data['apikeey_slot_id_to_apikeey_id_list_dict'][apikeey_slot_id].append(apikeey_id)
         self._save_data()
 
-    def get_apikeey(self, apikeey_query: ApiKeeyQuery) -> str | None:
+    def get_apikeey(self, apikeey_query: ThirdPartyApiKeyQuery) -> str | None:
         """Loads and decrypts an API key for a given service.
 
         Retrieves the encrypted key from the system keyring or fallback JSON file,
@@ -234,7 +234,7 @@ class ApiKeeyManager:
         if not self.encryption_service:
             raise RuntimeError("Encryption service not available. Cannot load key.")
         if not apikeey_query:
-            raise ValueError("ApiKeeyQuery object cannot be None.")
+            raise ValueError("ThirdPartyApiKeyQuery object cannot be None.")
         if not apikeey_query.apikeey_slot_id or not apikeey_query.apikeey_id:
             # Or handle differently, e.g., return None if keyring would fail with empty strings
             print(f"Warning: Attempting to get API key with empty slot_id or key_id in query: {apikeey_query.to_dict()}", file=sys.stderr)
@@ -252,11 +252,11 @@ class ApiKeeyManager:
             return None
         return decrypted_key
 
-    def delete_apikeey(self, apikeey_query: ApiKeeyQuery):
+    def delete_apikeey(self, apikeey_query: ThirdPartyApiKeyQuery):
         """Deletes an API key from keyring and the local data index.
 
         Args:
-            apikeey_query: An `ApiKeeyQuery` object specifying the key to delete.
+            apikeey_query: An `ThirdPartyApiKeyQuery` object specifying the key to delete.
         """
         if not apikeey_query:
             return
@@ -269,14 +269,14 @@ class ApiKeeyManager:
                 self._data['apikeey_slot_id_to_apikeey_id_list_dict'][apikeey_slot_id].remove(apikeey_id)
         self._save_data()
 
-    def get_apikeey_list(self, query_list: list[ApiKeeyQuery]) -> list[str]:
+    def get_apikeey_list(self, query_list: list[ThirdPartyApiKeyQuery]) -> list[str]:
         """Retrieves a list of API keys for the specified services.
 
         This method returns a list of decrypted API keys for the provided
         API key queries. If a key cannot be found or decrypted, it is skipped.
 
         Args:
-            query_list (list[ApiKeeyQuery]): List of `ApiKeeyQuery` objects
+            query_list (list[ThirdPartyApiKeyQuery]): List of `ThirdPartyApiKeyQuery` objects
                 specifying which keys to retrieve.
 
         Returns:
@@ -374,15 +374,15 @@ class ApiKeeyManager:
 
         self._fix_data()  # Reset to empty structure
 
-    def get_available_apikeey_query_list(self) -> list[ApiKeeyQuery]:
+    def get_available_apikeey_query_list(self) -> list[ThirdPartyApiKeyQuery]:
         """Retrieves a list of all available API key queries.
 
-        This method returns a list of `ApiKeeyQuery` instances for all
+        This method returns a list of `ThirdPartyApiKeyQuery` instances for all
         API keys stored in the system keyring or the fallback JSON file.
         It includes both the slot ID and the specific key ID for each service.
 
         Returns:
-            list[ApiKeeyQuery]: A list of ApiKeeyQuery instances for all available API keys.
+            list[ThirdPartyApiKeyQuery]: A list of ThirdPartyApiKeyQuery instances for all available API keys.
         """
         if not self._data or 'apikeey_slot_id_to_apikeey_id_list_dict' not in self._data:
             return []
@@ -390,5 +390,5 @@ class ApiKeeyManager:
         apikeey_query_list = []
         for apikeey_slot_id, apikeey_id_list in self._data['apikeey_slot_id_to_apikeey_id_list_dict'].items():
             for apikeey_id in apikeey_id_list:
-                apikeey_query_list.append(ApiKeeyQuery(apikeey_slot_id, apikeey_id))
+                apikeey_query_list.append(ThirdPartyApiKeyQuery(apikeey_slot_id, apikeey_id))
         return apikeey_query_list

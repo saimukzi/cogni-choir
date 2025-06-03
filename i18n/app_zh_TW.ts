@@ -223,12 +223,12 @@
         <translation>API 金鑰已刪除。</translation>
     </message>
     <message>
-        <location filename="../src/main/apikeey_manager.py"/>
+        <location filename="../src/main/thirdpartyapikey_manager.py"/>
         <source>Failed to initialize keyring. Using fallback JSON file for API keys: {0}</source>
         <translation>無法初始化鑰匙圈。API 金鑰將使用備援 JSON 檔案：{0}</translation>
     </message>
     <message>
-        <location filename="../src/main/apikeey_manager.py"/>
+        <location filename="../src/main/thirdpartyapikey_manager.py"/>
         <source>Could not access keyring. Using fallback JSON file for API keys: {0}</source>
         <translation>無法存取鑰匙圈。API 金鑰將使用備援 JSON 檔案：{0}</translation>
     </message>

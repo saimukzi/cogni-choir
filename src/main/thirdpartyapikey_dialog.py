@@ -6,17 +6,17 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 # Attempt to import from sibling modules
-from .apikeey_manager import ApiKeeyManager, ApiKeeyQuery
+from .thirdpartyapikey_manager import ThirdPartyApiKeyManager, ThirdPartyApiKeyQuery
 from . import third_party
 
 
-class ApiKeeyDialog(QDialog):
+class ThirdPartyApiKeyDialog(QDialog):
     """A dialog for managing API keys for various AI services."""
-    def __init__(self, apikeey_slot_info_list: list[third_party.ApiKeeySlotInfo], apikeey_manager: ApiKeeyManager, parent=None):
-        """Initializes the ApiKeeyDialog.
+    def __init__(self, apikeey_slot_info_list: list[third_party.ThirdPartyApiKeySlotInfo], apikeey_manager: ThirdPartyApiKeyManager, parent=None):
+        """Initializes the ThirdPartyApiKeyDialog.
 
         Args:
-            apikeey_manager: An instance of ApiKeeyManager to handle key storage.
+            apikeey_manager: An instance of ThirdPartyApiKeyManager to handle key storage.
             parent: The parent widget, if any.
         """
         super().__init__(parent)
@@ -61,7 +61,7 @@ class ApiKeeyDialog(QDialog):
         apikeey_slot_id = self.service_combo.currentData()
         apikeey_id = apikeey_slot_id # TODO: Handle multiple keys per service if needed
         if apikeey_slot_id: # Ensure a service is actually selected
-            key = self.apikeey_manager.get_apikeey(ApiKeeyQuery(apikeey_slot_id, apikeey_id))
+            key = self.apikeey_manager.get_apikeey(ThirdPartyApiKeyQuery(apikeey_slot_id, apikeey_id))
             self.apikeey_input.setText(key if key else "")
         else:
             self.apikeey_input.clear()
@@ -79,7 +79,7 @@ class ApiKeeyDialog(QDialog):
             QMessageBox.warning(self, self.tr("Warning"), self.tr("API Key cannot be empty."))
             return
 
-        self.apikeey_manager.set_apikeey(ApiKeeyQuery(apikeey_slot_id, apikeey_id), key_text)
+        self.apikeey_manager.set_apikeey(ThirdPartyApiKeyQuery(apikeey_slot_id, apikeey_id), key_text)
         QMessageBox.information(self, self.tr("Success"), self.tr("API Key saved."))
 
     def _delete_key(self):
@@ -94,6 +94,6 @@ class ApiKeeyDialog(QDialog):
                                      self.tr("Are you sure you want to delete the API key for {0}?").format(apikeey_slot_id),
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            self.apikeey_manager.delete_apikeey(ApiKeeyQuery(apikeey_slot_id, apikeey_id))
+            self.apikeey_manager.delete_apikeey(ThirdPartyApiKeyQuery(apikeey_slot_id, apikeey_id))
             self.apikeey_input.clear()
             QMessageBox.information(self, self.tr("Success"), self.tr("API Key deleted."))

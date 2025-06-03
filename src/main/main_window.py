@@ -4,7 +4,7 @@ Main window and associated dialogs for the Chat Application.
 This module defines the main graphical user interface (GUI) for the chat
 application, including the `MainWindow` class which orchestrates the various
 UI elements and interactions. It also defines helper dialog classes:
-- `ApiKeeyDialog`: For managing API keys for different AI services.
+- `ThirdPartyApiKeyDialog`: For managing API keys for different AI services.
 - `CreateFakeMessageDialog`: For manually adding messages to a chatroom (for testing/dev).
 
 The application uses PyQt6 for its GUI components. Internationalization (i18n)
@@ -31,11 +31,11 @@ from .chatroom import ChatroomManager
 from .bot_template_manager import BotTemplateManager  # Added
 # from .ai_bots import Bot, create_bot
 # from .ai_engines import GeminiEngine, GrokEngine
-from .apikeey_manager import ApiKeeyManager
+from .thirdpartyapikey_manager import ThirdPartyApiKeyManager
 # from . import ai_engines
 from .bot_info_dialog import BotInfoDialog
 from .create_fake_message_dialog import CreateFakeMessageDialog
-from .apikeey_dialog import ApiKeeyDialog
+from .thirdpartyapikey_dialog import ThirdPartyApiKeyDialog
 from .password_manager import PasswordManager
 from .encryption_service import EncryptionService, ENCRYPTION_SALT_FILE
 from .password_dialogs import CreateMasterPasswordDialog, EnterMasterPasswordDialog, ChangeMasterPasswordDialog
@@ -86,7 +86,7 @@ class MainWindow(QMainWindow):
         Sets up logging, critical components like PasswordManager, and then
         initiates the master password handling sequence. If master password
         setup is successful, it proceeds to initialize EncryptionService,
-        ApiKeeyManager, ChatroomManager, and the main user interface.
+        ThirdPartyApiKeyManager, ChatroomManager, and the main user interface.
         If master password setup fails or is cancelled, the application
         initialization is halted, and the window is scheduled to close.
         """
@@ -102,7 +102,7 @@ class MainWindow(QMainWindow):
 
         self.password_manager = PasswordManager()
         self.encryption_service = None
-        self.apikeey_manager = None  # Initialized after password setup
+        self.thirdpartyapikey_manager = None  # Initialized after password setup
 
         if not self._handle_master_password_startup():
             self.logger.warning(
@@ -115,11 +115,11 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(0, self.close)
             return  # Stop further initialization in __init__
 
-        # Initialize ApiKeeyManager now that encryption_service is available
-        self.apikeey_manager = ApiKeeyManager(
+        # Initialize ThirdPartyApiKeyManager now that encryption_service is available
+        self.thirdpartyapikey_manager = ThirdPartyApiKeyManager(
             encryption_service=self.encryption_service)
         self.chatroom_manager = ChatroomManager(
-            apikeey_manager=self.apikeey_manager)
+            thirdpartyapikey_manager=self.thirdpartyapikey_manager)
         self.bot_template_manager = BotTemplateManager(
             data_dir=self.data_dir_path)  # Added
 
@@ -142,7 +142,7 @@ class MainWindow(QMainWindow):
         # --- Menu Bar ---
         settings_menu = self.menuBar().addMenu(self.tr("Settings"))
         manage_keys_action = QAction(self.tr("Manage API Keys"), self)
-        manage_keys_action.triggered.connect(self._show_apikeey_dialog)
+        manage_keys_action.triggered.connect(self._show_thirdpartyapikey_dialog)
         settings_menu.addAction(manage_keys_action)
 
         change_mp_action = QAction(self.tr("Change Master Password"), self)
@@ -754,7 +754,7 @@ class MainWindow(QMainWindow):
         determining which bot's "play" button was clicked.
         It gathers the conversation history from the current chatroom.
         The method then calls `third_party_group.generate_response()`
-        with the bot's configuration, API keys (retrieved via `apikeey_manager`),
+        with the bot's configuration, API keys (retrieved via `thirdpartyapikey_manager`),
         and conversation history.
 
         The bot's response is added to the chatroom and the message display
@@ -809,8 +809,8 @@ class MainWindow(QMainWindow):
             return
 
         # if isinstance(engine, (GeminiEngine, GrokEngine)):
-        #     apikeey = self.apikeey_manager.load_key(engine_type_name)
-        #     if not apikeey:
+        #     thirdpartyapikey = self.thirdpartyapikey_manager.load_key(engine_type_name)
+        #     if not thirdpartyapikey:
         #         self.logger.warning(f"Trigger bot response: API key missing for bot '{bot.get_name()}' using engine '{engine_type_name}'.")
         #         QMessageBox.warning(self, self.tr("API Key Missing"),
         #                             self.tr("Bot {0} (using {1}) needs an API key. Please set it in Settings.").format(bot.get_name(), engine_type_name))
@@ -841,8 +841,8 @@ class MainWindow(QMainWindow):
             ai_response = self.third_party_group.generate_response(
                 aiengine_id=bot.aiengine_id,
                 aiengine_arg_dict=bot.aiengine_arg_dict,
-                apikeey_list=self.apikeey_manager.get_apikeey_list(
-                    bot.apikeey_query_list),
+                thirdpartyapikey_list=self.thirdpartyapikey_manager.get_thirdpartyapikey_list(
+                    bot.thirdpartyapikey_query_list),
                 role_name=bot.name,
                 conversation_history=conversation_history,
             )
@@ -1167,7 +1167,7 @@ class MainWindow(QMainWindow):
         dialog = BotInfoDialog(
             existing_bot_names=existing_bot_names_for_dialog,
             aiengine_info_list=self.third_party_group.aiengine_info_list,
-            apikeey_query_list=self.apikeey_manager.get_available_apikeey_query_list(),
+            thirdpartyapikey_query_list=self.thirdpartyapikey_manager.get_available_thirdpartyapikey_query_list(),
             old_bot=bot_to_edit,
             parent=self
         )
@@ -1200,14 +1200,14 @@ class MainWindow(QMainWindow):
 
             # if engine_changed:
             #     self.logger.debug(f"Engine change detected for bot '{new_name}'. Old: {current_engine_type}, New: {new_engine_type}")
-            #     apikeey = self.apikeey_manager.load_key(new_engine_type)
+            #     thirdpartyapikey = self.thirdpartyapikey_manager.load_key(new_engine_type)
 
             #     try:
             #         engine_class = ai_engines.ENGINE_TYPE_TO_CLASS_MAP.get(new_engine_type)
             #         if not engine_class:
             #             raise ValueError(f"Unsupported engine type: {new_engine_type}")
 
-            #         new_engine_instance = engine_class(apikeey=apikeey, model_name=new_model_name if new_model_name else None)
+            #         new_engine_instance = engine_class(thirdpartyapikey=thirdpartyapikey, model_name=new_model_name if new_model_name else None)
             #         bot_to_edit.set_engine(new_engine_instance)
             #         self.logger.info(f"Bot '{new_name}' engine updated to {new_engine_type} with model '{new_model_name}'.")
 
@@ -1302,11 +1302,11 @@ class MainWindow(QMainWindow):
             # original_engine_instance = original_bot.get_engine()
             # original_engine_type = type(original_engine_instance).__name__
             # original_model_name = getattr(original_engine_instance, 'model_name', None)
-            # apikeey = self.apikeey_manager.load_key(original_engine_type) # API key might be None
+            # thirdpartyapikey = self.thirdpartyapikey_manager.load_key(original_engine_type) # API key might be None
 
             # engine_config = {
             #     "engine_type": original_engine_type,
-            #     "apikeey": apikeey, # Pass along, could be None
+            #     "thirdpartyapikey": thirdpartyapikey, # Pass along, could be None
             #     "model_name": original_model_name
             # }
 
@@ -1545,7 +1545,7 @@ class MainWindow(QMainWindow):
         dialog = BotInfoDialog(
             existing_bot_names=existing_bot_names_in_chatroom,
             aiengine_info_list=self.third_party_group.aiengine_info_list,
-            apikeey_query_list=self.apikeey_manager.get_available_apikeey_query_list(),
+            thirdpartyapikey_query_list=self.thirdpartyapikey_manager.get_available_thirdpartyapikey_query_list(),
             parent=self
         )
 
@@ -1568,13 +1568,13 @@ class MainWindow(QMainWindow):
             # engine_class = ai_engines.ENGINE_TYPE_TO_CLASS_MAP.get(engine_type)
 
             # new_bot_aiengine_id = new_bot.aiengine_id
-            # new_bot_apikeey_slot_id_list = self.third_party_group.aiengine_id_to_aiengine_info_dict[new_bot_aiengine_id].apikeey_slot_id_list
+            # new_bot_thirdpartyapikey_slot_id_list = self.third_party_group.aiengine_id_to_aiengine_info_dict[new_bot_aiengine_id].thirdpartyapikey_slot_id_list
 
-            # apikeey_exist = any(map(lambda apikeey_slot_id: self.apikeey_manager.has_key(apikeey_slot_id), new_bot_apikeey_slot_id_list))
+            # thirdpartyapikey_exist = any(map(lambda thirdpartyapikey_slot_id: self.thirdpartyapikey_manager.has_key(thirdpartyapikey_slot_id), new_bot_thirdpartyapikey_slot_id_list))
 
-            # apikeey = self.apikeey_manager.load_key(engine_type)
+            # thirdpartyapikey = self.thirdpartyapikey_manager.load_key(engine_type)
 
-            # engine_config = {"engine_type": engine_type, "apikeey": apikeey if apikeey else None}
+            # engine_config = {"engine_type": engine_type, "thirdpartyapikey": thirdpartyapikey if thirdpartyapikey else None}
             # if model_name:
             #     engine_config["model_name"] = model_name
 
@@ -1599,16 +1599,16 @@ class MainWindow(QMainWindow):
             self.logger.debug(
                 f"Add bot to chatroom '{chatroom_name}' cancelled by user in dialog.")
 
-    def _show_apikeey_dialog(self):
-        """Displays the API Key Management dialog (`ApiKeeyDialog`).
+    def _show_thirdpartyapikey_dialog(self):
+        """Displays the API Key Management dialog (`ThirdPartyApiKeyDialog`).
 
         Before showing the dialog, it checks if the `encryption_service` is
         available and if a master password has been set (via `password_manager`).
         If these prerequisites are not met (which typically shouldn't happen if
         the application startup sequence is correct), it shows an error message.
-        Otherwise, it creates and executes an `ApiKeeyDialog` instance, passing
+        Otherwise, it creates and executes an `ThirdPartyApiKeyDialog` instance, passing
         necessary information like available API key slot info and the
-        `apikeey_manager`.
+        `thirdpartyapikey_manager`.
         """
         if not self.encryption_service or not self.password_manager.has_master_password():
             QMessageBox.critical(self, self.tr("Error"), self.tr(
@@ -1616,9 +1616,9 @@ class MainWindow(QMainWindow):
             return
 
         self.logger.debug("Showing API Key Management dialog.")
-        dialog = ApiKeeyDialog(
-            apikeey_slot_info_list=self.third_party_group.apikeey_slot_info_list,
-            apikeey_manager=self.apikeey_manager,
+        dialog = ThirdPartyApiKeyDialog(
+            thirdpartyapikey_slot_info_list=self.third_party_group.thirdpartyapikey_slot_info_list,
+            thirdpartyapikey_manager=self.thirdpartyapikey_manager,
             parent=self
         )
         dialog.exec()
@@ -1717,9 +1717,9 @@ class MainWindow(QMainWindow):
         2. Creates a temporary `EncryptionService` with the old password (for decryption).
         3. Updates the `PasswordManager` with the new password (this also changes the password hash salt).
         4. Updates the main `self.encryption_service` to use the new master password.
-        5. Calls `self.apikeey_manager.re_encrypt()` to re-encrypt all stored API keys
+        5. Calls `self.thirdpartyapikey_manager.re_encrypt()` to re-encrypt all stored API keys
            using the old and new encryption services.
-        6. Updates the `apikeey_manager` to use the (now new) `self.encryption_service`.
+        6. Updates the `thirdpartyapikey_manager` to use the (now new) `self.encryption_service`.
         Provides feedback to the user on success or failure.
         """
         if not self.password_manager.has_master_password():  # Should not happen if app is running
@@ -1762,14 +1762,14 @@ class MainWindow(QMainWindow):
                     new_master_password=new_password)
 
                 # Re-encrypt all API keys
-                if self.apikeey_manager:
-                    self.apikeey_manager.re_encrypt(
+                if self.thirdpartyapikey_manager:
+                    self.thirdpartyapikey_manager.re_encrypt(
                         temp_old_encryption_service, self.encryption_service)
-                    # Ensure ApiKeeyManager instance uses the updated encryption_service
-                    self.apikeey_manager.encryption_service = self.encryption_service
+                    # Ensure ThirdPartyApiKeyManager instance uses the updated encryption_service
+                    self.thirdpartyapikey_manager.encryption_service = self.encryption_service
                 else:
                     self.logger.warning(
-                        "ApiKeeyManager not initialized during master password change. Keys not re-encrypted.")
+                        "ThirdPartyApiKeyManager not initialized during master password change. Keys not re-encrypted.")
 
                 QMessageBox.information(self, self.tr("Success"),
                                         self.tr("Master password changed successfully. API keys have been re-encrypted."))
@@ -1791,11 +1791,11 @@ class MainWindow(QMainWindow):
         The actions include:
         - Clearing the master password from `PasswordManager`.
         - Deleting the data encryption salt file (`ENCRYPTION_SALT_FILE`).
-        - Calling `clear()` on the `apikeey_manager` to remove all stored API keys
+        - Calling `clear()` on the `thirdpartyapikey_manager` to remove all stored API keys
           (and its associated salt if any).
         - Setting `self.encryption_service` and the `encryption_service` in
-          `self.apikeey_manager` to None.
-        If `apikeey_manager` is not initialized, a temporary one might be created
+          `self.thirdpartyapikey_manager` to None.
+        If `thirdpartyapikey_manager` is not initialized, a temporary one might be created
         to attempt clearing any persistent API key storage.
         """
         self.logger.info("Performing clear all data actions.")
@@ -1811,11 +1811,11 @@ class MainWindow(QMainWindow):
                 self.logger.error(
                     f"Error removing encryption salt file {ENCRYPTION_SALT_FILE}: {e}")
 
-        if self.apikeey_manager:
-            self.apikeey_manager.clear()
+        if self.thirdpartyapikey_manager:
+            self.thirdpartyapikey_manager.clear()
         else:
             self.logger.info(
-                "ApiKeeyManager was not initialized, creating temporary one to clear potential fallback file.")
+                "ThirdPartyApiKeyManager was not initialized, creating temporary one to clear potential fallback file.")
             # Assuming BotTemplateManager doesn't need encryption service for initialization for clearing
             # If it does, this might need adjustment or ensure it's always initialized before clear.
             # For now, BotTemplateManager() is called without arguments, implying default data path.
@@ -1830,9 +1830,9 @@ class MainWindow(QMainWindow):
             # self.bot_template_manager = None # Optionally nullify, will be recreated if needed
 
         self.encryption_service = None
-        if self.apikeey_manager:
-            self.apikeey_manager.encryption_service = None
-        # self.apikeey_manager = None # Optionally nullify, will be recreated
+        if self.thirdpartyapikey_manager:
+            self.thirdpartyapikey_manager.encryption_service = None
+        # self.thirdpartyapikey_manager = None # Optionally nullify, will be recreated
 
         self.logger.info("All data clearing actions performed.")
 
@@ -1847,7 +1847,7 @@ class MainWindow(QMainWindow):
            creating a new master password.
         4. If master password setup fails (e.g., user cancels), the application
            is scheduled to close.
-        5. If successful, the `apikeey_manager` is re-initialized or updated with
+        5. If successful, the `thirdpartyapikey_manager` is re-initialized or updated with
            the new `encryption_service`.
         6. UI elements like chatroom list, message display, and bot list are
            cleared or reset to their initial states.
@@ -1874,11 +1874,11 @@ class MainWindow(QMainWindow):
                 QTimer.singleShot(0, self.close)
                 return
 
-            # If startup was successful, ApiKeeyManager needs to be re-initialized with new encryption service
-            if self.apikeey_manager:
-                self.apikeey_manager.encryption_service = self.encryption_service  # Update existing
+            # If startup was successful, ThirdPartyApiKeyManager needs to be re-initialized with new encryption service
+            if self.thirdpartyapikey_manager:
+                self.thirdpartyapikey_manager.encryption_service = self.encryption_service  # Update existing
             else:  # Should be re-created if was None or after full clear
-                self.apikeey_manager = ApiKeeyManager(
+                self.thirdpartyapikey_manager = ThirdPartyApiKeyManager(
                     encryption_service=self.encryption_service)
 
             if hasattr(self, 'bot_template_manager') and self.bot_template_manager:
@@ -2008,7 +2008,7 @@ class MainWindow(QMainWindow):
             # To check for duplicate names among templates
             existing_bot_names=existing_template_names,
             aiengine_info_list=self.third_party_group.aiengine_info_list,
-            apikeey_query_list=self.apikeey_manager.get_available_apikeey_query_list(),
+            thirdpartyapikey_query_list=self.thirdpartyapikey_manager.get_available_thirdpartyapikey_query_list(),
             old_bot=None,  # Creating a new template
             parent=self
         )
@@ -2081,7 +2081,7 @@ class MainWindow(QMainWindow):
         dialog = BotInfoDialog(
             existing_bot_names=existing_template_names,  # For duplicate name check
             aiengine_info_list=self.third_party_group.aiengine_info_list,
-            apikeey_query_list=self.apikeey_manager.get_available_apikeey_query_list(),
+            thirdpartyapikey_query_list=self.thirdpartyapikey_manager.get_available_thirdpartyapikey_query_list(),
             old_bot=template_to_edit,  # Pass the existing bot config
             parent=self
         )
@@ -2218,9 +2218,9 @@ class MainWindow(QMainWindow):
         new_bot_instance.name = bot_name_in_chatroom
 
         # Potentially, we might need to re-evaluate API key requirements here if they are
-        # stored as part of the template and need to be resolved against current apikeey_manager.
-        # However, BotInfoDialog already associates ApiKeeyQuery objects.
-        # If the template's apikeey_query_list is valid, it should be usable.
+        # stored as part of the template and need to be resolved against current thirdpartyapikey_manager.
+        # However, BotInfoDialog already associates ThirdPartyApiKeyQuery objects.
+        # If the template's thirdpartyapikey_query_list is valid, it should be usable.
 
         if chatroom.add_bot(new_bot_instance):
             self.logger.info(
@@ -2340,9 +2340,9 @@ def main():
     # If running in offscreen mode for testing, don't run the app event loop.
     # Check if __init__ completed enough for basic checks.
     if os.environ.get('QT_QPA_PLATFORM') == 'offscreen':
-        if hasattr(main_window, 'apikeey_manager') and main_window.apikeey_manager is not None:
+        if hasattr(main_window, 'thirdpartyapikey_manager') and main_window.thirdpartyapikey_manager is not None:
             logging.info(
-                "MainWindow initialized successfully in offscreen mode (up to ApiKeeyManager).")
+                "MainWindow initialized successfully in offscreen mode (up to ThirdPartyApiKeyManager).")
             # Test if a master password was created/loaded and encryption service is up
             if main_window.password_manager.has_master_password() and main_window.encryption_service:
                 logging.info(
@@ -2352,7 +2352,7 @@ def main():
                 logging.warning(
                     "Master password setup likely did not complete as expected in offscreen mode (dialogs would block).")
             sys.exit(0)  # Exit cleanly for test purposes
-        elif hasattr(main_window, 'password_manager') and not hasattr(main_window, 'apikeey_manager'):
+        elif hasattr(main_window, 'password_manager') and not hasattr(main_window, 'thirdpartyapikey_manager'):
             # This means __init__ returned early due to password setup failure/cancellation
             logging.warning(
                 "MainWindow initialization aborted during password setup (as expected in offscreen mode if dialogs block/are cancelled).")
@@ -2364,8 +2364,8 @@ def main():
             sys.exit(1)  # Exit with error for test purposes
     else:
         # Normal GUI execution
-        # Check if __init__ completed. If apikeey_manager is None, it means __init__ returned early.
-        if hasattr(main_window, 'apikeey_manager') and main_window.apikeey_manager is not None:
+        # Check if __init__ completed. If thirdpartyapikey_manager is None, it means __init__ returned early.
+        if hasattr(main_window, 'thirdpartyapikey_manager') and main_window.thirdpartyapikey_manager is not None:
             main_window.show()
             logging.info("Application started successfully.")
             sys.exit(app.exec())

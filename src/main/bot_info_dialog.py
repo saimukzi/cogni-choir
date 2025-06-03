@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
 from .ai_bots import Bot
 from . import third_party
 from .third_party import AIEngineArgType # Added import
-from . import apikeey_manager
+from . import thirdpartyapikey_manager
 
 class BotInfoDialog(QDialog):
     """A dialog for adding a new bot to a chatroom.
@@ -20,7 +20,7 @@ class BotInfoDialog(QDialog):
     def __init__(self,
                  existing_bot_names: list[str],
                  aiengine_info_list: list[third_party.AIEngineInfo],
-                 apikeey_query_list: list[apikeey_manager.ApiKeeyQuery],
+                 thirdpartyapikey_query_list: list[thirdpartyapikey_manager.ThirdPartyApiKeyQuery],
                  old_bot: Bot | None = None,
                  parent=None):
         """Initializes the BotInfoDialog.
@@ -33,7 +33,7 @@ class BotInfoDialog(QDialog):
         super().__init__(parent)
         self.existing_bot_names = existing_bot_names
         self.aiengine_info_list = aiengine_info_list
-        self.apikeey_query_list = apikeey_query_list
+        self.thirdpartyapikey_query_list = thirdpartyapikey_query_list
         self._dynamic_widgets = []
         self._dynamic_input_widgets = {}
 
@@ -240,15 +240,15 @@ class BotInfoDialog(QDialog):
     #         }
     #     return None
 
-    def _get_matched_api_query_list(self) -> list[apikeey_manager.ApiKeeyQuery]:
+    def _get_matched_api_query_list(self) -> list[thirdpartyapikey_manager.ThirdPartyApiKeyQuery]:
         """Gets API key queries matching the selected AI engine's requirements.
 
-        Filters the dialog's `apikeey_query_list` to include only those queries
-        whose `apikeey_slot_id` is present in the `apikeey_slot_id_list` of the
+        Filters the dialog's `thirdpartyapikey_query_list` to include only those queries
+        whose `thirdpartyapikey_slot_id` is present in the `thirdpartyapikey_slot_id_list` of the
         currently selected `AIEngineInfo`.
 
         Returns:
-            A list of `ApiKeeyQuery` objects that match the API key requirements
+            A list of `ThirdPartyApiKeyQuery` objects that match the API key requirements
             of the selected AI engine. Returns an empty list if no AI engine is
             selected or if no matching API key queries are found.
         """
@@ -256,14 +256,14 @@ class BotInfoDialog(QDialog):
         if not aiengine_info:
             return []
 
-        apikeey_slot_id_set = aiengine_info.apikeey_slot_id_list
-        apikeey_slot_id_set = set(apikeey_slot_id_set)
+        thirdpartyapikey_slot_id_set = aiengine_info.thirdpartyapikey_slot_id_list
+        thirdpartyapikey_slot_id_set = set(thirdpartyapikey_slot_id_set)
 
-        apikeey_query_list = self.apikeey_query_list
-        apikeey_query_list = filter(lambda x: x.apikeey_slot_id in apikeey_slot_id_set, apikeey_query_list)
-        apikeey_query_list = list(apikeey_query_list)
+        thirdpartyapikey_query_list = self.thirdpartyapikey_query_list
+        thirdpartyapikey_query_list = filter(lambda x: x.thirdpartyapikey_slot_id in thirdpartyapikey_slot_id_set, thirdpartyapikey_query_list)
+        thirdpartyapikey_query_list = list(thirdpartyapikey_query_list)
 
-        return apikeey_query_list
+        return thirdpartyapikey_query_list
 
     def get_bot(self) -> Bot | None:
         """Retrieves the bot configuration from the dialog.
@@ -286,7 +286,7 @@ class BotInfoDialog(QDialog):
                 elif isinstance(widget, QComboBox):
                     bot.aiengine_arg_dict[arg_id] = widget.currentText()
 
-            bot.apikeey_query_list = self._get_matched_api_query_list()
+            bot.thirdpartyapikey_query_list = self._get_matched_api_query_list()
 
             # fill default value
             aiengine_info = self._get_current_aiengine_info()
