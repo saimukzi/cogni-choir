@@ -118,7 +118,7 @@ class BotInfoDialog(QDialog):
         #     self.form_layout.removeRow(4)
 
         for widget in self._dynamic_widgets:
-            print('delete widget')
+            # print('delete widget')
             widget.deleteLater()
         self._dynamic_widgets.clear()
         self._dynamic_input_widgets.clear()
