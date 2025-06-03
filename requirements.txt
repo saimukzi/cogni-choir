@@ -4,3 +4,4 @@ openai
 keyring
 requests
 cryptography
+Flask

@@ -13,6 +13,7 @@ is supported using QTranslator. Logging is used for diagnostics.
 import sys
 import os  # For path construction
 import logging  # For logging
+import threading
 import copy
 from typing import Optional
 
@@ -24,7 +25,7 @@ from PyQt6.QtWidgets import (
     QMenu, QStyle, QSizePolicy, QSpacerItem  # Added QSpacerItem for potential use
 )
 from PyQt6.QtGui import QAction, QIcon  # Added QIcon
-from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint, pyqtSignal, QTimer  # Added QTimer
+from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint, pyqtSignal, QTimer, QSettings  # Added QTimer and QSettings
 
 # Attempt to import from sibling modules
 from .chatroom import ChatroomManager
@@ -33,6 +34,7 @@ from .bot_template_manager import BotTemplateManager  # Added
 # from .ai_engines import GeminiEngine, GrokEngine
 from .thirdpartyapikey_manager import ThirdPartyApiKeyManager
 # from . import ai_engines
+from . import api_server
 from .bot_info_dialog import BotInfoDialog
 from .create_fake_message_dialog import CreateFakeMessageDialog
 from .thirdpartyapikey_dialog import ThirdPartyApiKeyDialog
@@ -41,6 +43,8 @@ from .encryption_service import EncryptionService, ENCRYPTION_SALT_FILE
 from .password_dialogs import CreateMasterPasswordDialog, EnterMasterPasswordDialog, ChangeMasterPasswordDialog
 from . import third_parties
 from . import third_party
+from .ccapikey_manager import CcApiKeyManager
+from .ccapikey_dialog import CcApiKeyDialog
 
 
 class MessageInputTextEdit(QTextEdit):
@@ -102,7 +106,11 @@ class MainWindow(QMainWindow):
 
         self.password_manager = PasswordManager()
         self.encryption_service = None
+        """Service for encrypting/decrypting data, initialized after master password setup."""
         self.thirdpartyapikey_manager = None  # Initialized after password setup
+        """Manages third-party API keys, initialized after master password setup."""
+        self.ccapikey_manager = None # Initialized after password setup
+        """Manages CogniChoir-specific API keys, initialized after master password setup."""
 
         if not self._handle_master_password_startup():
             self.logger.warning(
@@ -118,14 +126,27 @@ class MainWindow(QMainWindow):
         # Initialize ThirdPartyApiKeyManager now that encryption_service is available
         self.thirdpartyapikey_manager = ThirdPartyApiKeyManager(
             encryption_service=self.encryption_service)
+        # Initialize CcApiKeyManager
+        self.ccapikey_manager = CcApiKeyManager(
+            data_dir=self.data_dir_path,
+            encryption_service=self.encryption_service
+        )
         self.chatroom_manager = ChatroomManager(
             thirdpartyapikey_manager=self.thirdpartyapikey_manager)
         self.bot_template_manager = BotTemplateManager(
             data_dir=self.data_dir_path)  # Added
 
+        self.api_server_thread = None
+        """Thread object for running the Flask API server."""
+        self.api_server_port = 5001 # Default, will be loaded from settings
+        """Port number for the API server."""
+        # self.api_server_port is loaded in _load_settings()
+
         self._init_ui()
+        self._load_settings() # Load settings before starting server
         self._update_chatroom_list()  # Initial population
         self._update_bot_template_list()  # Initial population for templates
+        self._start_api_server()
 
     def _init_ui(self):
         """Initializes the main user interface components and layout.
@@ -141,9 +162,17 @@ class MainWindow(QMainWindow):
 
         # --- Menu Bar ---
         settings_menu = self.menuBar().addMenu(self.tr("Settings"))
-        manage_keys_action = QAction(self.tr("Manage API Keys"), self)
+        manage_keys_action = QAction(self.tr("Manage 3rd Party API Keys"), self) # Renamed for clarity
         manage_keys_action.triggered.connect(self._show_thirdpartyapikey_dialog)
         settings_menu.addAction(manage_keys_action)
+
+        self.manage_cc_keys_action = QAction(self.tr("Manage CogniChoir API Keys"), self)
+        """Menu action to open the CcApiKey management dialog."""
+        self.manage_cc_keys_action.triggered.connect(self._show_ccapikey_dialog)
+        settings_menu.addAction(self.manage_cc_keys_action)
+        # Initial state: enabled if ccapikey_manager was successfully initialized.
+        self.manage_cc_keys_action.setEnabled(self.ccapikey_manager is not None)
+
 
         change_mp_action = QAction(self.tr("Change Master Password"), self)
         change_mp_action.triggered.connect(
@@ -155,6 +184,12 @@ class MainWindow(QMainWindow):
         clear_all_data_action.triggered.connect(
             self._clear_all_user_data_via_menu)
         settings_menu.addAction(clear_all_data_action)
+
+        settings_menu.addSeparator() # Added separator
+
+        configure_api_port_action = QAction(self.tr("Configure API Port"), self)
+        configure_api_port_action.triggered.connect(self._show_configure_api_port_dialog)
+        settings_menu.addAction(configure_api_port_action)
 
         # --- Main Layout (Splitter for resizable panels) ---
         main_splitter = QSplitter(Qt.Orientation.Horizontal, central_widget)
@@ -1767,12 +1802,18 @@ class MainWindow(QMainWindow):
                         temp_old_encryption_service, self.encryption_service)
                     # Ensure ThirdPartyApiKeyManager instance uses the updated encryption_service
                     self.thirdpartyapikey_manager.encryption_service = self.encryption_service
+                # Also update CcApiKeyManager's encryption service and call its re_encrypt_keys
+                if self.ccapikey_manager:
+                    self.ccapikey_manager.re_encrypt_keys(temp_old_encryption_service, self.encryption_service)
+                    # self.ccapikey_manager.update_encryption_service(self.encryption_service) # re_encrypt_keys does this
+                else:
+                    self.logger.warning("CcApiKeyManager not initialized during master password change. CC API Keys not processed for re-encryption.")
                 else:
                     self.logger.warning(
                         "ThirdPartyApiKeyManager not initialized during master password change. Keys not re-encrypted.")
 
                 QMessageBox.information(self, self.tr("Success"),
-                                        self.tr("Master password changed successfully. API keys have been re-encrypted."))
+                                    self.tr("Master password changed successfully. All relevant API keys have been re-encrypted."))
                 self.logger.info(
                     "Master password changed and API keys re-encrypted successfully.")
             else:
@@ -1815,15 +1856,16 @@ class MainWindow(QMainWindow):
             self.thirdpartyapikey_manager.clear()
         else:
             self.logger.info(
-                "ThirdPartyApiKeyManager was not initialized, creating temporary one to clear potential fallback file.")
-            # Assuming BotTemplateManager doesn't need encryption service for initialization for clearing
-            # If it does, this might need adjustment or ensure it's always initialized before clear.
-            # For now, BotTemplateManager() is called without arguments, implying default data path.
-            # if not hasattr(self, 'bot_template_manager') or not self.bot_template_manager:
-            #      # Create a temporary one if it doesn't exist, to clear its data file
-            #     temp_template_manager = BotTemplateManager()
-            #     temp_template_manager.clear_all_templates()
-            # else, if it exists, its clear method is called below
+                "ThirdPartyApiKeyManager was not initialized during clear data. Skipping its clear.")
+
+        if self.ccapikey_manager:
+            self.ccapikey_manager.clear()
+            self.manage_cc_keys_action.setEnabled(False) # Disable menu item as manager is cleared
+        else:
+            self.logger.info("CcApiKeyManager was not initialized during clear data. Skipping its clear.")
+            if hasattr(self, 'manage_cc_keys_action'): # Check if it exists before trying to disable
+                self.manage_cc_keys_action.setEnabled(False)
+
 
         if hasattr(self, 'bot_template_manager') and self.bot_template_manager:
             self.bot_template_manager.clear_all_templates()
@@ -1832,7 +1874,10 @@ class MainWindow(QMainWindow):
         self.encryption_service = None
         if self.thirdpartyapikey_manager:
             self.thirdpartyapikey_manager.encryption_service = None
+        if self.ccapikey_manager: # Also update ccapikey_manager's service ref
+            self.ccapikey_manager.encryption_service = None
         # self.thirdpartyapikey_manager = None # Optionally nullify, will be recreated
+        # self.ccapikey_manager = None # Optionally nullify
 
         self.logger.info("All data clearing actions performed.")
 
@@ -1881,6 +1926,17 @@ class MainWindow(QMainWindow):
                 self.thirdpartyapikey_manager = ThirdPartyApiKeyManager(
                     encryption_service=self.encryption_service)
 
+            # Re-initialize or update CcApiKeyManager
+            if self.ccapikey_manager:
+                self.ccapikey_manager.encryption_service = self.encryption_service
+                self.manage_cc_keys_action.setEnabled(True) # Re-enable
+            else:
+                self.ccapikey_manager = CcApiKeyManager(
+                    data_dir=self.data_dir_path,
+                    encryption_service=self.encryption_service
+                )
+                self.manage_cc_keys_action.setEnabled(True) # Enable
+
             if hasattr(self, 'bot_template_manager') and self.bot_template_manager:
                 # Already done in _perform_clear_all_data_actions, but ensure it's re-initialized if cleared
                 pass  # It should be cleared by _perform_clear_all_data_actions
@@ -1901,6 +1957,26 @@ class MainWindow(QMainWindow):
             self._update_bot_template_list()  # Refresh template list
         else:
             self.logger.info("User cancelled 'Clear All Stored Data' action.")
+
+
+    def _show_ccapikey_dialog(self):
+        """Displays the CcApiKeyDialog for managing CogniChoir API Keys."""
+        if not self.ccapikey_manager:
+            # This should ideally not happen if menu item enabling/disabling is correct
+            QMessageBox.critical(self, self.tr("Error"),
+                                 self.tr("CogniChoir API Key Manager is not available. This may be due to a setup issue."))
+            self.logger.error("Attempted to show CcApiKeyDialog, but ccapikey_manager is None.")
+            return
+
+        if not self.encryption_service or not self.password_manager.has_master_password():
+            QMessageBox.critical(self, self.tr("Error"), self.tr(
+                "Master password not set up or unlocked. Cannot manage CogniChoir API keys."))
+            return
+
+        self.logger.debug("Showing CogniChoir API Key Management dialog.")
+        dialog = CcApiKeyDialog(ccapikey_manager=self.ccapikey_manager, parent=self)
+        dialog.exec()
+        # No specific action needed after close, dialog handles its operations.
 
     # --- Bot Template Methods ---
     def _update_bot_template_list(self):
@@ -2245,6 +2321,114 @@ class MainWindow(QMainWindow):
     def _on_selected_bot_template_changed(self, _current: QListWidgetItem, _previous: QListWidgetItem):
         self._update_template_button_states()
     # --- End Bot Template Methods ---
+
+    def _start_api_server(self):
+        """Initializes dependencies and starts the Flask API server in a separate thread."""
+        if not self.ccapikey_manager or not self.encryption_service:
+            self.logger.error("Cannot start API server: CcApiKeyManager or EncryptionService not initialized.")
+            # Optionally, inform the user via QMessageBox or status bar update
+            QMessageBox.critical(self, self.tr("API Server Error"),
+                                 self.tr("Could not start the API server due to missing critical components (API Key Manager or Encryption Service). Please check logs or restart."))
+            return
+
+        self.logger.info(f"Initializing API server dependencies and starting server on port {self.api_server_port}")
+        try:
+            api_server.initialize_api_server_dependencies(
+                cc_manager=self.ccapikey_manager,
+                enc_service=self.encryption_service
+            )
+        except Exception as e:
+            self.logger.error(f"Error initializing API server dependencies: {e}", exc_info=True)
+            QMessageBox.critical(self, self.tr("API Server Error"),
+                                 self.tr("Failed to initialize API server components. The server will not start. See logs for details."))
+            return
+
+        self.api_server_thread = threading.Thread(
+            target=api_server.run_server,
+            args=(self.api_server_port, False),  # port, debug=False
+            daemon=True
+        )
+        self.api_server_thread.start()
+        self.logger.info(f"API server thread started on port {self.api_server_port}.")
+
+
+    def closeEvent(self, event):
+        """
+        Handles the window close event.
+
+        This method is called when the user attempts to close the main window.
+        It ensures that application settings (like the API server port) are saved
+        before the application exits. It also logs the closing action. The API
+        server, running as a daemon thread, will terminate automatically when
+        the main application exits.
+
+        Args:
+            event (QCloseEvent): The close event.
+        """
+        self._save_settings() # Ensure settings are saved on close
+        self.logger.info("Application closing. API server (daemon thread) will terminate automatically.")
+        # Any other specific cleanup before closing can be added here.
+        super().closeEvent(event)
+
+    def _load_settings(self):
+        """
+        Loads application settings using QSettings.
+
+        Currently, this method loads the port number for the API server.
+        It uses "CcOrg" as the organization name and "CogniChoir" as the
+        application name for storing settings, ensuring they are saved in a
+        platform-appropriate location. If the "api_server_port" setting is
+        not found, it defaults to 5001.
+        """
+        settings = QSettings("CcOrg", "CogniChoir") # Organization and Application names
+        self.api_server_port = settings.value("api_server_port", 5001, type=int)
+        self.logger.info(f"Loaded API server port from settings: {self.api_server_port}")
+
+    def _save_settings(self):
+        """
+        Saves application settings using QSettings.
+
+        Currently, this method saves the port number for the API server
+        (`self.api_server_port`). It uses the same organization and application
+        names as `_load_settings` for consistency.
+        """
+        settings = QSettings("CcOrg", "CogniChoir")
+        settings.setValue("api_server_port", self.api_server_port)
+        self.logger.info(f"Saved API server port to settings: {self.api_server_port}")
+
+    def _show_configure_api_port_dialog(self):
+        """
+        Displays a dialog to allow the user to configure the API server port.
+
+        Uses `QInputDialog.getInt()` to get a new port number from the user.
+        The allowed port range is 1024-65535. If the user changes the port,
+        the new port is saved to settings immediately, and the user is informed
+        that a restart is required for the change to take effect, as changing
+        the port of a running server is complex and not implemented.
+        """
+        new_port, ok = QInputDialog.getInt(self,
+                                           self.tr("Configure API Port"),
+                                           self.tr("Enter API Server Port (1024-65535):"),
+                                           self.api_server_port,  # Current port value
+                                           1024,                 # Minimum allowed port
+                                           65535,                # Maximum allowed port
+                                           1)                    # Step value for increment/decrement
+
+        if ok: # User clicked OK
+            if new_port != self.api_server_port:
+                self.api_server_port = new_port
+                self.logger.info(f"API server port configuration changed to: {self.api_server_port}")
+                self._save_settings() # Save the new port setting immediately
+                QMessageBox.information(self,
+                                        self.tr("API Port Changed"),
+                                        self.tr("The API server port has been updated to {0}.\n"
+                                                "Please restart the application for this change to take effect.").format(self.api_server_port))
+            else:
+                # Port was not changed by the user
+                self.logger.debug("API server port configuration dialog shown, but port value was not changed.")
+        else:
+            # User cancelled the dialog
+            self.logger.debug("API server port configuration cancelled by user.")
 
     def _remove_bot_from_chatroom(self):
         """Removes the selected bot from the current chatroom. (DEPRECATED/UNUSED)
