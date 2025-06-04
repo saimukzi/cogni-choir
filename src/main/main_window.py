@@ -13,6 +13,7 @@ is supported using QTranslator. Logging is used for diagnostics.
 import sys
 import os  # For path construction
 import logging  # For logging
+import pyperclip
 import threading
 import copy
 from typing import Optional
@@ -364,6 +365,40 @@ class MainWindow(QMainWindow):
             False)  # Message UI disabled initially
         self._update_template_button_states()  # Initial state for template buttons
 
+    def _copy_selected_messages_to_clipboard(self):
+        current_chatroom_name = self.chatroom_list_widget.currentItem().text() if self.chatroom_list_widget.currentItem() else None
+        if not current_chatroom_name:
+            return
+
+        chatroom = self.chatroom_manager.get_chatroom(current_chatroom_name)
+        if not chatroom:
+            return
+
+        selected_items = self.message_display_area.selectedItems()
+        if not selected_items:
+            return
+
+        all_messages = chatroom.get_messages() # Get all messages once
+        messages_to_copy_content = []
+
+        for item in selected_items:
+            timestamp = item.data(Qt.ItemDataRole.UserRole)
+            # Find the message by timestamp more efficiently
+            found_message = next((msg for msg in all_messages if msg.timestamp == timestamp), None)
+            if found_message:
+                messages_to_copy_content.append(found_message.get_content_for_copy())
+
+        if messages_to_copy_content:
+            text_to_copy = "\n".join(messages_to_copy_content)
+            try:
+                pyperclip.copy(text_to_copy)
+                # Optional: Provide feedback to the user
+                # self.statusBar().showMessage(self.tr("Selected message(s) copied to clipboard."), 3000) # Example for status bar
+                QMessageBox.information(self, self.tr("Copy to Clipboard"), self.tr("{0} message(s) copied to clipboard.").format(len(messages_to_copy_content)))
+            except pyperclip.PyperclipException as e:
+                self.logger.error(f"Error copying to clipboard: {e}")
+                QMessageBox.warning(self, self.tr("Clipboard Error"), self.tr("Could not copy messages to clipboard: {0}").format(str(e)))
+
     def _update_message_related_ui_state(self, enabled: bool):
         """Updates the enabled/read-only state of message-related UI elements.
 
@@ -395,9 +430,15 @@ class MainWindow(QMainWindow):
                                local to the message_display_area widget.
         """
         menu = QMenu()
-        if self.message_display_area.selectedItems():
+        selected_messages = self.message_display_area.selectedItems() # Get selected items
+
+        if selected_messages: # Check if any messages are selected
+            copy_action = menu.addAction(self.tr("Copy message"))
+            copy_action.triggered.connect(self._copy_selected_messages_to_clipboard)
+            # Add other actions like delete only if selected_messages exist
             delete_action = menu.addAction(self.tr("Delete Message(s)"))
             delete_action.triggered.connect(self._delete_selected_messages)
+        # menu.exec(...) should be called regardless of selection, but menu might be empty
         menu.exec(self.message_display_area.mapToGlobal(position))
 
     def _show_chatroom_context_menu(self, position: QPoint):
@@ -2562,6 +2603,14 @@ class MainWindow(QMainWindow):
         # Users will need a new way to remove bots (e.g., context menu on bot_list_widget)
         # For now, the functionality is removed as per instructions.
 
+    def keyPressEvent(self, event):
+        # Check if Ctrl+C is pressed, the message display area has focus, and items are selected
+        if event.key() == Qt.Key.Key_C and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            if self.message_display_area.hasFocus() and self.message_display_area.selectedItems():
+                self._copy_selected_messages_to_clipboard()
+                event.accept() # Indicate that the event has been handled
+                return
+        super().keyPressEvent(event) # Call base class implementation for other keys
 
 def main():
     """Main entry point for the application.

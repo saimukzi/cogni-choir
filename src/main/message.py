@@ -80,3 +80,7 @@ class Message:
     #         A new `Message` instance with the same attributes.
     #     """
     #     return Message(sender=self.sender, content=self.content, timestamp=self.timestamp)
+
+    def get_content_for_copy(self) -> str:
+        """Returns the raw content of the message, suitable for copying."""
+        return self.content
