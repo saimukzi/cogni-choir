@@ -367,40 +367,6 @@ class MainWindow(QMainWindow):
             False)  # Message UI disabled initially
         self._update_template_button_states()  # Initial state for template buttons
 
-    def _copy_selected_messages_to_clipboard(self):
-        current_chatroom_name = self.chatroom_list_widget.currentItem().text() if self.chatroom_list_widget.currentItem() else None
-        if not current_chatroom_name:
-            return
-
-        chatroom = self.chatroom_manager.get_chatroom(current_chatroom_name)
-        if not chatroom:
-            return
-
-        selected_items = self.message_display_area.selectedItems()
-        if not selected_items:
-            return
-
-        all_messages = chatroom.get_messages() # Get all messages once
-        messages_to_copy_content = []
-
-        for item in selected_items:
-            timestamp = item.data(Qt.ItemDataRole.UserRole)
-            # Find the message by timestamp more efficiently
-            found_message = next((msg for msg in all_messages if msg.timestamp == timestamp), None)
-            if found_message:
-                messages_to_copy_content.append(found_message.get_content_for_copy())
-
-        if messages_to_copy_content:
-            text_to_copy = "\n".join(messages_to_copy_content)
-            try:
-                pyperclip.copy(text_to_copy)
-                # Optional: Provide feedback to the user
-                # self.statusBar().showMessage(self.tr("Selected message(s) copied to clipboard."), 3000) # Example for status bar
-                # QMessageBox.information(self, self.tr("Copy to Clipboard"), self.tr("{0} message(s) copied to clipboard.").format(len(messages_to_copy_content)))
-            except pyperclip.PyperclipException as e:
-                self.logger.error(f"Error copying to clipboard: {e}")
-                QMessageBox.warning(self, self.tr("Clipboard Error"), self.tr("Could not copy messages to clipboard: {0}").format(str(e)))
-
     def _update_message_related_ui_state(self, enabled: bool):
         """Updates the enabled/read-only state of message-related UI elements.
 
