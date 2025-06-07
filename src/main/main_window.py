@@ -147,6 +147,8 @@ class MainWindow(QMainWindow):
 
         self._load_settings() # Load settings first
         self._init_ui()
+        # Initialize status bar
+        self.statusBar().showMessage(self.tr("Ready"))
         self._update_chatroom_list()  # Initial population
         self._update_bot_template_list()  # Initial population for templates
         self._start_api_server_if_needed() # Modified call
@@ -574,6 +576,40 @@ class MainWindow(QMainWindow):
 
         # self._update_chatroom_related_button_states()
 
+    def _copy_selected_messages_to_clipboard(self):
+        current_chatroom_name = self.chatroom_list_widget.currentItem().text() if self.chatroom_list_widget.currentItem() else None
+        if not current_chatroom_name:
+            return
+
+        chatroom = self.chatroom_manager.get_chatroom(current_chatroom_name)
+        if not chatroom:
+            return
+
+        selected_items = self.message_display_area.selectedItems()
+        if not selected_items:
+            return
+
+        all_messages = chatroom.get_messages() # Get all messages once
+        messages_to_copy_content = []
+
+        for item in selected_items:
+            timestamp = item.data(Qt.ItemDataRole.UserRole)
+            # Find the message by timestamp more efficiently
+            found_message = next((msg for msg in all_messages if msg.timestamp == timestamp), None)
+            if found_message:
+                messages_to_copy_content.append(found_message.get_content_for_copy())
+
+        if messages_to_copy_content:
+            text_to_copy = "\n".join(messages_to_copy_content)
+            try:
+                pyperclip.copy(text_to_copy)
+                # Optional: Provide feedback to the user
+                self.statusBar().showMessage(self.tr("Selected message(s) copied to clipboard."), 3000) # Example for status bar
+                # QMessageBox.information(self, self.tr("Copy to Clipboard"), self.tr("{0} message(s) copied to clipboard.").format(len(messages_to_copy_content)))
+            except pyperclip.PyperclipException as e:
+                self.logger.error(f"Error copying to clipboard: {e}")
+                QMessageBox.warning(self, self.tr("Clipboard Error"), self.tr("Could not copy messages to clipboard: {0}").format(str(e)))
+
     def _on_selected_chatroom_changed(self, current: QListWidgetItem, _previous: QListWidgetItem):
         """Handles the event when the selected chatroom changes.
 
@@ -809,6 +845,7 @@ class MainWindow(QMainWindow):
         chatroom.add_message("User", text)
         self._update_message_display()
         self.message_input_area.clear()
+        self.statusBar().showMessage(self.tr("Message sent to {0}.").format(chatroom_name), 3000)
 
     # def _update_bot_response_selector(self):
     #     """Updates the bot response selector combo box.
@@ -981,6 +1018,7 @@ class MainWindow(QMainWindow):
                     name, Qt.MatchFlag.MatchExactly)
                 if items:
                     self.chatroom_list_widget.setCurrentItem(items[0])
+                self.statusBar().showMessage(self.tr("Chatroom '{0}' created.").format(name), 5000)
             else:
                 # WARNING - user action failed, but recoverable
                 self.logger.warning(
@@ -1672,8 +1710,9 @@ class MainWindow(QMainWindow):
 
             if chatroom.add_bot(new_bot):
                 self.logger.info(
-                    f"Bot '{new_bot}) added to chatroom '{chatroom_name}' successfully.")
+                    f"Bot '{new_bot.name}' added to chatroom '{chatroom_name}' successfully.")
                 self._update_bot_list(chatroom_name)
+                self.statusBar().showMessage(self.tr("Bot '{0}' added to chatroom '{1}'.").format(new_bot.name, chatroom_name), 5000)
                 # self._update_bot_response_selector()
             else:
                 self.logger.error(
