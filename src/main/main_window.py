@@ -10,6 +10,7 @@ UI elements and interactions. It also defines helper dialog classes:
 The application uses PyQt6 for its GUI components. Internationalization (i18n)
 is supported using QTranslator. Logging is used for diagnostics.
 """
+import asyncio
 import sys
 import os  # For path construction
 import logging  # For logging
@@ -101,6 +102,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.tr("Chatroom and Bot Manager"))
         self.setGeometry(100, 100, 800, 600)
 
+        self._init_threading_event_loop()
+
         self.third_party_group = third_party.ThirdPartyGroup(
             third_parties.THIRD_PARTY_CLASSES)
 
@@ -152,6 +155,18 @@ class MainWindow(QMainWindow):
         self._update_chatroom_list()  # Initial population
         self._update_bot_template_list()  # Initial population for templates
         self._start_api_server_if_needed() # Modified call
+
+    def _init_threading_event_loop(self):
+        """Initializes the threading event loop for asynchronous operations.
+
+        This method sets up an event loop for handling asynchronous tasks
+        in a separate thread, allowing the main GUI thread to remain responsive.
+        It uses asyncio to create a new event loop and runs it in a separate thread.
+        """
+        self.threading_event_loop = asyncio.new_event_loop()
+        self._threading_event_loop_thread = threading.Thread(target=self.threading_event_loop.run_forever, daemon=True)
+        self._threading_event_loop_thread.start()
+
 
     def _init_ui(self):
         """Initializes the main user interface components and layout.
@@ -925,41 +940,48 @@ class MainWindow(QMainWindow):
             # self.trigger_bot_response_button.setEnabled(False)
             QApplication.processEvents()
 
-        try:
-            ai_response = self.third_party_group.generate_response(
-                aiengine_id=bot.aiengine_id,
-                aiengine_arg_dict=bot.aiengine_arg_dict,
-                thirdpartyapikey_list=self.thirdpartyapikey_manager.get_thirdpartyapikey_list(
-                    bot.thirdpartyapikey_query_list),
-                role_name=bot.name,
-                conversation_history=conversation_history,
-            )
-            self.logger.info(
-                f"Bot '{selected_bot_name_to_use}' generated response successfully in chatroom '{chatroom_name}'.")
-            chatroom.add_message(bot.name, ai_response)
-            self._update_message_display()
-        except ValueError as ve:  # Specific handling for ValueErrors from create_bot or engine
-            self.logger.error(
-                f"Configuration or input error for bot '{selected_bot_name_to_use}': {ve}", exc_info=True)
-            QMessageBox.critical(self, self.tr(
-                "Bot Configuration Error"), str(ve))
-            # Optionally add system message to chatroom for this type of error too
-            # chatroom.add_message("System", self.tr("Error with bot '{0}': {1}").format(selected_bot_name_to_use, str(ve)))
-            # self._update_message_display()
-        except Exception as e:
-            self.logger.error(
-                f"Error during bot response generation for bot '{selected_bot_name_to_use}' in chatroom '{chatroom_name}': {e}", exc_info=True)
-            QMessageBox.critical(self, self.tr("Error"), self.tr(
-                "An error occurred while getting bot response for '{0}': {1}").format(selected_bot_name_to_use, str(e)))
-            chatroom.add_message("System", self.tr(
-                "Error during bot response for '{0}': {1}").format(selected_bot_name_to_use, str(e)))
-            self._update_message_display()
-        finally:
-            # if is_main_button_trigger and original_button_text is not None:
-            #     self.trigger_bot_response_button.setText(original_button_text)
-            # The message related UI state should be updated regardless of which button triggered
-            self._update_message_related_ui_state(
-                bool(self.chatroom_list_widget.currentItem()))
+        chatroom.add_message("System", "asdf")
+        self._update_message_display()
+
+        async def _run():
+            try:
+                ai_response = self.third_party_group.generate_response(
+                    aiengine_id=bot.aiengine_id,
+                    aiengine_arg_dict=bot.aiengine_arg_dict,
+                    thirdpartyapikey_list=self.thirdpartyapikey_manager.get_thirdpartyapikey_list(
+                        bot.thirdpartyapikey_query_list),
+                    role_name=bot.name,
+                    conversation_history=conversation_history,
+                )
+                self.logger.info(
+                    f"Bot '{selected_bot_name_to_use}' generated response successfully in chatroom '{chatroom_name}'.")
+                chatroom.add_message(bot.name, ai_response)
+                self._update_message_display()
+            except ValueError as ve:  # Specific handling for ValueErrors from create_bot or engine
+                self.logger.error(
+                    f"Configuration or input error for bot '{selected_bot_name_to_use}': {ve}", exc_info=True)
+                QMessageBox.critical(self, self.tr(
+                    "Bot Configuration Error"), str(ve))
+                # Optionally add system message to chatroom for this type of error too
+                # chatroom.add_message("System", self.tr("Error with bot '{0}': {1}").format(selected_bot_name_to_use, str(ve)))
+                # self._update_message_display()
+            except Exception as e:
+                self.logger.error(
+                    f"Error during bot response generation for bot '{selected_bot_name_to_use}' in chatroom '{chatroom_name}': {e}", exc_info=True)
+                QMessageBox.critical(self, self.tr("Error"), self.tr(
+                    "An error occurred while getting bot response for '{0}': {1}").format(selected_bot_name_to_use, str(e)))
+                chatroom.add_message("System", self.tr(
+                    "Error during bot response for '{0}': {1}").format(selected_bot_name_to_use, str(e)))
+                self._update_message_display()
+            finally:
+                # if is_main_button_trigger and original_button_text is not None:
+                #     self.trigger_bot_response_button.setText(original_button_text)
+                # The message related UI state should be updated regardless of which button triggered
+                self._update_message_related_ui_state(
+                    bool(self.chatroom_list_widget.currentItem()))
+
+        asyncio.run_coroutine_threadsafe(_run(), self.threading_event_loop)
+
 
     def _create_chatroom(self):
         """Initiates the creation of a new chatroom.
