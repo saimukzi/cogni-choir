@@ -394,7 +394,7 @@ class MainWindow(QMainWindow):
                 pyperclip.copy(text_to_copy)
                 # Optional: Provide feedback to the user
                 # self.statusBar().showMessage(self.tr("Selected message(s) copied to clipboard."), 3000) # Example for status bar
-                QMessageBox.information(self, self.tr("Copy to Clipboard"), self.tr("{0} message(s) copied to clipboard.").format(len(messages_to_copy_content)))
+                # QMessageBox.information(self, self.tr("Copy to Clipboard"), self.tr("{0} message(s) copied to clipboard.").format(len(messages_to_copy_content)))
             except pyperclip.PyperclipException as e:
                 self.logger.error(f"Error copying to clipboard: {e}")
                 QMessageBox.warning(self, self.tr("Clipboard Error"), self.tr("Could not copy messages to clipboard: {0}").format(str(e)))
