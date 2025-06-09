@@ -21,7 +21,7 @@ from src.main.third_parties.google import Google as GeminiEngine # Alias for con
 from src.main.third_parties.azure_openai import AzureOpenAI as AzureOpenAIEngine # Alias
 from src.main.third_parties.xai import XAI as GrokEngine # Alias
 from src.main.message import Message
-from src.main.thirdpartyapikey_manager import ThirdPartyApiKeyManager, ThirdPartyApiKeyQuery # Added ThirdPartyApiKeyQuery
+from src.main.thirdpartyapikey_manager import ThirdPartyApiKeyQuery # Added ThirdPartyApiKeyQuery
 
 
 class TestChatroom(unittest.TestCase):
@@ -29,7 +29,7 @@ class TestChatroom(unittest.TestCase):
     def setUp(self):
         """Sets up a Chatroom instance with a mock manager for each test."""
         self.mock_manager = MagicMock(spec=ChatroomManager)
-        self.mock_manager.thirdpartyapikey_manager = MagicMock(spec=ThirdPartyApiKeyManager) # Mock ThirdPartyApiKeyManager on the mock manager
+        # self.mock_manager.thirdpartyapikey_manager = MagicMock(spec=ThirdPartyApiKeyManager) # Mock ThirdPartyApiKeyManager on the mock manager
         
         self.chatroom = Chatroom("Test Room")
         self.chatroom.manager = self.mock_manager # Assign the mock manager
@@ -242,17 +242,15 @@ class TestChatroom(unittest.TestCase):
 class TestChatroomManager(unittest.TestCase):
     """Tests for the ChatroomManager class."""
     def setUp(self):
-        """Sets up a ChatroomManager instance with a mock ThirdPartyApiKeyManager.
-        
-        Also ensures the test data directory for chatroom files is clean.
+        """Also ensures the test data directory for chatroom files is clean.
         The _load_chatrooms_from_disk method is patched during manager
         initialization for most tests to prevent actual file system access unless
         specifically testing that method.
         """
-        self.mock_thirdpartyapikey_manager = MagicMock(spec=ThirdPartyApiKeyManager)
+        # self.mock_thirdpartyapikey_manager = MagicMock(spec=ThirdPartyApiKeyManager)
         # Prevent _load_chatrooms_from_disk from running in __init__ for most tests
         with patch.object(ChatroomManager, '_load_chatrooms_from_disk', lambda self: None):
-            self.manager = ChatroomManager(thirdpartyapikey_manager=self.mock_thirdpartyapikey_manager)
+            self.manager = ChatroomManager()
 
         # Clean up test data directory before and after tests if it exists
         self.test_data_dir_path = DATA_DIR 
@@ -290,7 +288,7 @@ class TestChatroomManager(unittest.TestCase):
         mock_chatroom_from_dict.side_effect = [mock_chatroom_instance1, mock_chatroom_instance2]
 
         # Re-initialize manager to trigger actual _load_chatrooms_from_disk
-        manager = ChatroomManager(thirdpartyapikey_manager=self.mock_thirdpartyapikey_manager)
+        manager = ChatroomManager()
 
         # Assertions
         self.assertEqual(len(manager.chatrooms), 2)
@@ -423,9 +421,6 @@ class TestChatroomManager(unittest.TestCase):
         self.assertNotEqual(cloned_chatroom.get_messages()[0], original_chatroom.get_messages()[0]) # Deepcopied
         self.assertEqual(cloned_chatroom.get_messages()[0].content, "Hello clone test")
         
-        # ThirdPartyApiKeyManager is not involved in bot cloning process itself anymore
-        self.mock_thirdpartyapikey_manager.get_thirdpartyapikey.assert_not_called()
-
         # Check that the cloned chatroom's _save was called (by create_chatroom and add_bot)
         # create_chatroom for clone + add_bot for the cloned bot
         self.assertGreaterEqual(mock_cloned_save.call_count, 1) 

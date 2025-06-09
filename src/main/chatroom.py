@@ -303,17 +303,13 @@ class ChatroomManager:
         chatrooms (dict[str, Chatroom]): A dictionary of chatrooms, keyed by chatroom name.
         thirdpartyapikey_manager: An instance of `ThirdPartyApiKeyManager` for handling API keys for bots.
     """
-    def __init__(self, thirdpartyapikey_manager): # thirdpartyapikey_manager is now required
+    def __init__(self): # thirdpartyapikey_manager is now required
         """Initializes the ChatroomManager.
 
         Loads existing chatrooms from disk.
-
-        Args:
-            thirdpartyapikey_manager: An instance of `ThirdPartyApiKeyManager`.
         """
         self.logger = logging.getLogger(__name__ + ".ChatroomManager")
         self.chatrooms: dict[str, Chatroom] = {}
-        self.thirdpartyapikey_manager = thirdpartyapikey_manager # Store it
         self.logger.info(f"ChatroomManager initialized. Data directory: {os.path.abspath(DATA_DIR)}") # INFO
         self._load_chatrooms_from_disk()
 
@@ -334,7 +330,6 @@ class ChatroomManager:
             try:
                 with open(filepath, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                # Pass self.thirdpartyapikey_manager to from_dict
                 chatroom = Chatroom.from_dict(data, self, filepath)
                 self.chatrooms[chatroom.name] = chatroom
                 loaded_count +=1

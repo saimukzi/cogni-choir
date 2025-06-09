@@ -136,8 +136,7 @@ class MainWindow(QMainWindow):
             data_dir=self.data_dir_path,
             encryption_service=self.encryption_service
         )
-        self.chatroom_manager = ChatroomManager(
-            thirdpartyapikey_manager=self.thirdpartyapikey_manager)
+        self.chatroom_manager = ChatroomManager()
         self.bot_template_manager = BotTemplateManager(
             data_dir=self.data_dir_path)  # Added
 
