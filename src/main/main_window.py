@@ -940,9 +940,6 @@ class MainWindow(QMainWindow):
             # self.trigger_bot_response_button.setEnabled(False)
             QApplication.processEvents()
 
-        chatroom.add_message("System", "asdf")
-        self._update_message_display()
-
         async def _run():
             try:
                 ai_response = self.third_party_group.generate_response(
