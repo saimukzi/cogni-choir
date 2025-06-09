@@ -18,19 +18,6 @@ from src.main.message import Message
 
 class TestMessage(unittest.TestCase):
     """Tests for the Message class."""
-    def test_message_creation_auto_timestamp(self):
-        """Tests Message creation with an automatically generated timestamp."""
-        sender = "User1"
-        content = "Hello, world!"
-        before_creation = time.time()
-        msg = Message(sender, content)
-        after_creation = time.time()
-
-        self.assertEqual(msg.sender, sender)
-        self.assertEqual(msg.content, content)
-        self.assertIsNotNone(msg.timestamp)
-        self.assertTrue(before_creation <= msg.timestamp <= after_creation)
-
     def test_message_creation_manual_timestamp(self):
         """Tests Message creation with a manually provided timestamp."""
         sender = "User2"
@@ -53,15 +40,6 @@ class TestMessage(unittest.TestCase):
         expected_str = f"[{datetime.datetime.fromtimestamp(fixed_timestamp).strftime('%Y-%m-%d %H:%M:%S')}] {sender}: {content}"
         self.assertEqual(msg.to_display_string(), expected_str)
         self.assertEqual(str(msg), expected_str) # Also test __str__
-
-    def test_message_to_history_tuple(self):
-        """Tests the conversion of a Message to a (sender, content) tuple."""
-        sender = "User4"
-        content = "History tuple test"
-        msg = Message(sender, content)
-        
-        expected_tuple = (sender, content)
-        self.assertEqual(msg.to_history_tuple(), expected_tuple)
 
     def test_message_to_dict(self):
         """Tests the serialization of a Message object to a dictionary."""

@@ -12,6 +12,7 @@ import logging
 import os
 import json
 import re
+import time
 import glob
 from typing import Optional # For type hints
 import copy
@@ -148,7 +149,7 @@ class Chatroom:
         Returns:
             The created `Message` object.
         """
-        message = Message(sender=sender, content=content)
+        message = Message(sender=sender, content=content, timestamp=time.time())
         self.messages.append(message)
         self.logger.info(f"Message from '{sender}' (length: {len(content)}) added to chatroom '{self.name}'.") # INFO
         if self.manager:

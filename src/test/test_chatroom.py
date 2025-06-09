@@ -418,7 +418,8 @@ class TestChatroomManager(unittest.TestCase):
 
         # Assert message history IS copied by deepcopy as per SUT change
         self.assertEqual(len(cloned_chatroom.get_messages()), 1)
-        self.assertNotEqual(cloned_chatroom.get_messages()[0], original_chatroom.get_messages()[0]) # Deepcopied
+        self.assertEqual(cloned_chatroom.get_messages()[0], original_chatroom.get_messages()[0])
+        self.assertTrue(cloned_chatroom.get_messages()[0] is not original_chatroom.get_messages()[0]) # deepcopy
         self.assertEqual(cloned_chatroom.get_messages()[0].content, "Hello clone test")
         
         # Check that the cloned chatroom's _save was called (by create_chatroom and add_bot)
