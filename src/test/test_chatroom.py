@@ -20,7 +20,7 @@ from src.main.third_party import ThirdPartyBase, ThirdPartyApiKeySlotInfo, AIEng
 from src.main.third_parties.google import Google as GeminiEngine # Alias for consistency if needed, or use Google
 from src.main.third_parties.azure_openai import AzureOpenAI as AzureOpenAIEngine # Alias
 from src.main.third_parties.xai import XAI as GrokEngine # Alias
-from src.main.message import Message
+from src.main.message import MessageData
 from src.main.thirdpartyapikey_manager import ThirdPartyApiKeyQuery # Added ThirdPartyApiKeyQuery
 
 
@@ -89,7 +89,7 @@ class TestChatroom(unittest.TestCase):
     def test_add_get_messages(self):
         """Tests adding messages to the chatroom and retrieving them."""
         msg1 = self.chatroom.add_message("User1", "Hello")
-        self.assertIsInstance(msg1, Message)
+        self.assertIsInstance(msg1, MessageData)
         self.assertEqual(len(self.chatroom.get_messages()), 1)
         self.mock_manager.notify_chatroom_updated.assert_called_with(self.chatroom)
         self.mock_manager.notify_chatroom_updated.reset_mock()
@@ -144,7 +144,7 @@ class TestChatroom(unittest.TestCase):
 
             def generate_response(self, aiengine_id: str, aiengine_arg_dict: dict[str, str],
                                   thirdpartyapikey_list: list[str], role_name: str,
-                                  conversation_history: list[Message]) -> str:
+                                  conversation_history: list[MessageData]) -> str:
                 return "NoKeyEngine response"
 
         # Setup chatroom with new Bot structure

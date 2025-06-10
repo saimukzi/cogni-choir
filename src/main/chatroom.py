@@ -19,7 +19,7 @@ import copy
 
 from .ai_bots import Bot
 # create_bot is imported locally in methods that use it.
-from .message import Message
+from .message import MessageData
 
 DATA_DIR = os.path.join("data", "chatrooms")
 
@@ -60,7 +60,7 @@ class Chatroom:
         self._name: str = name
         self.logger.debug(f"Chatroom '{name}' initialized.") # DEBUG
         self.bots: dict[str, Bot] = {}
-        self.messages: list[Message] = []
+        self.messages: list[MessageData] = []
         self.manager: Optional[ChatroomManager] = None # Will be set by ChatroomManager
         self.filepath: Optional[str] = None             # Will be set by ChatroomManager
 
@@ -137,7 +137,7 @@ class Chatroom:
         self.logger.debug(f"Listing {len(self.bots)} bot(s) for chatroom '{self.name}'.") # DEBUG
         return list(self.bots.values())
 
-    def add_message(self, sender: str, content: str) -> Message:
+    def add_message(self, sender: str, content: str) -> MessageData:
         """Adds a new message to the chatroom's history.
 
         Notifies the manager (if any) that the chatroom has been updated.
@@ -149,14 +149,14 @@ class Chatroom:
         Returns:
             The created `Message` object.
         """
-        message = Message(sender=sender, content=content, timestamp=time.time())
+        message = MessageData(sender=sender, content=content, timestamp=time.time())
         self.messages.append(message)
         self.logger.info(f"Message from '{sender}' (length: {len(content)}) added to chatroom '{self.name}'.") # INFO
         if self.manager:
             self.manager.notify_chatroom_updated(self)
         return message
 
-    def get_messages(self) -> list[Message]:
+    def get_messages(self) -> list[MessageData]:
         """Retrieves all messages from the chatroom's history.
 
         Returns:
@@ -287,7 +287,7 @@ class Chatroom:
 
         for msg_data in data.get("messages", []):
             try:
-                message = Message.from_dict(msg_data)
+                message = MessageData.from_dict(msg_data)
                 chatroom.messages.append(message)
             except Exception as e:
                 logger.error(f"Error loading message from data in {chatroom.name}: {msg_data}, error: {e}", exc_info=True) # ERROR

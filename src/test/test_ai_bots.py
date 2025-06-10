@@ -21,7 +21,7 @@ from src.main.third_party import ThirdPartyBase
 from src.main.third_parties.google import Google # Updated import for Google/Gemini
 from src.main.third_parties.xai import XAI # Updated import for XAI/Grok
 from src.main.third_parties.azure_openai import AzureOpenAI
-from src.main.message import Message
+from src.main.message import MessageData
 
 # No global SDK mocks here; will use @patch decorator for targeted mocking
 
@@ -96,7 +96,7 @@ class TestGoogleEngine(unittest.TestCase): # Renamed from TestGeminiEngine
         engine = Google()
         aiengine_arg_dict = {"model_name": "gemini-custom", "system_prompt": "System prompt ASFWDYPWYL"}
         thirdpartyapikey_list = ["fake_google_key"]
-        conversation_history = [Message(sender='user', content='Test message OETMTOCXPR', timestamp=time.time())]
+        conversation_history = [MessageData(sender='user', content='Test message OETMTOCXPR', timestamp=time.time())]
 
         response = engine.generate_response(
             _aiengine_id="google_gemini", # Matches AIEngineInfo
@@ -119,7 +119,7 @@ class TestGoogleEngine(unittest.TestCase): # Renamed from TestGeminiEngine
         engine = Google()
         aiengine_arg_dict = {"model_name": "gemini-error", "system_prompt": "System Prompt for API Error Test"}
         thirdpartyapikey_list = ["fake_google_key_error"]
-        conversation_history = [Message(sender='user', content='Test message', timestamp=time.time())]
+        conversation_history = [MessageData(sender='user', content='Test message', timestamp=time.time())]
 
         response = engine.generate_response(
             _aiengine_id="google_gemini",
@@ -204,7 +204,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         }
         thirdpartyapikey_list_for_test = ["fake_azure_openai_key"]
         role_name_for_test = "TestBot"
-        conversation_history_for_test = [Message(sender='User1', content='Hello AI, this is my first message.', timestamp=time.time())]
+        conversation_history_for_test = [MessageData(sender='User1', content='Hello AI, this is my first message.', timestamp=time.time())]
         
         with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_success"):
             response = engine.generate_response(
@@ -242,7 +242,7 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         engine = AzureOpenAI()
         aiengine_arg_dict_for_test = {"deployment_name": "deployment-error", "system_prompt": "SysPrompt"} # Corrected key
         thirdpartyapikey_list_for_test = ["fake_key_error"]
-        conversation_history_for_test = [Message(sender='user', content='Test message', timestamp=time.time())]
+        conversation_history_for_test = [MessageData(sender='user', content='Test message', timestamp=time.time())]
 
         with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_error"):
             response = engine.generate_response(
@@ -346,9 +346,9 @@ class TestXAIEngine(unittest.TestCase): # Renamed from TestGrokEngine
         thirdpartyapikey_list = ["fake_xai_key"]
         role_name = "TestXAIBot"
         conversation_history = [
-            Message(sender='User', content='Hello XAI!', timestamp=time.time()),
-            Message(sender=role_name, content='Hello User!', timestamp=time.time()),
-            Message(sender='User', content='How are you?', timestamp=time.time())
+            MessageData(sender='User', content='Hello XAI!', timestamp=time.time()),
+            MessageData(sender=role_name, content='Hello User!', timestamp=time.time()),
+            MessageData(sender='User', content='How are you?', timestamp=time.time())
         ]
         
         response = engine.generate_response( # Call with full args

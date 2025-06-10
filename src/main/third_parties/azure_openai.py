@@ -78,7 +78,7 @@ class AzureOpenAI(third_party.ThirdPartyBase):
         aiengine_arg_dict: dict[str, str],
         thirdpartyapikey_list: list[str],
         role_name: str,
-        conversation_history: list[third_party.Message]
+        conversation_history: list[third_party.MessageData]
     ) -> str:
         """
         Generates a response from the Azure OpenAI engine.

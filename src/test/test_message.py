@@ -14,7 +14,7 @@ import os
 # This is a common pattern for test files located outside the main package
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from src.main.message import Message
+from src.main.message import MessageData
 
 class TestMessage(unittest.TestCase):
     """Tests for the Message class."""
@@ -23,7 +23,7 @@ class TestMessage(unittest.TestCase):
         sender = "User2"
         content = "Another message"
         timestamp = time.time() - 1000  # A specific timestamp
-        msg = Message(sender, content, timestamp=timestamp)
+        msg = MessageData(sender, content, timestamp=timestamp)
 
         self.assertEqual(msg.sender, sender)
         self.assertEqual(msg.content, content)
@@ -35,7 +35,7 @@ class TestMessage(unittest.TestCase):
         content = "Test display string"
         # Use a fixed timestamp for predictable string output
         fixed_timestamp = datetime.datetime(2023, 1, 1, 12, 0, 0).timestamp()
-        msg = Message(sender, content, timestamp=fixed_timestamp)
+        msg = MessageData(sender, content, timestamp=fixed_timestamp)
         
         expected_str = f"[{datetime.datetime.fromtimestamp(fixed_timestamp).strftime('%Y-%m-%d %H:%M:%S')}] {sender}: {content}"
         self.assertEqual(msg.to_display_string(), expected_str)
@@ -46,7 +46,7 @@ class TestMessage(unittest.TestCase):
         sender = "User5"
         content = "Serialization test"
         fixed_timestamp = datetime.datetime(2023, 1, 2, 10, 30, 0).timestamp()
-        msg = Message(sender, content, timestamp=fixed_timestamp)
+        msg = MessageData(sender, content, timestamp=fixed_timestamp)
 
         expected_dict = {
             "sender": sender,
@@ -62,7 +62,7 @@ class TestMessage(unittest.TestCase):
             "content": "Deserialization test",
             "timestamp": datetime.datetime(2023, 1, 3, 11, 20, 10).timestamp()
         }
-        msg = Message.from_dict(data)
+        msg = MessageData.from_dict(data)
 
         self.assertEqual(msg.sender, data["sender"])
         self.assertEqual(msg.content, data["content"])

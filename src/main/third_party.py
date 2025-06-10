@@ -14,7 +14,7 @@ import abc
 import logging
 from enum import Enum
 
-from .message import Message
+from .message import MessageData
 
 class ThirdPartyApiKeySlotInfo:
     """Information about an API key slot for a third-party service.
@@ -168,7 +168,7 @@ class ThirdPartyBase(abc.ABC):
         raise NotImplementedError("Subclasses must implement this method.")
 
     @abc.abstractmethod
-    def generate_response(self, aiengine_id:str, aiengine_arg_dict:dict[str,str], thirdpartyapikey_list:list[str], role_name: str, conversation_history: list[Message]) -> str:
+    def generate_response(self, aiengine_id:str, aiengine_arg_dict:dict[str,str], thirdpartyapikey_list:list[str], role_name: str, conversation_history: list[MessageData]) -> str:
         """
         Generates a response from the AI engine.
 
@@ -240,7 +240,7 @@ class ThirdPartyGroup:
                           aiengine_arg_dict:dict[str,str],
                           thirdpartyapikey_list:list[str],
                           role_name: str,
-                          conversation_history: list[Message]
+                          conversation_history: list[MessageData]
                           ) -> str:
         """
         Generates a response from the specified AI engine.

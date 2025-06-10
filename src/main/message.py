@@ -9,7 +9,7 @@ import datetime
 from dataclasses import dataclass
 
 @dataclass
-class Message:
+class MessageData:
     """Represents a single message in a chatroom.
 
     Attributes:
@@ -42,7 +42,7 @@ class Message:
         return {"sender": self.sender, "content": self.content, "timestamp": self.timestamp}
 
     @staticmethod
-    def from_dict(data: dict) -> 'Message':
+    def from_dict(data: dict) -> 'MessageData':
         """Deserializes a message from a dictionary.
 
         Args:
@@ -52,7 +52,7 @@ class Message:
         Returns:
             A `Message` instance created from the provided data.
         """
-        return Message(sender=data["sender"], content=data["content"], timestamp=data["timestamp"])
+        return MessageData(sender=data["sender"], content=data["content"], timestamp=data["timestamp"])
 
     def get_content_for_copy(self) -> str:
         """Returns the raw content of the message, suitable for copying."""
