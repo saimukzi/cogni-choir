@@ -1,7 +1,7 @@
 """This module defines the Bot class and a factory function to create bots."""
 # from .ai_base import AIEngine # Import AIEngine from its new location
 
-from .thirdpartyapikey_manager import ThirdPartyApiKeyQuery
+from .thirdpartyapikey_manager import ThirdPartyApiKeyQueryData
 
 # Bot class and create_bot function remain here.
 # AIEngine class has been moved to ai_base.py
@@ -11,7 +11,7 @@ class Bot:
     """Represents an AI bot with a specific name, AI engine configuration, and API key requirements."""
     def __init__(self, name: str = "", aiengine_id: str = "",
                  aiengine_arg_dict: Dict[str, str] = None,
-                 thirdpartyapikey_query_list: List[ThirdPartyApiKeyQuery] = None):
+                 thirdpartyapikey_query_list: List[ThirdPartyApiKeyQueryData] = None):
         """Initializes a new instance of the Bot class.
 
         Args:
@@ -24,7 +24,7 @@ class Bot:
         self.name: str = name
         self.aiengine_id: str = aiengine_id
         self.aiengine_arg_dict: Dict[str, str] = aiengine_arg_dict if aiengine_arg_dict is not None else {}
-        self.thirdpartyapikey_query_list: List[ThirdPartyApiKeyQuery] = thirdpartyapikey_query_list if thirdpartyapikey_query_list is not None else []
+        self.thirdpartyapikey_query_list: List[ThirdPartyApiKeyQueryData] = thirdpartyapikey_query_list if thirdpartyapikey_query_list is not None else []
 
     def to_dict(self) -> Dict[str, Any]:
         """Serializes the Bot instance to a dictionary for JSON storage.
@@ -55,7 +55,7 @@ class Bot:
         thirdpartyapikey_queries_data = data.get("thirdpartyapikey_query_list", [])
         thirdpartyapikey_query_list = []
         for query_data in thirdpartyapikey_queries_data:
-            thirdpartyapikey_query_list.append(ThirdPartyApiKeyQuery.from_dict(query_data))
+            thirdpartyapikey_query_list.append(ThirdPartyApiKeyQueryData.from_dict(query_data))
 
         return cls(
             name=data.get("name", ""),

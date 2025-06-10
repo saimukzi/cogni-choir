@@ -22,7 +22,7 @@ class BotInfoDialog(QDialog):
     def __init__(self,
                  existing_bot_names: list[str],
                  aiengine_info_list: list[third_party.AIEngineInfo],
-                 thirdpartyapikey_query_list: list[thirdpartyapikey_manager.ThirdPartyApiKeyQuery],
+                 thirdpartyapikey_query_list: list[thirdpartyapikey_manager.ThirdPartyApiKeyQueryData],
                  old_bot: Bot | None = None,
                  parent=None):
         """Initializes the BotInfoDialog.
@@ -247,7 +247,7 @@ class BotInfoDialog(QDialog):
     #         }
     #     return None
 
-    def _get_matched_api_query_list(self) -> list[thirdpartyapikey_manager.ThirdPartyApiKeyQuery]:
+    def _get_matched_api_query_list(self) -> list[thirdpartyapikey_manager.ThirdPartyApiKeyQueryData]:
         """Gets API key queries matching the selected AI engine's requirements.
 
         Filters the dialog's `thirdpartyapikey_query_list` to include only those queries

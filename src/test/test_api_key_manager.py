@@ -6,7 +6,7 @@ import os
 import json
 import io
 
-from src.main.thirdpartyapikey_manager import ThirdPartyApiKeyManager, ThirdPartyApiKeyQuery, ENCRYPTED_SERVICE_NAME_PREFIX # Removed _KEYRING_MANAGED_SERVICES_KEY, Added ThirdPartyApiKeyQuery
+from src.main.thirdpartyapikey_manager import ThirdPartyApiKeyManager, ThirdPartyApiKeyQueryData, ENCRYPTED_SERVICE_NAME_PREFIX # Removed _KEYRING_MANAGED_SERVICES_KEY, Added ThirdPartyApiKeyQuery
 from src.main.encryption_service import EncryptionService
 # Import the module itself to patch its global constant for salt file path
 import src.main.encryption_service as encryption_service_module
@@ -79,7 +79,7 @@ class TestThirdPartyApiKeyManagerWithEncryption(unittest.TestCase):
         slot_id = "TestSlot"
         key_id = "TestKeyID"
         thirdpartyapikey = "secret_key_123"
-        api_query = ThirdPartyApiKeyQuery(slot_id, key_id)
+        api_query = ThirdPartyApiKeyQueryData(slot_id, key_id)
 
         # Simulate key not found initially for get_thirdpartyapikey if it tries to read before setting mock
         mock_keyring_get_password.return_value = None
@@ -117,7 +117,7 @@ class TestThirdPartyApiKeyManagerWithEncryption(unittest.TestCase):
         slot_id = "ToDeleteSlot"
         key_id = "ToDeleteKeyID"
         thirdpartyapikey = "key_to_delete"
-        api_query = ThirdPartyApiKeyQuery(slot_id, key_id)
+        api_query = ThirdPartyApiKeyQueryData(slot_id, key_id)
 
         # Save a key first
         encrypted_key_placeholder = self.encryption_service.encrypt(thirdpartyapikey)
@@ -152,7 +152,7 @@ class TestThirdPartyApiKeyManagerWithEncryption(unittest.TestCase):
         """Tests that loading a key returns None if decryption fails (from keyring)."""
         slot_id = "CorruptSlot"
         key_id = "CorruptKeyID"
-        api_query = ThirdPartyApiKeyQuery(slot_id, key_id)
+        api_query = ThirdPartyApiKeyQueryData(slot_id, key_id)
 
         # Simulate keyring returning a corrupted (non-decryptable by current ES) string
         mock_keyring_get_password.return_value = "this is not properly encrypted by this ES"
@@ -174,7 +174,7 @@ class TestThirdPartyApiKeyManagerWithEncryption(unittest.TestCase):
         """Tests re-encrypting all keys stored in keyring."""
         slot1, id1, key1 = "SlotR1", "IDR1", "re_encrypt_key1"
         slot2, id2, key2 = "SlotR2", "IDR2", "re_encrypt_key2"
-        query1, query2 = ThirdPartyApiKeyQuery(slot1, id1), ThirdPartyApiKeyQuery(slot2, id2)
+        query1, query2 = ThirdPartyApiKeyQueryData(slot1, id1), ThirdPartyApiKeyQueryData(slot2, id2)
 
         old_es = self.encryption_service
         encrypted_key1_old_es = old_es.encrypt(key1)
@@ -262,7 +262,7 @@ class TestThirdPartyApiKeyManagerWithEncryption(unittest.TestCase):
         original_es = self.api_manager.encryption_service
         self.api_manager.encryption_service = None
         with self.assertRaisesRegex(RuntimeError, "Encryption service not available"):
-            self.api_manager.set_thirdpartyapikey(ThirdPartyApiKeyQuery("Test", "TestID"), "key")
+            self.api_manager.set_thirdpartyapikey(ThirdPartyApiKeyQueryData("Test", "TestID"), "key")
         self.api_manager.encryption_service = original_es # Restore
 
     def test_get_thirdpartyapikey_requires_encryption_service(self):
@@ -270,7 +270,7 @@ class TestThirdPartyApiKeyManagerWithEncryption(unittest.TestCase):
         original_es = self.api_manager.encryption_service
         self.api_manager.encryption_service = None
         with self.assertRaisesRegex(RuntimeError, "Encryption service not available"):
-            self.api_manager.get_thirdpartyapikey(ThirdPartyApiKeyQuery("Test", "TestID"))
+            self.api_manager.get_thirdpartyapikey(ThirdPartyApiKeyQueryData("Test", "TestID"))
         self.api_manager.encryption_service = original_es # Restore
 
     def test_empty_service_or_key_with_encryption(self):
@@ -282,7 +282,7 @@ class TestThirdPartyApiKeyManagerWithEncryption(unittest.TestCase):
         # Let's test that ThirdPartyApiKeyManager.set_thirdpartyapikey raises ValueError for empty thirdpartyapikey string.
 
         with self.assertRaisesRegex(ValueError, "API key cannot be empty"): # Assuming SUT checks this for thirdpartyapikey
-            self.api_manager.set_thirdpartyapikey(ThirdPartyApiKeyQuery("some_slot", "some_id"), "")
+            self.api_manager.set_thirdpartyapikey(ThirdPartyApiKeyQueryData("some_slot", "some_id"), "")
 
         # Test with empty slot_id or key_id in ThirdPartyApiKeyQuery - depends on how SUT handles this for keyring.
         # Keyring might allow empty service/username but it's bad practice.
@@ -303,7 +303,7 @@ class TestThirdPartyApiKeyManagerWithEncryption(unittest.TestCase):
         # Mock keyring.get_password for this specific call to avoid NoKeyringError
         # and simulate keyring returning None for such a query.
         with self.assertRaisesRegex(ValueError, "Both thirdpartyapikey_slot_id and thirdpartyapikey_id must be provided in the query."):
-            self.api_manager.get_thirdpartyapikey(ThirdPartyApiKeyQuery("", "")) # Test None query
+            self.api_manager.get_thirdpartyapikey(ThirdPartyApiKeyQueryData("", "")) # Test None query
 
 
 if __name__ == '__main__':

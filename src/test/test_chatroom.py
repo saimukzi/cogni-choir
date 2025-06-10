@@ -21,7 +21,7 @@ from src.main.third_parties.google import Google as GeminiEngine # Alias for con
 from src.main.third_parties.azure_openai import AzureOpenAI as AzureOpenAIEngine # Alias
 from src.main.third_parties.xai import XAI as GrokEngine # Alias
 from src.main.message import MessageData
-from src.main.thirdpartyapikey_manager import ThirdPartyApiKeyQuery # Added ThirdPartyApiKeyQuery
+from src.main.thirdpartyapikey_manager import ThirdPartyApiKeyQueryData # Added ThirdPartyApiKeyQuery
 
 
 class TestChatroom(unittest.TestCase):
@@ -152,13 +152,13 @@ class TestChatroom(unittest.TestCase):
         bot1.name = "BotAlpha"
         bot1.aiengine_id = "google_gemini" # Corresponds to AIEngineInfo.aiengine_id
         bot1.aiengine_arg_dict = {"system_prompt": "Prompt Alpha", "model_name": "gemini-alpha"}
-        bot1.thirdpartyapikey_query_list = [ThirdPartyApiKeyQuery(thirdpartyapikey_slot_id="google_gemini", thirdpartyapikey_id="BotAlpha_google_gemini")]
+        bot1.thirdpartyapikey_query_list = [ThirdPartyApiKeyQueryData(thirdpartyapikey_slot_id="google_gemini", thirdpartyapikey_id="BotAlpha_google_gemini")]
 
         bot2 = Bot()
         bot2.name = "BotBeta"
         bot2.aiengine_id = "azure_openai" # Corresponds to AIEngineInfo.aiengine_id
         bot2.aiengine_arg_dict = {"system_prompt": "Prompt Beta", "model_name": "azureopenai-beta"}
-        bot2.thirdpartyapikey_query_list = [ThirdPartyApiKeyQuery(thirdpartyapikey_slot_id="azure_openai", thirdpartyapikey_id="BotBeta_azure_openai")]
+        bot2.thirdpartyapikey_query_list = [ThirdPartyApiKeyQueryData(thirdpartyapikey_slot_id="azure_openai", thirdpartyapikey_id="BotBeta_azure_openai")]
 
         # For BotGamma with NoKeyEngine, its aiengine_id should match what NoKeyEngine.get_aiengine_info_list provides
         bot3 = Bot()
@@ -383,7 +383,7 @@ class TestChatroomManager(unittest.TestCase):
         original_bot.name = "OrigBot"
         original_bot.aiengine_id = "google_gemini"
         original_bot.aiengine_arg_dict = {"system_prompt": "Prompt", "model_name": "gemini-orig"}
-        original_bot.thirdpartyapikey_query_list = [ThirdPartyApiKeyQuery("google_gemini", "orig_bot_key")]
+        original_bot.thirdpartyapikey_query_list = [ThirdPartyApiKeyQueryData("google_gemini", "orig_bot_key")]
 
         original_chatroom.add_bot(original_bot)
         original_chatroom.add_message("User", "Hello clone test")
@@ -414,7 +414,8 @@ class TestChatroomManager(unittest.TestCase):
         self.assertIsNotNone(cloned_bot.thirdpartyapikey_query_list)
         self.assertEqual(len(cloned_bot.thirdpartyapikey_query_list), 1)
         self.assertEqual(cloned_bot.thirdpartyapikey_query_list[0].thirdpartyapikey_slot_id, "google_gemini")
-        self.assertNotEqual(cloned_bot.thirdpartyapikey_query_list, original_bot.thirdpartyapikey_query_list) # Should be a deepcopy
+        self.assertEqual(cloned_bot.thirdpartyapikey_query_list, original_bot.thirdpartyapikey_query_list)
+        self.assertTrue(cloned_bot.thirdpartyapikey_query_list[0] is not original_bot.thirdpartyapikey_query_list[0]) # deepcopy
 
         # Assert message history IS copied by deepcopy as per SUT change
         self.assertEqual(len(cloned_chatroom.get_messages()), 1)

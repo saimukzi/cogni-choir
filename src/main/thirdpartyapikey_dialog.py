@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 # Attempt to import from sibling modules
-from .thirdpartyapikey_manager import ThirdPartyApiKeyManager, ThirdPartyApiKeyQuery
+from .thirdpartyapikey_manager import ThirdPartyApiKeyManager, ThirdPartyApiKeyQueryData
 from . import third_party
 
 
@@ -61,7 +61,7 @@ class ThirdPartyApiKeyDialog(QDialog):
         thirdpartyapikey_slot_id = self.service_combo.currentData()
         thirdpartyapikey_id = thirdpartyapikey_slot_id # TODO: Handle multiple keys per service if needed
         if thirdpartyapikey_slot_id: # Ensure a service is actually selected
-            key = self.thirdpartyapikey_manager.get_thirdpartyapikey(ThirdPartyApiKeyQuery(thirdpartyapikey_slot_id, thirdpartyapikey_id))
+            key = self.thirdpartyapikey_manager.get_thirdpartyapikey(ThirdPartyApiKeyQueryData(thirdpartyapikey_slot_id, thirdpartyapikey_id))
             self.thirdpartyapikey_input.setText(key if key else "")
         else:
             self.thirdpartyapikey_input.clear()
@@ -79,7 +79,7 @@ class ThirdPartyApiKeyDialog(QDialog):
             QMessageBox.warning(self, self.tr("Warning"), self.tr("API Key cannot be empty."))
             return
 
-        self.thirdpartyapikey_manager.set_thirdpartyapikey(ThirdPartyApiKeyQuery(thirdpartyapikey_slot_id, thirdpartyapikey_id), key_text)
+        self.thirdpartyapikey_manager.set_thirdpartyapikey(ThirdPartyApiKeyQueryData(thirdpartyapikey_slot_id, thirdpartyapikey_id), key_text)
         QMessageBox.information(self, self.tr("Success"), self.tr("API Key saved."))
 
     def _delete_key(self):
@@ -94,6 +94,6 @@ class ThirdPartyApiKeyDialog(QDialog):
                                      self.tr("Are you sure you want to delete the API key for {0}?").format(thirdpartyapikey_slot_id),
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            self.thirdpartyapikey_manager.delete_thirdpartyapikey(ThirdPartyApiKeyQuery(thirdpartyapikey_slot_id, thirdpartyapikey_id))
+            self.thirdpartyapikey_manager.delete_thirdpartyapikey(ThirdPartyApiKeyQueryData(thirdpartyapikey_slot_id, thirdpartyapikey_id))
             self.thirdpartyapikey_input.clear()
             QMessageBox.information(self, self.tr("Success"), self.tr("API Key deleted."))

@@ -19,6 +19,7 @@ the system keyring, aiding in operations like re-encryption or clearing all data
 import json
 import os
 import sys
+from dataclasses import dataclass
 
 import keyring
 
@@ -26,45 +27,11 @@ from .encryption_service import EncryptionService # Assuming EncryptionService i
 
 ENCRYPTED_SERVICE_NAME_PREFIX = "CogniChoir_Encrypted"
 
+@dataclass(frozen=True)
+class ThirdPartyApiKeyQueryData:
 
-class ThirdPartyApiKeyQuery:
-    """Represents a query for an API key.
-
-    This class is used to encapsulate the parameters needed to retrieve
-    an API key from the `ThirdPartyApiKeyManager`. It includes the slot ID and
-    the specific key ID for the service.
-
-    Attributes:
-        thirdpartyapikey_slot_id (str): The slot ID for the API key.
-        thirdpartyapikey_id (str): The specific ID of the API key within that slot.
-    """
-    def __init__(self, thirdpartyapikey_slot_id: str, thirdpartyapikey_id: str):
-        """Initializes an ThirdPartyApiKeyQuery instance.
-
-        Args:
-            thirdpartyapikey_slot_id: The slot ID for the API key.
-            thirdpartyapikey_id: The specific ID of the API key within the slot.
-        """
-        self._thirdpartyapikey_slot_id = thirdpartyapikey_slot_id
-        self._thirdpartyapikey_id = thirdpartyapikey_id
-
-    @property
-    def thirdpartyapikey_slot_id(self) -> str:
-        """Gets the slot ID for the API key.
-
-        Returns:
-            str: The slot ID for the API key.
-        """
-        return self._thirdpartyapikey_slot_id
-
-    @property
-    def thirdpartyapikey_id(self) -> str:
-        """Gets the specific ID of the API key.
-
-        Returns:
-            str: The specific ID of the API key within the slot.
-        """
-        return self._thirdpartyapikey_id
+    thirdpartyapikey_slot_id:str
+    thirdpartyapikey_id:str
 
     def to_dict(self) -> dict:
         """Converts the ThirdPartyApiKeyQuery to a dictionary.
@@ -73,12 +40,12 @@ class ThirdPartyApiKeyQuery:
             dict: A dictionary representation of the ThirdPartyApiKeyQuery.
         """
         return {
-            "thirdpartyapikey_slot_id": self._thirdpartyapikey_slot_id,
-            "thirdpartyapikey_id": self._thirdpartyapikey_id
+            "thirdpartyapikey_slot_id": self.thirdpartyapikey_slot_id,
+            "thirdpartyapikey_id": self.thirdpartyapikey_id
         }
 
     @staticmethod
-    def from_dict(data: dict) -> 'ThirdPartyApiKeyQuery':
+    def from_dict(data: dict) -> 'ThirdPartyApiKeyQueryData':
         """Creates an ThirdPartyApiKeyQuery from a dictionary.
 
         Args:
@@ -87,7 +54,7 @@ class ThirdPartyApiKeyQuery:
         Returns:
             ThirdPartyApiKeyQuery: An instance of ThirdPartyApiKeyQuery initialized with the provided data.
         """
-        return ThirdPartyApiKeyQuery(
+        return ThirdPartyApiKeyQueryData(
             thirdpartyapikey_slot_id=data.get("thirdpartyapikey_slot_id", ""),
             thirdpartyapikey_id=data.get("thirdpartyapikey_id", "")
         )
@@ -181,7 +148,7 @@ class ThirdPartyApiKeyManager:
         """Generates a unique service name for keyring storage."""
         return f"{ENCRYPTED_SERVICE_NAME_PREFIX}_{thirdpartyapikey_slot_id}"
 
-    def set_thirdpartyapikey(self, thirdpartyapikey_query: ThirdPartyApiKeyQuery, thirdpartyapikey: str):
+    def set_thirdpartyapikey(self, thirdpartyapikey_query: ThirdPartyApiKeyQueryData, thirdpartyapikey: str):
         """Saves an API key for a given service, encrypting it before storage.
 
         The API key is encrypted using the configured `EncryptionService`.
@@ -218,7 +185,7 @@ class ThirdPartyApiKeyManager:
             self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict'][thirdpartyapikey_slot_id].append(thirdpartyapikey_id)
         self._save_data()
 
-    def get_thirdpartyapikey(self, thirdpartyapikey_query: ThirdPartyApiKeyQuery) -> str | None:
+    def get_thirdpartyapikey(self, thirdpartyapikey_query: ThirdPartyApiKeyQueryData) -> str | None:
         """Loads and decrypts an API key for a given service.
 
         Retrieves the encrypted key from the system keyring or fallback JSON file,
@@ -254,7 +221,7 @@ class ThirdPartyApiKeyManager:
             return None
         return decrypted_key
 
-    def delete_thirdpartyapikey(self, thirdpartyapikey_query: ThirdPartyApiKeyQuery):
+    def delete_thirdpartyapikey(self, thirdpartyapikey_query: ThirdPartyApiKeyQueryData):
         """Deletes an API key from keyring and the local data index.
 
         Args:
@@ -271,7 +238,7 @@ class ThirdPartyApiKeyManager:
                 self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict'][thirdpartyapikey_slot_id].remove(thirdpartyapikey_id)
         self._save_data()
 
-    def get_thirdpartyapikey_list(self, query_list: list[ThirdPartyApiKeyQuery]) -> list[str]:
+    def get_thirdpartyapikey_list(self, query_list: list[ThirdPartyApiKeyQueryData]) -> list[str]:
         """Retrieves a list of API keys for the specified services.
 
         This method returns a list of decrypted API keys for the provided
@@ -376,7 +343,7 @@ class ThirdPartyApiKeyManager:
 
         self._fix_data()  # Reset to empty structure
 
-    def get_available_thirdpartyapikey_query_list(self) -> list[ThirdPartyApiKeyQuery]:
+    def get_available_thirdpartyapikey_query_list(self) -> list[ThirdPartyApiKeyQueryData]:
         """Retrieves a list of all available API key queries.
 
         This method returns a list of `ThirdPartyApiKeyQuery` instances for all
@@ -392,5 +359,5 @@ class ThirdPartyApiKeyManager:
         thirdpartyapikey_query_list = []
         for thirdpartyapikey_slot_id, thirdpartyapikey_id_list in self._data['thirdpartyapikey_slot_id_to_thirdpartyapikey_id_list_dict'].items():
             for thirdpartyapikey_id in thirdpartyapikey_id_list:
-                thirdpartyapikey_query_list.append(ThirdPartyApiKeyQuery(thirdpartyapikey_slot_id, thirdpartyapikey_id))
+                thirdpartyapikey_query_list.append(ThirdPartyApiKeyQueryData(thirdpartyapikey_slot_id, thirdpartyapikey_id))
         return thirdpartyapikey_query_list

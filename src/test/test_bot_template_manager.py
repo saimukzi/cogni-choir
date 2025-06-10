@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 # This assumes your tests are run from the project root or that src is in PYTHONPATH
 from src.main.bot_template_manager import BotTemplateManager, BOT_TEMPLATES_FILE
 from src.main.ai_bots import Bot
-from src.main.thirdpartyapikey_manager import ThirdPartyApiKeyQuery
+from src.main.thirdpartyapikey_manager import ThirdPartyApiKeyQueryData
 
 
 # Helper to create a dummy Bot instance for testing
@@ -19,7 +19,7 @@ def create_dummy_bot(name="TestBot", aiengine_id="test_engine", model="gpt-test"
     bot.aiengine_arg_dict = {"model_name": model, "system_prompt": prompt}
     # Example ThirdPartyApiKeyQuery, adjust if your structure is different
     # Assuming ThirdPartyApiKeyQuery can be instantiated like this and has a to_dict method
-    bot.thirdpartyapikey_query_list = [ThirdPartyApiKeyQuery(thirdpartyapikey_slot_id="test_api_key_slot", thirdpartyapikey_id="Test API Key")]
+    bot.thirdpartyapikey_query_list = [ThirdPartyApiKeyQueryData(thirdpartyapikey_slot_id="test_api_key_slot", thirdpartyapikey_id="Test API Key")]
     return bot
 
 class TestBotTemplateManager(unittest.TestCase):
@@ -143,7 +143,7 @@ class TestBotTemplateManager(unittest.TestCase):
         template_id = self.manager.create_template(bot_config_orig)
 
         bot_config_updated = create_dummy_bot(name="UpdatedName", model="gpt-4-updated")
-        bot_config_updated.thirdpartyapikey_query_list = [ThirdPartyApiKeyQuery(thirdpartyapikey_slot_id="updated_slot", thirdpartyapikey_id="Updated Key")]
+        bot_config_updated.thirdpartyapikey_query_list = [ThirdPartyApiKeyQueryData(thirdpartyapikey_slot_id="updated_slot", thirdpartyapikey_id="Updated Key")]
 
 
         update_success = self.manager.update_template(template_id, bot_config_updated)
@@ -191,9 +191,9 @@ class TestBotTemplateManager(unittest.TestCase):
     def test_09_load_templates_from_file(self):
         """Test loading templates from an existing file."""
         bot1 = create_dummy_bot(name="FileBot1", model="model1", prompt="prompt1")
-        bot1.thirdpartyapikey_query_list = [ThirdPartyApiKeyQuery(thirdpartyapikey_slot_id="slot1", thirdpartyapikey_id="key_id1")]
+        bot1.thirdpartyapikey_query_list = [ThirdPartyApiKeyQueryData(thirdpartyapikey_slot_id="slot1", thirdpartyapikey_id="key_id1")]
         bot2 = create_dummy_bot(name="FileBot2", model="model2", prompt="prompt2")
-        bot2.thirdpartyapikey_query_list = [ThirdPartyApiKeyQuery(thirdpartyapikey_slot_id="slot2", thirdpartyapikey_id="key_id2")]
+        bot2.thirdpartyapikey_query_list = [ThirdPartyApiKeyQueryData(thirdpartyapikey_slot_id="slot2", thirdpartyapikey_id="key_id2")]
 
         # Helper for consistent serialization, matching Bot.to_dict and ThirdPartyApiKeyQuery.to_dict
         def bot_to_savable_dict(bot_instance: Bot) -> dict:
@@ -222,7 +222,7 @@ class TestBotTemplateManager(unittest.TestCase):
         self.assertEqual(len(bot1_loaded.thirdpartyapikey_query_list), 1)
         if bot1_loaded.thirdpartyapikey_query_list:
             query = bot1_loaded.thirdpartyapikey_query_list[0]
-            self.assertTrue(isinstance(query, ThirdPartyApiKeyQuery))
+            self.assertTrue(isinstance(query, ThirdPartyApiKeyQueryData))
             self.assertEqual(query.thirdpartyapikey_slot_id, "slot1")
             self.assertEqual(query.thirdpartyapikey_id, "key_id1")
 
