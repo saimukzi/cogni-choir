@@ -16,7 +16,7 @@ import time
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 import openai # Import the openai module itself for error types
-from src.main.ai_bots import Bot
+from src.main.ai_bots import BotData
 from src.main.third_party import ThirdPartyBase
 from src.main.third_parties.google import Google # Updated import for Google/Gemini
 from src.main.third_parties.xai import XAI # Updated import for XAI/Grok
@@ -36,7 +36,7 @@ class TestBot(unittest.TestCase):
         self.mock_engine_instance.__class__.__name__ = "SpecificMockedEngine" # For old to_dict if it used type name
         self.mock_engine_instance.model_name = "mocked-model-001" # If any part of Bot still needs this from a mock
 
-        self.bot = Bot()
+        self.bot = BotData()
         self.bot.name = "TestBot"
         self.bot.aiengine_id = "mock_engine_id_001"
         self.bot.aiengine_arg_dict = {

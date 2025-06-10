@@ -1,30 +1,20 @@
 """This module defines the Bot class and a factory function to create bots."""
 # from .ai_base import AIEngine # Import AIEngine from its new location
+from dataclasses import dataclass, field
+from typing import Dict, Any, List
 
 from .thirdpartyapikey_manager import ThirdPartyApiKeyQueryData
 
 # Bot class and create_bot function remain here.
 # AIEngine class has been moved to ai_base.py
-from typing import Dict, Any, List
 
-class Bot:
+@dataclass
+class BotData:
     """Represents an AI bot with a specific name, AI engine configuration, and API key requirements."""
-    def __init__(self, name: str = "", aiengine_id: str = "",
-                 aiengine_arg_dict: Dict[str, str] = None,
-                 thirdpartyapikey_query_list: List[ThirdPartyApiKeyQueryData] = None):
-        """Initializes a new instance of the Bot class.
-
-        Args:
-            name (str): The name of the bot.
-            aiengine_id (str): The ID of the AI engine to be used.
-            aiengine_arg_dict (Dict[str, Any], optional): Arguments for the AI engine. Defaults to None, then {}.
-            thirdpartyapikey_query_list (List[Any], optional): List of API key queries. Defaults to None, then [].
-                                                       Each item can be an ThirdPartyApiKeyQuery object or a dict.
-        """
-        self.name: str = name
-        self.aiengine_id: str = aiengine_id
-        self.aiengine_arg_dict: Dict[str, str] = aiengine_arg_dict if aiengine_arg_dict is not None else {}
-        self.thirdpartyapikey_query_list: List[ThirdPartyApiKeyQueryData] = thirdpartyapikey_query_list if thirdpartyapikey_query_list is not None else []
+    name: str = ""
+    aiengine_id: str = ""
+    aiengine_arg_dict: Dict[str, str] = field(default_factory=dict)
+    thirdpartyapikey_query_list: List['ThirdPartyApiKeyQueryData'] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serializes the Bot instance to a dictionary for JSON storage.
@@ -43,7 +33,7 @@ class Bot:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Bot':
+    def from_dict(cls, data: Dict[str, Any]) -> 'BotData':
         """Deserializes a Bot instance from a dictionary.
 
         Args:

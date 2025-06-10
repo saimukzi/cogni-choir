@@ -7,13 +7,13 @@ from unittest.mock import patch, MagicMock
 # Adjust import path based on your project structure
 # This assumes your tests are run from the project root or that src is in PYTHONPATH
 from src.main.bot_template_manager import BotTemplateManager, BOT_TEMPLATES_FILE
-from src.main.ai_bots import Bot
+from src.main.ai_bots import BotData
 from src.main.thirdpartyapikey_manager import ThirdPartyApiKeyQueryData
 
 
 # Helper to create a dummy Bot instance for testing
-def create_dummy_bot(name="TestBot", aiengine_id="test_engine", model="gpt-test", prompt="Be a test bot.") -> Bot:
-    bot = Bot()
+def create_dummy_bot(name="TestBot", aiengine_id="test_engine", model="gpt-test", prompt="Be a test bot.") -> BotData:
+    bot = BotData()
     bot.name = name
     bot.aiengine_id = aiengine_id
     bot.aiengine_arg_dict = {"model_name": model, "system_prompt": prompt}
@@ -196,7 +196,7 @@ class TestBotTemplateManager(unittest.TestCase):
         bot2.thirdpartyapikey_query_list = [ThirdPartyApiKeyQueryData(thirdpartyapikey_slot_id="slot2", thirdpartyapikey_id="key_id2")]
 
         # Helper for consistent serialization, matching Bot.to_dict and ThirdPartyApiKeyQuery.to_dict
-        def bot_to_savable_dict(bot_instance: Bot) -> dict:
+        def bot_to_savable_dict(bot_instance: BotData) -> dict:
             return bot_instance.to_dict()
 
         initial_data = {
@@ -248,7 +248,7 @@ class TestBotTemplateManager(unittest.TestCase):
         """Test loading a file where some template data is invalid/incomplete."""
         valid_bot = create_dummy_bot(name="GoodBot")
 
-        def bot_to_savable_dict(bot_instance: Bot) -> dict:
+        def bot_to_savable_dict(bot_instance: BotData) -> dict:
             return bot_instance.to_dict()
 
         data_with_issues = {

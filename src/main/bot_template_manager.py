@@ -10,7 +10,7 @@ import logging
 import os
 from typing import List, Dict, Optional
 import uuid
-from .ai_bots import Bot # Assuming Bot class is in ai_bots.py
+from .ai_bots import BotData # Assuming Bot class is in ai_bots.py
 # from .commons import Commons # For file paths or other common utilities
 
 BOT_TEMPLATES_FILE = "bot_templates.json"
@@ -35,7 +35,7 @@ class BotTemplateManager:
             raise ValueError(f"The provided data_dir '{data_dir}' is not a directory.")
 
         self.templates_file_path = os.path.join(data_dir, BOT_TEMPLATES_FILE)
-        self.templates: Dict[str, Bot] = {} # Store templates by ID
+        self.templates: Dict[str, BotData] = {} # Store templates by ID
         self._load_templates()
 
     def _load_templates(self):
@@ -53,7 +53,7 @@ class BotTemplateManager:
                     # Assuming Bot class has a from_dict method or similar
                     try:
                         # Use Bot.from_dict for deserialization
-                        bot = Bot.from_dict(template_data)
+                        bot = BotData.from_dict(template_data)
                         # Basic validation after deserialization
                         if bot.name and bot.aiengine_id:
                             self.templates[template_id] = bot
@@ -90,7 +90,7 @@ class BotTemplateManager:
         # return str(int(time.time() * 1000))
         return str(uuid.uuid4())
 
-    def create_template(self, bot_config: Bot) -> Optional[str]:
+    def create_template(self, bot_config: BotData) -> Optional[str]:
         """
         Creates a new bot template.
 
@@ -100,7 +100,7 @@ class BotTemplateManager:
         Returns:
             Optional[str]: The ID of the newly created template, or None if creation failed.
         """
-        if not isinstance(bot_config, Bot):
+        if not isinstance(bot_config, BotData):
             self.logger.error("Invalid bot_config provided for template creation.")
             return None
 
@@ -110,7 +110,7 @@ class BotTemplateManager:
         self.logger.info(f"Bot template '{bot_config.name}' created with ID {template_id}.")
         return template_id
 
-    def get_template(self, template_id: str) -> Optional[Bot]:
+    def get_template(self, template_id: str) -> Optional[BotData]:
         """
         Retrieves a bot template by its ID.
 
@@ -122,7 +122,7 @@ class BotTemplateManager:
         """
         return self.templates.get(template_id)
 
-    def list_templates(self) -> List[Bot]:
+    def list_templates(self) -> List[BotData]:
         """
         Lists all bot templates.
 
@@ -131,7 +131,7 @@ class BotTemplateManager:
         """
         return list(self.templates.values())
 
-    def list_templates_with_ids(self) -> List[tuple[str, Bot]]:
+    def list_templates_with_ids(self) -> List[tuple[str, BotData]]:
         """
         Lists all bot templates along with their IDs.
 
@@ -140,7 +140,7 @@ class BotTemplateManager:
         """
         return list(self.templates.items())
 
-    def update_template(self, template_id: str, bot_config: Bot) -> bool:
+    def update_template(self, template_id: str, bot_config: BotData) -> bool:
         """
         Updates an existing bot template.
 
@@ -155,7 +155,7 @@ class BotTemplateManager:
             self.logger.warning(f"Template with ID {template_id} not found for update.")
             return False
 
-        if not isinstance(bot_config, Bot):
+        if not isinstance(bot_config, BotData):
             self.logger.error("Invalid bot_config provided for template update.")
             return False
 

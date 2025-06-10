@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QTextEdit, QDialogButtonBox
 )
 
-from .ai_bots import Bot
+from .ai_bots import BotData
 from . import third_party
 from .third_party import AIEngineArgType # Added import
 from . import thirdpartyapikey_manager
@@ -23,7 +23,7 @@ class BotInfoDialog(QDialog):
                  existing_bot_names: list[str],
                  aiengine_info_list: list[third_party.AIEngineInfo],
                  thirdpartyapikey_query_list: list[thirdpartyapikey_manager.ThirdPartyApiKeyQueryData],
-                 old_bot: Bot | None = None,
+                 old_bot: BotData | None = None,
                  parent=None):
         """Initializes the BotInfoDialog.
 
@@ -89,7 +89,7 @@ class BotInfoDialog(QDialog):
         # Connect to the new method
         self.engine_combo.currentIndexChanged.connect(self._update_input_fields)
 
-    def _set_values_by_bot(self, bot: Bot | None):
+    def _set_values_by_bot(self, bot: BotData | None):
         """Sets the dialog fields with values from an existing Bot instance.
 
         Args:
@@ -272,7 +272,7 @@ class BotInfoDialog(QDialog):
 
         return thirdpartyapikey_query_list
 
-    def get_bot(self) -> Bot | None:
+    def get_bot(self) -> BotData | None:
         """Retrieves the bot configuration from the dialog.
 
         Returns:
@@ -280,7 +280,7 @@ class BotInfoDialog(QDialog):
             otherwise None.
         """
         if self.result() == QDialog.DialogCode.Accepted:
-            bot = Bot()
+            bot = BotData()
             bot.name = self.bot_name_input.text().strip()
             bot.aiengine_id = self.engine_combo.currentData()
             bot.aiengine_arg_dict = {}

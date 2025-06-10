@@ -15,7 +15,7 @@ import os
 import time # For message timestamp tests
 
 from src.main.chatroom import Chatroom, ChatroomManager, _sanitize_filename, DATA_DIR
-from src.main.ai_bots import Bot
+from src.main.ai_bots import BotData
 from src.main.third_party import ThirdPartyBase, ThirdPartyApiKeySlotInfo, AIEngineInfo, AIEngineArgInfo # For NoKeyEngine
 from src.main.third_parties.google import Google as GeminiEngine # Alias for consistency if needed, or use Google
 from src.main.third_parties.azure_openai import AzureOpenAI as AzureOpenAIEngine # Alias
@@ -50,13 +50,13 @@ class TestChatroom(unittest.TestCase):
 
     def test_add_get_list_remove_bot(self):
         """Tests adding, retrieving, listing, and removing bots from a chatroom."""
-        bot1 = Bot()
+        bot1 = BotData()
         bot1.name = "Bot1"
         bot1.aiengine_id = "gemini_test"
         bot1.aiengine_arg_dict = {"system_prompt": "System prompt 1", "model_name": "gemini-pro"}
         # bot1.thirdpartyapikey_query_list = [ThirdPartyApiKeyQuery("google_gemini", "Bot1_google_gemini")] # Example
 
-        bot2 = Bot()
+        bot2 = BotData()
         bot2.name = "Bot2"
         bot2.aiengine_id = "azure_test"
         bot2.aiengine_arg_dict = {"system_prompt": "System prompt 2", "model_name": "gpt-3.5"}
@@ -148,20 +148,20 @@ class TestChatroom(unittest.TestCase):
                 return "NoKeyEngine response"
 
         # Setup chatroom with new Bot structure
-        bot1 = Bot()
+        bot1 = BotData()
         bot1.name = "BotAlpha"
         bot1.aiengine_id = "google_gemini" # Corresponds to AIEngineInfo.aiengine_id
         bot1.aiengine_arg_dict = {"system_prompt": "Prompt Alpha", "model_name": "gemini-alpha"}
         bot1.thirdpartyapikey_query_list = [ThirdPartyApiKeyQueryData(thirdpartyapikey_slot_id="google_gemini", thirdpartyapikey_id="BotAlpha_google_gemini")]
 
-        bot2 = Bot()
+        bot2 = BotData()
         bot2.name = "BotBeta"
         bot2.aiengine_id = "azure_openai" # Corresponds to AIEngineInfo.aiengine_id
         bot2.aiengine_arg_dict = {"system_prompt": "Prompt Beta", "model_name": "azureopenai-beta"}
         bot2.thirdpartyapikey_query_list = [ThirdPartyApiKeyQueryData(thirdpartyapikey_slot_id="azure_openai", thirdpartyapikey_id="BotBeta_azure_openai")]
 
         # For BotGamma with NoKeyEngine, its aiengine_id should match what NoKeyEngine.get_aiengine_info_list provides
-        bot3 = Bot()
+        bot3 = BotData()
         bot3.name = "BotGamma"
         bot3.aiengine_id = "nokey_engine_001"
         bot3.aiengine_arg_dict = {"system_prompt": "Prompt Gamma", "model_name": "no-key-gamma"}
@@ -379,7 +379,7 @@ class TestChatroomManager(unittest.TestCase):
         with patch('src.main.chatroom.Chatroom.save') as mock_original_save: # Patched public save
             original_chatroom = self.manager.create_chatroom(original_room_name)
             self.assertIsNotNone(original_chatroom) # Ensure original_chatroom is created
-        original_bot = Bot()
+        original_bot = BotData()
         original_bot.name = "OrigBot"
         original_bot.aiengine_id = "google_gemini"
         original_bot.aiengine_arg_dict = {"system_prompt": "Prompt", "model_name": "gemini-orig"}
@@ -404,7 +404,8 @@ class TestChatroomManager(unittest.TestCase):
         self.assertEqual(len(cloned_chatroom.list_bots()), 1)
         cloned_bot = cloned_chatroom.get_bot("OrigBot")
         self.assertIsNotNone(cloned_bot)
-        self.assertNotEqual(cloned_bot, original_bot) # Should be a new instance
+        self.assertEqual(cloned_bot, original_bot)
+        self.assertTrue(cloned_bot is not original_bot) # Ensure it's a different instance
         self.assertEqual(cloned_bot.name, original_bot.name)
         self.assertEqual(cloned_bot.aiengine_id, original_bot.aiengine_id)
         self.assertEqual(cloned_bot.aiengine_arg_dict, original_bot.aiengine_arg_dict)

@@ -17,7 +17,7 @@ import glob
 from typing import Optional # For type hints
 import copy
 
-from .ai_bots import Bot
+from .ai_bots import BotData
 # create_bot is imported locally in methods that use it.
 from .message import MessageData
 
@@ -59,7 +59,7 @@ class Chatroom:
         self.logger = logging.getLogger(__name__ + ".Chatroom")
         self._name: str = name
         self.logger.debug(f"Chatroom '{name}' initialized.") # DEBUG
-        self.bots: dict[str, Bot] = {}
+        self.bots: dict[str, BotData] = {}
         self.messages: list[MessageData] = []
         self.manager: Optional[ChatroomManager] = None # Will be set by ChatroomManager
         self.filepath: Optional[str] = None             # Will be set by ChatroomManager
@@ -72,7 +72,7 @@ class Chatroom:
     # No direct set_name; managed by ChatroomManager.rename_chatroom
 
 
-    def add_bot(self, bot: Bot) -> bool:
+    def add_bot(self, bot: BotData) -> bool:
         """Adds a bot to the chatroom.
 
         If a bot with the same name already exists, it will be replaced.
@@ -112,7 +112,7 @@ class Chatroom:
             self.logger.warning(f"Attempted to remove non-existent bot '{bot_name}' from chatroom '{self.name}'.") # WARNING
         return False
 
-    def get_bot(self, bot_name: str) -> Bot | None:
+    def get_bot(self, bot_name: str) -> BotData | None:
         """Retrieves a bot from the chatroom by its name.
 
         Args:
@@ -128,7 +128,7 @@ class Chatroom:
             self.logger.debug(f"Bot '{bot_name}' not found in chatroom '{self.name}'.") # DEBUG
         return bot
 
-    def list_bots(self) -> list[Bot]:
+    def list_bots(self) -> list[BotData]:
         """Lists all bots currently in the chatroom.
 
         Returns:
@@ -282,7 +282,7 @@ class Chatroom:
             # except ValueError as e:
             #     logger.warning(f"Failed to create bot '{bot_data.get('name', 'UnknownBot')}' from data in chatroom '{chatroom_name}' due to: {e}")
 
-            bot = Bot.from_dict(bot_data) # Use Bot.from_dict if available
+            bot = BotData.from_dict(bot_data) # Use Bot.from_dict if available
             chatroom.bots[bot.name] = bot
 
         for msg_data in data.get("messages", []):
