@@ -16,6 +16,7 @@ import time
 import glob
 from typing import Optional # For type hints
 import copy
+from dataclasses import dataclass
 
 from .ai_bots import BotData
 # create_bot is imported locally in methods that use it.
@@ -39,6 +40,19 @@ def _sanitize_filename(name: str) -> str:
     name = re.sub(r'[-\s]+', '_', name)      # Replace spaces/hyphens with underscore
     return name + ".json"
 
+@dataclass
+class ChatroomData:
+    """Represents a chatroom's data for serialization.
+
+    Attributes:
+        name (str): The name of the chatroom.
+        bots (list[BotData]): A list of bots in the chatroom.
+        messages (list[MessageData]): A list of messages exchanged in the chatroom.
+    """
+    name: str
+    bots: dict[str, BotData]
+    messages: list[MessageData]
+
 class Chatroom:
     """Represents a single chatroom, containing messages and associated bots.
 
@@ -57,17 +71,18 @@ class Chatroom:
             name: The initial name for the chatroom.
         """
         self.logger = logging.getLogger(__name__ + ".Chatroom")
-        self._name: str = name
+        self._data = ChatroomData(name=name, bots={}, messages=[]) # Initialize with empty bots and messages
+        # self._name: str = name
         self.logger.debug(f"Chatroom '{name}' initialized.") # DEBUG
-        self.bots: dict[str, BotData] = {}
-        self.messages: list[MessageData] = []
+        # self.bots: dict[str, BotData] = {}
+        # self.messages: list[MessageData] = []
         self.manager: Optional[ChatroomManager] = None # Will be set by ChatroomManager
         self.filepath: Optional[str] = None             # Will be set by ChatroomManager
 
     @property
     def name(self) -> str:
         """The name of the chatroom."""
-        return self._name
+        return self._data.name
 
     # No direct set_name; managed by ChatroomManager.rename_chatroom
 
@@ -85,7 +100,7 @@ class Chatroom:
             True if the bot was added (currently always True).
         """
         bot_name = bot.name
-        self.bots[bot_name] = bot
+        self._data.bots[bot_name] = bot
         self.logger.info(f"Bot '{bot_name}' added to chatroom '{self.name}'.") # INFO
         if self.manager:
             self.manager.notify_chatroom_updated(self)
@@ -102,8 +117,8 @@ class Chatroom:
         Returns:
             True if the bot was removed, False otherwise.
         """
-        if bot_name in self.bots:
-            del self.bots[bot_name]
+        if bot_name in self._data.bots:
+            del self._data.bots[bot_name]
             self.logger.info(f"Bot '{bot_name}' removed from chatroom '{self.name}'.") # INFO
             if self.manager:
                 self.manager.notify_chatroom_updated(self)
@@ -121,7 +136,7 @@ class Chatroom:
         Returns:
             The `Bot` instance if found, otherwise None.
         """
-        bot = self.bots.get(bot_name)
+        bot = self._data.bots.get(bot_name)
         if bot:
             self.logger.debug(f"Bot '{bot_name}' retrieved from chatroom '{self.name}'.") # DEBUG
         else:
@@ -134,8 +149,8 @@ class Chatroom:
         Returns:
             A list of `Bot` instances.
         """
-        self.logger.debug(f"Listing {len(self.bots)} bot(s) for chatroom '{self.name}'.") # DEBUG
-        return list(self.bots.values())
+        self.logger.debug(f"Listing {len(self._data.bots)} bot(s) for chatroom '{self.name}'.") # DEBUG
+        return list(self._data.bots.values())
 
     def add_message(self, sender: str, content: str) -> MessageData:
         """Adds a new message to the chatroom's history.
@@ -150,7 +165,7 @@ class Chatroom:
             The created `Message` object.
         """
         message = MessageData(sender=sender, content=content, timestamp=time.time())
-        self.messages.append(message)
+        self._data.messages.append(message)
         self.logger.info(f"Message from '{sender}' (length: {len(content)}) added to chatroom '{self.name}'.") # INFO
         if self.manager:
             self.manager.notify_chatroom_updated(self)
@@ -162,8 +177,8 @@ class Chatroom:
         Returns:
             A list of `Message` objects.
         """
-        self.logger.debug(f"Retrieving {len(self.messages)} message(s) for chatroom '{self.name}'.") # DEBUG
-        return self.messages
+        self.logger.debug(f"Retrieving {len(self._data.messages)} message(s) for chatroom '{self.name}'.") # DEBUG
+        return self._data.messages
 
     def get_formatted_history(self) -> list[str]:
         """Gets the chat history formatted for display.
@@ -171,7 +186,7 @@ class Chatroom:
         Returns:
             A list of strings, where each string is a display-formatted message.
         """
-        return [msg.to_display_string() for msg in self.messages]
+        return [msg.to_display_string() for msg in self._data.messages]
 
     def delete_message(self, message_timestamp: float) -> bool:
         """Deletes a message from the chatroom based on its timestamp.
@@ -184,9 +199,9 @@ class Chatroom:
         Returns:
             True if a message was deleted, False otherwise.
         """
-        original_length = len(self.messages)
-        self.messages = [msg for msg in self.messages if msg.timestamp != message_timestamp]
-        deleted = len(self.messages) < original_length
+        original_length = len(self._data.messages)
+        self._data.messages = [msg for msg in self._data.messages if msg.timestamp != message_timestamp]
+        deleted = len(self._data.messages) < original_length
         if deleted:
             self.logger.info(f"Message with timestamp {message_timestamp} deleted from chatroom '{self.name}'.") # INFO
             if self.manager:
@@ -205,8 +220,8 @@ class Chatroom:
         self.logger.debug(f"Serializing chatroom '{self.name}' to dictionary.") # DEBUG
         return {
             "name": self.name, # Uses the property
-            "bots": [bot.to_dict() for bot in self.bots.values()],
-            "messages": [msg.to_dict() for msg in self.messages]
+            "bots": [bot.to_dict() for bot in self._data.bots.values()],
+            "messages": [msg.to_dict() for msg in self._data.messages]
         }
 
     def save(self):
@@ -247,6 +262,11 @@ class Chatroom:
         # Removed local imports for GeminiEngine, GrokEngine as create_bot handles engine instantiation
 
         chatroom = Chatroom(name=data["name"]) # Initializes _name
+        chatroom._data = ChatroomData(
+            name=data["name"],
+            bots={},  # Will be populated below
+            messages=[]  # Will be populated below
+        )
         chatroom.manager = manager
         chatroom.filepath = filepath
         # chatroom._name is already set by Chatroom(name=data["name"])
@@ -283,12 +303,12 @@ class Chatroom:
             #     logger.warning(f"Failed to create bot '{bot_data.get('name', 'UnknownBot')}' from data in chatroom '{chatroom_name}' due to: {e}")
 
             bot = BotData.from_dict(bot_data) # Use Bot.from_dict if available
-            chatroom.bots[bot.name] = bot
+            chatroom._data.bots[bot.name] = bot
 
         for msg_data in data.get("messages", []):
             try:
                 message = MessageData.from_dict(msg_data)
-                chatroom.messages.append(message)
+                chatroom._data.messages.append(message)
             except Exception as e:
                 logger.error(f"Error loading message from data in {chatroom.name}: {msg_data}, error: {e}", exc_info=True) # ERROR
 
@@ -453,7 +473,7 @@ class ChatroomManager:
         old_filepath = chatroom.filepath
 
         # pylint: disable=protected-access
-        chatroom._name = new_name # Update the internal name
+        chatroom._data.name = new_name # Update the internal name
         new_filename = _sanitize_filename(new_name)
         chatroom.filepath = os.path.join(DATA_DIR, new_filename)
 
@@ -542,7 +562,7 @@ class ChatroomManager:
             cloned_chatroom.add_bot(cloned_bot)
 
         for message in original_chatroom.get_messages():
-            cloned_chatroom.messages.append(copy.deepcopy(message)) # Copy messages
+            cloned_chatroom._data.messages.append(copy.deepcopy(message)) # Copy messages
 
         self.logger.info(f"Finished cloning chatroom '{original_chatroom_name}' as '{cloned_chatroom.name}'. Message history was not copied.") # INFO
         # cloned_chatroom is already saved by create_chatroom and subsequent add_bot calls.
