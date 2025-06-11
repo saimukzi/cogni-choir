@@ -58,10 +58,21 @@ class AzureOpenAI(third_party.ThirdPartyBase):
                 thirdpartyapikey_slot_id_list=["azure_openai"],
                 arg_list=[
                     third_party.AIEngineArgInfo(
+                        arg_id="endpoint",
+                        name="Endpoint",
+                        required=True,
+                    ),
+                    third_party.AIEngineArgInfo(
+                        arg_id="api_version",
+                        name="API Version",
+                        required=True,
+                        default_value='2024-12-01-preview',  # Default API version
+                    ),
+                    third_party.AIEngineArgInfo(
                         arg_id="deployment_name",
                         name="Deployment Name",
                         required=True,
-                        ),
+                    ),
                     third_party.AIEngineArgInfo(
                         arg_id="system_prompt",
                         name="System Prompt",
@@ -106,12 +117,12 @@ class AzureOpenAI(third_party.ThirdPartyBase):
         assert (len(thirdpartyapikey_list) == 1), "Azure OpenAI requires exactly one API key."
         assert (thirdpartyapikey_list[0] is not None), "Azure OpenAI API key cannot be None."
 
+        azure_endpoint = aiengine_arg_dict["endpoint"]
+        api_version = aiengine_arg_dict['api_version']
         deployment_name = aiengine_arg_dict["deployment_name"]
         system_prompt = aiengine_arg_dict.get("system_prompt", "")
         thirdpartyapikey = thirdpartyapikey_list[0]
 
-        azure_endpoint = commons.read_str(os.path.join('tmp','azure_endpoint.txt')) # TODO
-        api_version = '2024-12-01-preview' # TODO
         client = self._get_client(
             thirdpartyapikey=thirdpartyapikey,
             azure_endpoint=azure_endpoint,
