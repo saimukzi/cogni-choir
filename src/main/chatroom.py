@@ -16,11 +16,13 @@ import time
 import glob
 from typing import Optional # For type hints
 import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 from .ai_bots import BotData
 # create_bot is imported locally in methods that use it.
 from .message import MessageData
+
+from . import commons
 
 DATA_DIR = os.path.join("data", "chatrooms")
 
@@ -46,7 +48,7 @@ class ChatroomData:
 
     Attributes:
         name (str): The name of the chatroom.
-        bots (list[BotData]): A list of bots in the chatroom.
+        bots (dict[str, BotData]): A dictionary of bots in the chatroom, keyed by bot name.
         messages (list[MessageData]): A list of messages exchanged in the chatroom.
     """
     name: str
@@ -58,26 +60,30 @@ class Chatroom:
 
     Attributes:
         logger: Logger instance for this chatroom.
-        _name (str): The internal name of the chatroom. Use the `name` property to access.
-        bots (dict[str, Bot]): A dictionary of bots in the chatroom, keyed by bot name.
-        messages (list[Message]): A list of messages exchanged in the chatroom.
+        _data (ChatroomData): The data structure containing chatroom information.
         manager (Optional[ChatroomManager]): A reference to the ChatroomManager, if any.
         filepath (Optional[str]): The filesystem path where this chatroom is saved.
     """
-    def __init__(self, name: str): # name here is the initial name
+    def __init__(self, data: ChatroomData, manager: Optional[ChatroomManager], filepath: Optional[str]): # name here is the initial name
         """Initializes a new Chatroom instance.
 
         Args:
             name: The initial name for the chatroom.
         """
         self.logger = logging.getLogger(__name__ + ".Chatroom")
-        self._data = ChatroomData(name=name, bots={}, messages=[]) # Initialize with empty bots and messages
+
         # self._name: str = name
-        self.logger.debug(f"Chatroom '{name}' initialized.") # DEBUG
-        # self.bots: dict[str, BotData] = {}
-        # self.messages: list[MessageData] = []
-        self.manager: Optional[ChatroomManager] = None # Will be set by ChatroomManager
-        self.filepath: Optional[str] = None             # Will be set by ChatroomManager
+        # self._data = ChatroomData(name=name, bots={}, messages=[]) # Initialize with empty bots and messages
+        # self.logger.debug(f"Chatroom '{name}' initialized.") # DEBUG
+        # # self.bots: dict[str, BotData] = {}
+        # # self.messages: list[MessageData] = []
+        # self.manager: Optional[ChatroomManager] = None # Will be set by ChatroomManager
+        # self.filepath: Optional[str] = None             # Will be set by ChatroomManager
+
+        self._data = data
+        self.manager: Optional[ChatroomManager] = manager
+        self.filepath: Optional[str] = filepath
+        self.logger.debug(f"Chatroom '{self.name}' initialized with {len(self._data.bots)} bot(s) and {len(self._data.messages)} message(s).")
 
     @property
     def name(self) -> str:
@@ -218,11 +224,12 @@ class Chatroom:
             bots, and messages.
         """
         self.logger.debug(f"Serializing chatroom '{self.name}' to dictionary.") # DEBUG
-        return {
-            "name": self.name, # Uses the property
-            "bots": [bot.to_dict() for bot in self._data.bots.values()],
-            "messages": [msg.to_dict() for msg in self._data.messages]
-        }
+        # return {
+        #     "name": self.name, # Uses the property
+        #     "bots": [bot.to_dict() for bot in self._data.bots.values()],
+        #     "messages": [msg.to_dict() for msg in self._data.messages]
+        # }
+        return asdict(self._data)
 
     def save(self):
         """Saves the chatroom to its associated JSON file.
@@ -255,66 +262,89 @@ class Chatroom:
             A `Chatroom` instance populated with data from the dictionary.
         """
         logger = logging.getLogger(__name__ + ".Chatroom") # Static method, so get logger instance
-        chatroom_name = data.get("name", "UnknownChatroom")
-        logger.debug(f"Deserializing chatroom '{chatroom_name}' from dictionary. File: {filepath}") # DEBUG
-        # Import create_bot and Bot (Bot is still needed for type hints if not for instantiation here)
-        # from .ai_bots import Bot
-        # Removed local imports for GeminiEngine, GrokEngine as create_bot handles engine instantiation
 
-        chatroom = Chatroom(name=data["name"]) # Initializes _name
-        chatroom._data = ChatroomData(
-            name=data["name"],
-            bots={},  # Will be populated below
-            messages=[]  # Will be populated below
-        )
-        chatroom.manager = manager
-        chatroom.filepath = filepath
-        # chatroom._name is already set by Chatroom(name=data["name"])
+        # chatroom_name = data.get("name", "UnknownChatroom")
+        # logger.debug(f"Deserializing chatroom '{chatroom_name}' from dictionary. File: {filepath}") # DEBUG
+        # # Import create_bot and Bot (Bot is still needed for type hints if not for instantiation here)
+        # # from .ai_bots import Bot
+        # # Removed local imports for GeminiEngine, GrokEngine as create_bot handles engine instantiation
 
-        for bot_data in data.get("bots", []):
-            # engine_type_name = bot_data.get("engine_type")
-            # thirdpartyapikey = None # Default to None
-            # if engine_type_name and thirdpartyapikey_manager: # Ensure engine_type_name exists before trying to use it
-            #     service_name_for_key = engine_type_name
-            #     thirdpartyapikey = thirdpartyapikey_manager.load_key(service_name_for_key)
+        # chatroom = Chatroom(name=data["name"]) # Initializes _name
+        # chatroom._data = ChatroomData(
+        #     name=data["name"],
+        #     bots={},  # Will be populated below
+        #     messages=[]  # Will be populated below
+        # )
+        # chatroom.manager = manager
+        # chatroom.filepath = filepath
+        # # chatroom._name is already set by Chatroom(name=data["name"])
 
-            # engine_config = {
-            #     "engine_type": engine_type_name,
-            #     "thirdpartyapikey": thirdpartyapikey,
-            #     "model_name": bot_data.get("model_name")
-            # }
+        # for bot_data in data.get("bots", []):
+        #     # engine_type_name = bot_data.get("engine_type")
+        #     # thirdpartyapikey = None # Default to None
+        #     # if engine_type_name and thirdpartyapikey_manager: # Ensure engine_type_name exists before trying to use it
+        #     #     service_name_for_key = engine_type_name
+        #     #     thirdpartyapikey = thirdpartyapikey_manager.load_key(service_name_for_key)
 
-            # try:
-            #     bot = create_bot(
-            #         bot_name=bot_data.get("name", "UnnamedBot"),
-            #         system_prompt=bot_data.get("system_prompt", ""),
-            #         engine_config=engine_config,
-            #     )
-            #     # Check for API key warning after bot creation, if engine requires it.
-            #     # This logic might be slightly different as the engine instance is now inside create_bot
-            #     # However, create_bot itself doesn't have visibility to print this warning directly.
-            #     # For now, we rely on the existing warning mechanism if a bot fails to operate later.
-            #     # A more sophisticated approach might involve create_bot returning a status or the engine instance for checks.
-            #     if not thirdpartyapikey and bot.get_engine().requires_thirdpartyapikey():
-            #          logger.warning(f"API key for {engine_type_name.replace('Engine','')} not found for bot '{bot.get_name()}' in chatroom '{chatroom.name}'. Bot may not function as it requires an API key.")
+        #     # engine_config = {
+        #     #     "engine_type": engine_type_name,
+        #     #     "thirdpartyapikey": thirdpartyapikey,
+        #     #     "model_name": bot_data.get("model_name")
+        #     # }
 
-            #     chatroom.bots[bot.get_name()] = bot
-            # except ValueError as e:
-            #     logger.warning(f"Failed to create bot '{bot_data.get('name', 'UnknownBot')}' from data in chatroom '{chatroom_name}' due to: {e}")
+        #     # try:
+        #     #     bot = create_bot(
+        #     #         bot_name=bot_data.get("name", "UnnamedBot"),
+        #     #         system_prompt=bot_data.get("system_prompt", ""),
+        #     #         engine_config=engine_config,
+        #     #     )
+        #     #     # Check for API key warning after bot creation, if engine requires it.
+        #     #     # This logic might be slightly different as the engine instance is now inside create_bot
+        #     #     # However, create_bot itself doesn't have visibility to print this warning directly.
+        #     #     # For now, we rely on the existing warning mechanism if a bot fails to operate later.
+        #     #     # A more sophisticated approach might involve create_bot returning a status or the engine instance for checks.
+        #     #     if not thirdpartyapikey and bot.get_engine().requires_thirdpartyapikey():
+        #     #          logger.warning(f"API key for {engine_type_name.replace('Engine','')} not found for bot '{bot.get_name()}' in chatroom '{chatroom.name}'. Bot may not function as it requires an API key.")
 
-            bot = BotData.from_dict(bot_data) # Use Bot.from_dict if available
-            chatroom._data.bots[bot.name] = bot
+        #     #     chatroom.bots[bot.get_name()] = bot
+        #     # except ValueError as e:
+        #     #     logger.warning(f"Failed to create bot '{bot_data.get('name', 'UnknownBot')}' from data in chatroom '{chatroom_name}' due to: {e}")
 
-        for msg_data in data.get("messages", []):
-            try:
-                message = MessageData.from_dict(msg_data)
-                chatroom._data.messages.append(message)
-            except Exception as e:
-                logger.error(f"Error loading message from data in {chatroom.name}: {msg_data}, error: {e}", exc_info=True) # ERROR
+        #     bot = BotData.from_dict(bot_data) # Use Bot.from_dict if available
+        #     chatroom._data.bots[bot.name] = bot
 
-        logger.debug(f"Chatroom '{chatroom_name}' deserialized successfully.") # DEBUG
+        # for msg_data in data.get("messages", []):
+        #     try:
+        #         message = MessageData.from_dict(msg_data)
+        #         chatroom._data.messages.append(message)
+        #     except Exception as e:
+        #         logger.error(f"Error loading message from data in {chatroom.name}: {msg_data}, error: {e}", exc_info=True) # ERROR
+
+        # logger.debug(f"Chatroom '{chatroom_name}' deserialized successfully.") # DEBUG
+        # return chatroom
+
+        logger.debug(f"Deserializing chatroom from dictionary. File: {filepath}") # DEBUG
+        chatroom_data = commons.to_obj(data, cls=ChatroomData) # Deserialize using jsons
+        chatroom = Chatroom(chatroom_data, manager, filepath) # Initializes _name
+
         return chatroom
 
+    @staticmethod
+    def create_by_name(name: str, manager: Optional[ChatroomManager] = None, filepath: Optional[str] = None) -> Chatroom:
+        """Creates a new chatroom with the given name.
+
+        Args:
+            name: The desired name for the new chatroom.
+            manager: An optional `ChatroomManager` instance to manage this chatroom.
+
+        Returns:
+            A new `Chatroom` instance with the specified name.
+        """
+        logger = logging.getLogger(__name__ + ".Chatroom")
+        logger.debug(f"Creating new chatroom with name '{name}'.")
+        chatroom_data = ChatroomData(name=name, bots={}, messages=[])
+        chatroom = Chatroom(data=chatroom_data, manager=manager, filepath=filepath)
+        return chatroom
 
 class ChatroomManager:
     """Manages a collection of chatrooms, handling their persistence and lifecycle.
@@ -387,10 +417,9 @@ class ChatroomManager:
             self.logger.warning(f"Failed to create chatroom '{name}': already exists.") # WARNING
             return None
 
-        chatroom = Chatroom(name=name)
-        chatroom.manager = self
         chatroom_filename = _sanitize_filename(name)
-        chatroom.filepath = os.path.join(DATA_DIR, chatroom_filename)
+        chatroom_filepath = os.path.join(DATA_DIR, chatroom_filename)
+        chatroom = Chatroom.create_by_name(name, manager=self, filepath=chatroom_filepath)
 
         self.chatrooms[name] = chatroom
         chatroom.save()

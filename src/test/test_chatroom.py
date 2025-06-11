@@ -14,7 +14,10 @@ import os
 # import json # json.load is patched directly where used
 import time # For message timestamp tests
 
+# import jsons
+
 from src.main.chatroom import Chatroom, ChatroomManager, _sanitize_filename, DATA_DIR
+from src.main.chatroom import ChatroomData # Import ChatroomData for serialization tests
 from src.main.ai_bots import BotData
 from src.main.third_party import ThirdPartyBase, ThirdPartyApiKeySlotInfo, AIEngineInfo, AIEngineArgInfo # For NoKeyEngine
 from src.main.third_parties.google import Google as GeminiEngine # Alias for consistency if needed, or use Google
@@ -31,9 +34,13 @@ class TestChatroom(unittest.TestCase):
         self.mock_manager = MagicMock(spec=ChatroomManager)
         # self.mock_manager.thirdpartyapikey_manager = MagicMock(spec=ThirdPartyApiKeyManager) # Mock ThirdPartyApiKeyManager on the mock manager
         
-        self.chatroom = Chatroom("Test Room")
-        self.chatroom.manager = self.mock_manager # Assign the mock manager
-        self.chatroom.filepath = os.path.join(DATA_DIR, "test_room.json") # Dummy filepath for save
+        # self.chatroom.manager = self.mock_manager # Assign the mock manager
+        # self.chatroom.filepath = os.path.join(DATA_DIR, "test_room.json") # Dummy filepath for save
+        self.chatroom = Chatroom.create_by_name(
+            name = "Test Room",
+            manager = self.mock_manager,
+            filepath = os.path.join(DATA_DIR, "test_room.json")
+        )
 
         # self.dummy_engine is no longer used directly in Bot constructor in the same way.
         # Bot instances will be created differently.
@@ -185,6 +192,8 @@ class TestChatroom(unittest.TestCase):
         # We simply test that Chatroom.from_dict correctly reconstructs Bot objects
         # using Bot.from_dict, and messages.
         
+        print(dict_data)
+
         reloaded_chatroom = Chatroom.from_dict(
             dict_data,
             manager=self.mock_manager, # manager is still passed
@@ -320,8 +329,13 @@ class TestChatroomManager(unittest.TestCase):
         """Tests that deleting a chatroom also removes its corresponding file."""
         room_name = "test_room_to_delete"
         # Create a dummy chatroom and add to manager for deletion
-        dummy_chatroom = Chatroom(room_name)
-        dummy_chatroom.filepath = os.path.join(DATA_DIR, _sanitize_filename(room_name))
+        # dummy_chatroom = Chatroom(room_name)
+        # dummy_chatroom.filepath = os.path.join(DATA_DIR, _sanitize_filename(room_name))
+        dummy_chatroom = Chatroom.create_by_name(
+            name=room_name,
+            manager=self.manager,
+            filepath=os.path.join(DATA_DIR, _sanitize_filename(room_name))
+        )
         self.manager.chatrooms[room_name] = dummy_chatroom
 
         self.manager.delete_chatroom(room_name)
@@ -338,9 +352,14 @@ class TestChatroomManager(unittest.TestCase):
         new_name = "test_new_room_name"
         
         # Create and add original chatroom
-        original_chatroom = Chatroom(old_name)
-        original_chatroom.filepath = os.path.join(DATA_DIR, _sanitize_filename(old_name))
-        original_chatroom.manager = self.manager
+        # original_chatroom = Chatroom(old_name)
+        # original_chatroom.filepath = os.path.join(DATA_DIR, _sanitize_filename(old_name))
+        # original_chatroom.manager = self.manager
+        original_chatroom = Chatroom.create_by_name(
+            name=old_name,
+            manager=self.manager,
+            filepath=os.path.join(DATA_DIR, _sanitize_filename(old_name))
+        )
         self.manager.chatrooms[old_name] = original_chatroom
         
         self.assertTrue(self.manager.rename_chatroom(old_name, new_name))

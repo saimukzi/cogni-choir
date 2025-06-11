@@ -167,19 +167,24 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         engine = AzureOpenAI() # Instantiate our engine wrapper
 
         # Define arguments for generate_response, which triggers _get_client
-        aiengine_arg_dict = {"deployment_name": "test_deployment", "system_prompt": "Test system prompt"}
+        aiengine_arg_dict = {
+            "deployment_name": "test_deployment",
+            "system_prompt": "Test system prompt",
+            "endpoint": "fake_endpoint_init",
+            "api_version": "2024-12-01-preview"
+        }
         thirdpartyapikey_list = ["test_api_key"]
 
         # Mock commons.read_str as it's used in _get_client via generate_response
-        with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_init"):
+        # with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_init"):
             # Calling generate_response will trigger _get_client if client not cached
-            engine.generate_response(
-                _aiengine_id="azure_openai",
-                aiengine_arg_dict=aiengine_arg_dict,
-                thirdpartyapikey_list=thirdpartyapikey_list,
-                role_name="TestRoleInit",
-                conversation_history=[]
-            )
+        engine.generate_response(
+            _aiengine_id="azure_openai",
+            aiengine_arg_dict=aiengine_arg_dict,
+            thirdpartyapikey_list=thirdpartyapikey_list,
+            role_name="TestRoleInit",
+            conversation_history=[]
+        )
 
         # Assert that the underlying SDK client was initialized by _get_client
         mock_sdk_azure_openai_class.assert_called_once_with(
@@ -200,20 +205,21 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         
         aiengine_arg_dict_for_test = {
             "deployment_name": "gpt-custom-deployment", # Corrected key
-            "system_prompt": "System instructions for AI."
+            "system_prompt": "System instructions for AI.",
+            "endpoint": "fake_endpoint_success",
+            "api_version": "2024-12-01-preview"
         }
         thirdpartyapikey_list_for_test = ["fake_azure_openai_key"]
         role_name_for_test = "TestBot"
         conversation_history_for_test = [MessageData(sender='User1', content='Hello AI, this is my first message.', timestamp=time.time())]
         
-        with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_success"):
-            response = engine.generate_response(
-                _aiengine_id="azure_openai",
-                aiengine_arg_dict=aiengine_arg_dict_for_test,
-                thirdpartyapikey_list=thirdpartyapikey_list_for_test,
-                role_name=role_name_for_test,
-                conversation_history=conversation_history_for_test
-            )
+        response = engine.generate_response(
+            _aiengine_id="azure_openai",
+            aiengine_arg_dict=aiengine_arg_dict_for_test,
+            thirdpartyapikey_list=thirdpartyapikey_list_for_test,
+            role_name=role_name_for_test,
+            conversation_history=conversation_history_for_test
+        )
         
         self.assertEqual(response, "Test OpenAI response")
         
@@ -240,7 +246,12 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         mock_azure_openai_constructor.return_value = mock_client_instance # Constructor returns our mock client
         
         engine = AzureOpenAI()
-        aiengine_arg_dict_for_test = {"deployment_name": "deployment-error", "system_prompt": "SysPrompt"} # Corrected key
+        aiengine_arg_dict_for_test = {
+            "deployment_name": "deployment-error",
+            "system_prompt": "SysPrompt",
+            "endpoint": "fake_endpoint",
+            "api_version": "2024-12-01-preview"
+        } # Corrected key
         thirdpartyapikey_list_for_test = ["fake_key_error"]
         conversation_history_for_test = [MessageData(sender='user', content='Test message', timestamp=time.time())]
 
@@ -262,7 +273,12 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         mock_azure_openai_constructor.return_value = mock_client_instance
 
         engine = AzureOpenAI()
-        aiengine_arg_dict = {"deployment_name": "deployment-rl-error", "system_prompt": "SysPrompt"} # Corrected key
+        aiengine_arg_dict = {
+            "deployment_name": "deployment-rl-error",
+            "system_prompt": "SysPrompt",
+            "endpoint": "fake_endpoint",
+            "api_version": "2024-12-01-preview"
+        } # Corrected key
         thirdpartyapikey_list = ["fake_key_rl_error"]
         with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_rl_error"):
             response = engine.generate_response("azure_openai", aiengine_arg_dict, thirdpartyapikey_list, "TestRoleRL", [])
@@ -276,7 +292,12 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         mock_azure_openai_constructor.return_value = mock_client_instance
 
         engine = AzureOpenAI()
-        aiengine_arg_dict = {"deployment_name": "deployment-auth-error", "system_prompt": "SysPrompt"} # Corrected key
+        aiengine_arg_dict = {
+            "deployment_name": "deployment-auth-error",
+            "system_prompt": "SysPrompt",
+            "endpoint": "fake_endpoint",
+            "api_version": "2024-12-01-preview"
+        } # Corrected key
         thirdpartyapikey_list = ["fake_key_auth_error"]
         with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_auth_error"):
             response = engine.generate_response("azure_openai", aiengine_arg_dict, thirdpartyapikey_list, "TestRoleAuth", [])
@@ -291,7 +312,12 @@ class TestAzureOpenAIEngine(unittest.TestCase):
         mock_azure_openai_constructor.return_value = mock_client_instance
 
         engine = AzureOpenAI()
-        aiengine_arg_dict = {"deployment_name": "deployment-generic-api-error", "system_prompt": "SysPrompt"} # Corrected key
+        aiengine_arg_dict = {
+            "deployment_name": "deployment-generic-api-error",
+            "system_prompt": "SysPrompt",
+            "endpoint": "fake_endpoint",
+            "api_version": "2024-12-01-preview"
+        } # Corrected key
         thirdpartyapikey_list = ["fake_key_generic_api_error"]
         with patch('src.main.third_parties.azure_openai.commons.read_str', return_value="fake_endpoint_generic_api_error"):
             response = engine.generate_response("azure_openai", aiengine_arg_dict, thirdpartyapikey_list, "TestRoleGenericAPI", [])
