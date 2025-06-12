@@ -53,7 +53,7 @@ class BotTemplateManager:
                     # Assuming Bot class has a from_dict method or similar
                     try:
                         # Use Bot.from_dict for deserialization
-                        bot = BotData.from_dict(template_data)
+                        bot = BotData.model_validate(template_data)
                         # Basic validation after deserialization
                         if bot.name and bot.aiengine_id:
                             self.templates[template_id] = bot
@@ -74,8 +74,7 @@ class BotTemplateManager:
         try:
             data_to_save = {}
             for template_id, bot_instance in self.templates.items():
-                # Assuming Bot class has a to_dict method
-                data_to_save[template_id] = bot_instance.to_dict()
+                data_to_save[template_id] = bot_instance.model_dump(mode='json')
 
             os.makedirs(os.path.dirname(self.templates_file_path), exist_ok=True)
             with open(self.templates_file_path, 'w', encoding='utf-8') as f:

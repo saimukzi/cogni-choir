@@ -17,43 +17,43 @@ class BotData(BaseModel):
     aiengine_arg_dict: Dict[str, str] = Field(default_factory=dict)
     thirdpartyapikey_query_list: List['ThirdPartyApiKeyQueryData'] = Field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Serializes the Bot instance to a dictionary for JSON storage.
+    # def to_dict(self) -> Dict[str, Any]:
+    #     """Serializes the Bot instance to a dictionary for JSON storage.
 
-        Returns:
-            A dictionary containing the bot's configuration.
-        """
-        return {
-            "name": self.name,
-            "aiengine_id": self.aiengine_id,
-            "aiengine_arg_dict": self.aiengine_arg_dict,
-            "thirdpartyapikey_query_list": [
-                query.to_dict()
-                for query in self.thirdpartyapikey_query_list
-            ]
-        }
+    #     Returns:
+    #         A dictionary containing the bot's configuration.
+    #     """
+    #     return {
+    #         "name": self.name,
+    #         "aiengine_id": self.aiengine_id,
+    #         "aiengine_arg_dict": self.aiengine_arg_dict,
+    #         "thirdpartyapikey_query_list": [
+    #             query.to_dict()
+    #             for query in self.thirdpartyapikey_query_list
+    #         ]
+    #     }
 
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'BotData':
-        """Deserializes a Bot instance from a dictionary.
+    # @classmethod
+    # def from_dict(cls, data: Dict[str, Any]) -> 'BotData':
+    #     """Deserializes a Bot instance from a dictionary.
 
-        Args:
-            data (Dict[str, Any]): A dictionary containing the bot's configuration.
+    #     Args:
+    #         data (Dict[str, Any]): A dictionary containing the bot's configuration.
 
-        Returns:
-            Bot: An instance of Bot with the provided configuration.
-        """
-        thirdpartyapikey_queries_data = data.get("thirdpartyapikey_query_list", [])
-        thirdpartyapikey_query_list = []
-        for query_data in thirdpartyapikey_queries_data:
-            thirdpartyapikey_query_list.append(ThirdPartyApiKeyQueryData.from_dict(query_data))
+    #     Returns:
+    #         Bot: An instance of Bot with the provided configuration.
+    #     """
+    #     thirdpartyapikey_queries_data = data.get("thirdpartyapikey_query_list", [])
+    #     thirdpartyapikey_query_list = []
+    #     for query_data in thirdpartyapikey_queries_data:
+    #         thirdpartyapikey_query_list.append(ThirdPartyApiKeyQueryData.from_dict(query_data))
 
-        return cls(
-            name=data.get("name", ""),
-            aiengine_id=data.get("aiengine_id", ""),
-            aiengine_arg_dict=data.get("aiengine_arg_dict", {}),
-            thirdpartyapikey_query_list=thirdpartyapikey_query_list
-        )
+    #     return cls(
+    #         name=data.get("name", ""),
+    #         aiengine_id=data.get("aiengine_id", ""),
+    #         aiengine_arg_dict=data.get("aiengine_arg_dict", {}),
+    #         thirdpartyapikey_query_list=thirdpartyapikey_query_list
+    #     )
 
     def get_aiengine_arg(self, arg_id: str, default: Any = None) -> Any:
         """Retrieves the value of a specific AI engine argument.

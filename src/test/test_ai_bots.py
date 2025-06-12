@@ -64,7 +64,7 @@ class TestBot(unittest.TestCase):
             },
             "thirdpartyapikey_query_list": []
         }
-        self.assertEqual(self.bot.to_dict(), expected_dict)
+        self.assertEqual(self.bot.model_dump(mode='json'), expected_dict)
 
 
 class TestGoogleEngine(unittest.TestCase): # Renamed from TestGeminiEngine

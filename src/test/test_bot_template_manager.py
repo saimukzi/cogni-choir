@@ -197,7 +197,7 @@ class TestBotTemplateManager(unittest.TestCase):
 
         # Helper for consistent serialization, matching Bot.to_dict and ThirdPartyApiKeyQuery.to_dict
         def bot_to_savable_dict(bot_instance: BotData) -> dict:
-            return bot_instance.to_dict()
+            return bot_instance.model_dump(mode='json')
 
         initial_data = {
             "id123": bot_to_savable_dict(bot1),
@@ -249,7 +249,7 @@ class TestBotTemplateManager(unittest.TestCase):
         valid_bot = create_dummy_bot(name="GoodBot")
 
         def bot_to_savable_dict(bot_instance: BotData) -> dict:
-            return bot_instance.to_dict()
+            return bot_instance.model_dump(mode='json')
 
         data_with_issues = {
             "good1": bot_to_savable_dict(valid_bot),

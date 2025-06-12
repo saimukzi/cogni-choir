@@ -53,7 +53,7 @@ class TestMessage(unittest.TestCase):
             "content": content,
             "timestamp": fixed_timestamp
         }
-        self.assertEqual(msg.to_dict(), expected_dict)
+        self.assertEqual(msg.model_dump(mode='json'), expected_dict)
 
     def test_message_from_dict(self):
         """Tests the deserialization of a Message object from a dictionary."""

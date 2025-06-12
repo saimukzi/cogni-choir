@@ -22,42 +22,45 @@ import sys
 from dataclasses import dataclass
 
 import keyring
+from pydantic import BaseModel
 
 from .encryption_service import EncryptionService # Assuming EncryptionService is in encryption_service.py
 
 ENCRYPTED_SERVICE_NAME_PREFIX = "CogniChoir_Encrypted"
 
-@dataclass(frozen=True)
-class ThirdPartyApiKeyQueryData:
+class ThirdPartyApiKeyQueryData(BaseModel):
 
     thirdpartyapikey_slot_id:str
     thirdpartyapikey_id:str
 
-    def to_dict(self) -> dict:
-        """Converts the ThirdPartyApiKeyQuery to a dictionary.
+    # def to_dict(self) -> dict:
+    #     """Converts the ThirdPartyApiKeyQuery to a dictionary.
 
-        Returns:
-            dict: A dictionary representation of the ThirdPartyApiKeyQuery.
-        """
-        return {
-            "thirdpartyapikey_slot_id": self.thirdpartyapikey_slot_id,
-            "thirdpartyapikey_id": self.thirdpartyapikey_id
-        }
+    #     Returns:
+    #         dict: A dictionary representation of the ThirdPartyApiKeyQuery.
+    #     """
+    #     return {
+    #         "thirdpartyapikey_slot_id": self.thirdpartyapikey_slot_id,
+    #         "thirdpartyapikey_id": self.thirdpartyapikey_id
+    #     }
 
-    @staticmethod
-    def from_dict(data: dict) -> 'ThirdPartyApiKeyQueryData':
-        """Creates an ThirdPartyApiKeyQuery from a dictionary.
+    # @staticmethod
+    # def from_dict(data: dict) -> 'ThirdPartyApiKeyQueryData':
+    #     """Creates an ThirdPartyApiKeyQuery from a dictionary.
 
-        Args:
-            data (dict): A dictionary containing the API key query parameters.
+    #     Args:
+    #         data (dict): A dictionary containing the API key query parameters.
 
-        Returns:
-            ThirdPartyApiKeyQuery: An instance of ThirdPartyApiKeyQuery initialized with the provided data.
-        """
-        return ThirdPartyApiKeyQueryData(
-            thirdpartyapikey_slot_id=data.get("thirdpartyapikey_slot_id", ""),
-            thirdpartyapikey_id=data.get("thirdpartyapikey_id", "")
-        )
+    #     Returns:
+    #         ThirdPartyApiKeyQuery: An instance of ThirdPartyApiKeyQuery initialized with the provided data.
+    #     """
+    #     return ThirdPartyApiKeyQueryData(
+    #         thirdpartyapikey_slot_id=data.get("thirdpartyapikey_slot_id", ""),
+    #         thirdpartyapikey_id=data.get("thirdpartyapikey_id", "")
+    #     )
+
+    class Config:
+        forzen = True
 
 
 class ThirdPartyApiKeyManager:

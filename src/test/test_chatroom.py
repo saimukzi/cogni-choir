@@ -402,7 +402,10 @@ class TestChatroomManager(unittest.TestCase):
         original_bot.name = "OrigBot"
         original_bot.aiengine_id = "google_gemini"
         original_bot.aiengine_arg_dict = {"system_prompt": "Prompt", "model_name": "gemini-orig"}
-        original_bot.thirdpartyapikey_query_list = [ThirdPartyApiKeyQueryData("google_gemini", "orig_bot_key")]
+        original_bot.thirdpartyapikey_query_list = [ThirdPartyApiKeyQueryData(
+            thirdpartyapikey_slot_id="google_gemini",
+            thirdpartyapikey_id="orig_bot_key"
+        )]
 
         original_chatroom.add_bot(original_bot)
         original_chatroom.add_message("User", "Hello clone test")

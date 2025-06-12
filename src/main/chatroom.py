@@ -246,7 +246,7 @@ class Chatroom:
         os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
         try:
             with open(self.filepath, 'w', encoding='utf-8') as f:
-                json.dump(self.to_dict(), f, ensure_ascii=False, indent=4)
+                json.dump(self._data.model_dump(mode="json"), f, ensure_ascii=False, indent=4)
             self.logger.debug(f"Chatroom '{self.name}' saved successfully to '{self.filepath}'.") # DEBUG
         except Exception as e:
             self.logger.error(f"Error saving chatroom '{self.name}' to '{self.filepath}': {e}", exc_info=True) # ERROR
