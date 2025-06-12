@@ -1,20 +1,21 @@
 """This module defines the Bot class and a factory function to create bots."""
 # from .ai_base import AIEngine # Import AIEngine from its new location
-from dataclasses import dataclass, field
+# from dataclasses import dataclass, field
 from typing import Dict, Any, List
+
+from pydantic import BaseModel, Field
 
 from .thirdpartyapikey_manager import ThirdPartyApiKeyQueryData
 
 # Bot class and create_bot function remain here.
 # AIEngine class has been moved to ai_base.py
 
-@dataclass
-class BotData:
+class BotData(BaseModel):
     """Represents an AI bot with a specific name, AI engine configuration, and API key requirements."""
     name: str = ""
     aiengine_id: str = ""
-    aiengine_arg_dict: Dict[str, str] = field(default_factory=dict)
-    thirdpartyapikey_query_list: List['ThirdPartyApiKeyQueryData'] = field(default_factory=list)
+    aiengine_arg_dict: Dict[str, str] = Field(default_factory=dict)
+    thirdpartyapikey_query_list: List['ThirdPartyApiKeyQueryData'] = Field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         """Serializes the Bot instance to a dictionary for JSON storage.

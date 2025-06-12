@@ -6,10 +6,11 @@ methods for string representation, conversion to dictionary for serialization,
 and creation from a dictionary for deserialization.
 """
 import datetime
-from dataclasses import dataclass
+# from dataclasses import dataclass
 
-@dataclass
-class MessageData:
+from pydantic import BaseModel
+
+class MessageData(BaseModel):
     """Represents a single message in a chatroom.
 
     Attributes:

@@ -23,7 +23,7 @@ class TestMessage(unittest.TestCase):
         sender = "User2"
         content = "Another message"
         timestamp = time.time() - 1000  # A specific timestamp
-        msg = MessageData(sender, content, timestamp=timestamp)
+        msg = MessageData(sender=sender, content=content, timestamp=timestamp)
 
         self.assertEqual(msg.sender, sender)
         self.assertEqual(msg.content, content)
@@ -35,7 +35,7 @@ class TestMessage(unittest.TestCase):
         content = "Test display string"
         # Use a fixed timestamp for predictable string output
         fixed_timestamp = datetime.datetime(2023, 1, 1, 12, 0, 0).timestamp()
-        msg = MessageData(sender, content, timestamp=fixed_timestamp)
+        msg = MessageData(sender=sender, content=content, timestamp=fixed_timestamp)
         
         expected_str = f"[{datetime.datetime.fromtimestamp(fixed_timestamp).strftime('%Y-%m-%d %H:%M:%S')}] {sender}: {content}"
         self.assertEqual(msg.to_display_string(), expected_str)
@@ -46,7 +46,7 @@ class TestMessage(unittest.TestCase):
         sender = "User5"
         content = "Serialization test"
         fixed_timestamp = datetime.datetime(2023, 1, 2, 10, 30, 0).timestamp()
-        msg = MessageData(sender, content, timestamp=fixed_timestamp)
+        msg = MessageData(sender=sender, content=content, timestamp=fixed_timestamp)
 
         expected_dict = {
             "sender": sender,

@@ -16,7 +16,9 @@ import time
 import glob
 from typing import Optional # For type hints
 import copy
-from dataclasses import dataclass, asdict
+# from dataclasses import dataclass, asdict
+
+from pydantic import BaseModel
 
 from .ai_bots import BotData
 # create_bot is imported locally in methods that use it.
@@ -42,8 +44,7 @@ def _sanitize_filename(name: str) -> str:
     name = re.sub(r'[-\s]+', '_', name)      # Replace spaces/hyphens with underscore
     return name + ".json"
 
-@dataclass
-class ChatroomData:
+class ChatroomData(BaseModel):
     """Represents a chatroom's data for serialization.
 
     Attributes:
@@ -229,7 +230,8 @@ class Chatroom:
         #     "bots": [bot.to_dict() for bot in self._data.bots.values()],
         #     "messages": [msg.to_dict() for msg in self._data.messages]
         # }
-        return asdict(self._data)
+        # return asdict(self._data)
+        return self._data.model_dump(mode="json") # Use pydantic's model_dump for serialization
 
     def save(self):
         """Saves the chatroom to its associated JSON file.
@@ -324,7 +326,8 @@ class Chatroom:
         # return chatroom
 
         logger.debug(f"Deserializing chatroom from dictionary. File: {filepath}") # DEBUG
-        chatroom_data = commons.to_obj(data, cls=ChatroomData) # Deserialize using jsons
+        # chatroom_data = commons.to_obj(data, cls=ChatroomData) # Deserialize using jsons
+        chatroom_data = ChatroomData.model_validate(data)
         chatroom = Chatroom(chatroom_data, manager, filepath) # Initializes _name
 
         return chatroom
