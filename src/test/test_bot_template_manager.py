@@ -1,3 +1,10 @@
+"""Unit tests for the BotTemplateManager.
+
+This module contains unit tests for the `BotTemplateManager` class, which is
+responsible for managing bot templates. The tests cover CRUD (Create, Read,
+Update, Delete) operations, as well as loading and saving templates from/to
+a file.
+"""
 import unittest
 import os
 import json
@@ -22,7 +29,14 @@ def create_dummy_bot(name="TestBot", aiengine_id="test_engine", model="gpt-test"
     bot.thirdpartyapikey_query_list = [ThirdPartyApiKeyQueryData(thirdpartyapikey_slot_id="test_api_key_slot", thirdpartyapikey_id="Test API Key")]
     return bot
 
+
 class TestBotTemplateManager(unittest.TestCase):
+    """Test suite for the BotTemplateManager class.
+
+    This class groups together all the unit tests for the `BotTemplateManager`,
+    ensuring that its functionalities such as creating, retrieving, updating,
+    deleting, listing, loading, and saving bot templates work as expected.
+    """
 
     def setUp(self):
         # Create a temporary test data directory

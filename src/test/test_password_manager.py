@@ -1,3 +1,11 @@
+"""Unit tests for the PasswordManager.
+
+This module contains unit tests for the `PasswordManager` class.
+The tests focus on the core functionalities of master password management,
+including setting, verifying, changing, and clearing the master password.
+It also covers the persistence of the password data (hashed password and salt)
+to a file and its subsequent loading.
+"""
 import unittest
 import os
 import json
@@ -14,6 +22,12 @@ TEST_MASTER_KEY_FILE = os.path.join(TEST_DATA_DIR_PWD_MGR, "test_master_key.json
 
 
 class TestPasswordManager(unittest.TestCase):
+    """Test suite for the PasswordManager class.
+
+    This class groups together all the unit tests for the `PasswordManager`.
+    It ensures that all aspects of the master password lifecycle—setting,
+    verifying, changing, clearing, and persistence—function correctly.
+    """
 
     def setUp(self):
         self._ensure_data_dir_exists() # Ensure unique test data directory exists

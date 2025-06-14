@@ -1,3 +1,14 @@
+"""Unit tests for the EncryptionService.
+
+This module contains unit tests for the `EncryptionService` class.
+The tests cover various aspects of the service, including:
+- Salt creation, loading, and persistence.
+- Key derivation from a master password and salt.
+- Encryption and decryption of data.
+- Handling of invalid or tampered encrypted tokens.
+- Updating the master password and its effect on key derivation.
+- Clearing of encryption salt.
+"""
 import unittest
 import os
 import json
@@ -11,7 +22,15 @@ from src.main.encryption_service import EncryptionService, ENCRYPTION_SALT_FILE 
 TEST_DATA_DIR_ENC_SVC = "test_data_enc_svc"
 TEST_ENCRYPTION_SALT_FILE = os.path.join(TEST_DATA_DIR_ENC_SVC, "test_encryption_salt.json")
 
+
 class TestEncryptionService(unittest.TestCase):
+    """Test suite for the EncryptionService class.
+
+    This class groups together all the unit tests for the `EncryptionService`.
+    It verifies the correct functionality of salt management (creation, loading,
+    clearing), key derivation using PBKDF2, data encryption and decryption
+    using Fernet, and the process of updating the master password.
+    """
 
     def setUp(self):
         self.master_password = "testmasterpass"

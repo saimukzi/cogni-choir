@@ -1,3 +1,10 @@
+"""Unit tests for the HTTP API server.
+
+This module contains unit tests for the HTTP API server defined in
+`src/main/api_server.py`. It focuses on testing the behavior of API
+endpoints, authentication mechanisms (API key handling), and the
+server's lifecycle management (startup, shutdown).
+"""
 import unittest
 from unittest.mock import patch, MagicMock
 import json

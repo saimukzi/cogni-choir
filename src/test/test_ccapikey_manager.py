@@ -1,3 +1,10 @@
+"""Unit tests for CcApiKeyManager and CcApiKeyDialog.
+
+This module contains unit tests for the `CcApiKeyManager` class, which is
+responsible for managing CogniChoir-specific API keys (CcApiKeys), and for
+the `CcApiKeyDialog` class, which provides the user interface for these
+management operations.
+"""
 import unittest
 from unittest.mock import patch, MagicMock, mock_open
 import json
@@ -304,6 +311,13 @@ from src.main.ccapikey_dialog import CcApiKeyDialog
 app = None
 
 def setUpModule():
+    """Initializes the QApplication instance for Qt-based tests.
+
+    This function is called once before any tests in this module are run.
+    It ensures that a `QApplication` instance is available, which is necessary
+    for testing Qt-based UI components like `CcApiKeyDialog`. It configures
+    the platform to 'offscreen' if not set, suitable for CI environments.
+    """
     global app
     # Start QApplication instance if not already running
     app = QApplication.instance()
@@ -317,6 +331,12 @@ def setUpModule():
         app = QApplication(sys.argv)
 
 def tearDownModule():
+    """Handles cleanup after all tests in the module have run.
+
+    This function is called once after all tests in this module.
+    Currently, it's a placeholder as explicit `QApplication` cleanup might
+    interfere with some test runners or environments.
+    """
     global app
     # Clean up the QApplication instance after all tests in the module have run.
     # This can be important in some CI environments or test setups.
@@ -328,6 +348,14 @@ def tearDownModule():
 
 
 class TestCcApiKeyDialog(unittest.TestCase):
+    """Test suite for the CcApiKeyDialog.
+
+    This class contains tests for the `CcApiKeyDialog`, focusing on its UI
+    interactions. This includes testing the dialog's behavior for adding new
+    API keys (generation, display), viewing existing keys, copying key values
+    to the clipboard, and deleting keys. Mocking is used for Qt components
+    like `QInputDialog`, `QMessageBox`, and `QApplication.clipboard`.
+    """
     def setUp(self):
         """Set up for each CcApiKeyDialog test case."""
         self.mock_encryption_service = MockEncryptionService()

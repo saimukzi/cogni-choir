@@ -1,3 +1,10 @@
+"""Manages the application's master password.
+
+This module is responsible for handling the master password, which is used to
+protect sensitive information within the application. It includes functionality
+for setting, verifying, changing, and clearing the master password.
+The password itself is not stored directly; instead, a salted hash is used.
+"""
 import os
 import json
 import hashlib
