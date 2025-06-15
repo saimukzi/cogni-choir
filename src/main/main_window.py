@@ -814,7 +814,12 @@ class MainWindow(QMainWindow):
         # This will use current timestamp and trigger save
         # chatroom.add_message(sender, content)
         # self._update_message_display()  # Refresh
-        asyncio.run(chatroom.add_message_async(sender, content))
+        # asyncio.run(chatroom.add_message_async(sender, content))
+        asyncio.run_coroutine_threadsafe(
+            chatroom.add_message_async(sender, content),
+            self.threading_event_loop
+        )
+
 
     def _send_user_message(self):
         """Sends a message from the user to the current chatroom.
@@ -846,7 +851,10 @@ class MainWindow(QMainWindow):
         self.logger.info(
             f"Sending user message of length {len(text)} to chatroom '{chatroom_name}'.")
 
-        asyncio.run(chatroom.add_message_async("User", text))
+        asyncio.run_coroutine_threadsafe(
+            chatroom.add_message_async("User", text),
+            self.threading_event_loop
+        )
 
         # self.message_input_area.clear()
         # self.statusBar().showMessage(self.tr("Message sent to {0}.").format(chatroom_name), 3000)
