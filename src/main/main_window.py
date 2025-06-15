@@ -11,6 +11,7 @@ The application uses PyQt6 for its GUI components. Internationalization (i18n)
 is supported using QTranslator. Logging is used for diagnostics.
 """
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import sys
 import os  # For path construction
 import logging  # For logging
@@ -28,7 +29,8 @@ from PyQt6.QtWidgets import (
     QMenu, QStyle, QSizePolicy, QSpacerItem  # Added QSpacerItem for potential use
 )
 from PyQt6.QtGui import QAction, QIcon  # Added QIcon
-from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint, pyqtSignal, QTimer, QSettings  # Added QTimer and QSettings
+from PyQt6.QtCore import Qt, QTranslator, QLocale, QLibraryInfo, QPoint, pyqtSignal, QTimer, QSettings, QThread  # Added QTimer and QSettings
+from pydantic import BaseModel
 
 # Attempt to import from sibling modules
 from .chatroom import ChatroomManager
@@ -48,7 +50,7 @@ from . import third_parties
 from . import third_party
 from .ccapikey_manager import CcApiKeyManager
 from .ccapikey_dialog import CcApiKeyDialog
-
+from .event_hub import EventHub
 
 class MessageInputTextEdit(QTextEdit):
     """A custom QTextEdit that emits a signal when Ctrl+Enter is pressed.
@@ -87,6 +89,8 @@ class MainWindow(QMainWindow):
     sensitive data like API keys.
     """
 
+    _chatroom_add_message_signal = pyqtSignal(str, str, str)  # chatroom_name, message
+
     def __init__(self):
         """Initializes the MainWindow.
 
@@ -103,6 +107,7 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 800, 600)
 
         self._init_threading_event_loop()
+        self.event_hub = EventHub()
 
         self.third_party_group = third_party.ThirdPartyGroup(
             third_parties.THIRD_PARTY_CLASSES)
@@ -136,7 +141,9 @@ class MainWindow(QMainWindow):
             data_dir=self.data_dir_path,
             encryption_service=self.encryption_service
         )
-        self.chatroom_manager = ChatroomManager()
+        self.chatroom_manager = ChatroomManager(
+            event_hub=self.event_hub,
+        )
         self.bot_template_manager = BotTemplateManager(
             data_dir=self.data_dir_path)  # Added
 
@@ -154,6 +161,14 @@ class MainWindow(QMainWindow):
         self._update_chatroom_list()  # Initial population
         self._update_bot_template_list()  # Initial population for templates
         self._start_api_server_if_needed() # Modified call
+
+        # event
+        self._event_type_to_signal_dict = {}
+        self._event_signal_method(
+            'chatroom_add_message',
+            self._chatroom_add_message_signal,
+            self._chatroom_add_message_handler
+        )
 
     def _init_threading_event_loop(self):
         """Initializes the threading event loop for asynchronous operations.
@@ -615,13 +630,13 @@ class MainWindow(QMainWindow):
             selected_chatroom_name = current.text()
             self._update_bot_list(selected_chatroom_name)
             self._update_bot_panel_state(True, selected_chatroom_name)
-            self._update_message_display()
+            self._update_message_display_qt()
             # self._update_bot_response_selector()
             self._update_message_related_ui_state(True)
         else:
             self._update_bot_list(None)
             self._update_bot_panel_state(False)
-            self._update_message_display()
+            self._update_message_display_qt()
             # self._update_bot_response_selector()
             self._update_message_related_ui_state(False)
 
@@ -692,7 +707,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, self.tr("Error"),
                                      self.tr("Failed to clone any of the selected {0} chatrooms. See log for details.").format(attempted_count))
 
-    def _update_message_display(self):
+    def _update_message_display_qt(self):
         """Refreshes the message display area with messages from the current chatroom.
 
         Clears the `message_display_area` and repopulates it with messages
@@ -756,7 +771,7 @@ class MainWindow(QMainWindow):
                 if chatroom.delete_message(timestamp):
                     deleted_count += 1
             if deleted_count > 0:
-                self._update_message_display()  # Refresh display
+                self._update_message_display_qt()  # Refresh display
 
     def _show_create_fake_message_dialog(self):
         """Opens a dialog to manually create and add a "fake" message.
@@ -781,17 +796,25 @@ class MainWindow(QMainWindow):
         current_bot_names = [bot.name for bot in chatroom.list_bots()]
         dialog = CreateFakeMessageDialog(current_bot_names, self)
 
-        if dialog.exec():  # exec() shows the dialog
-            data = dialog.get_data()
-            if data:
-                sender, content = data
-                if not content.strip():
-                    QMessageBox.warning(self, self.tr("Warning"), self.tr(
-                        "Message content cannot be empty."))
-                    return
-                # This will use current timestamp and trigger save
-                chatroom.add_message(sender, content)
-                self._update_message_display()  # Refresh
+        exec_result = dialog.exec()
+
+        if not exec_result:
+            return
+
+        data = dialog.get_data()
+        if not data:
+            return
+
+        sender, content = data
+        if not content.strip():
+            QMessageBox.warning(self, self.tr("Warning"), self.tr(
+                "Message content cannot be empty."))
+            return
+
+        # This will use current timestamp and trigger save
+        # chatroom.add_message(sender, content)
+        # self._update_message_display()  # Refresh
+        asyncio.run(chatroom.add_message_async(sender, content))
 
     def _send_user_message(self):
         """Sends a message from the user to the current chatroom.
@@ -822,10 +845,11 @@ class MainWindow(QMainWindow):
 
         self.logger.info(
             f"Sending user message of length {len(text)} to chatroom '{chatroom_name}'.")
-        chatroom.add_message("User", text)
-        self._update_message_display()
-        self.message_input_area.clear()
-        self.statusBar().showMessage(self.tr("Message sent to {0}.").format(chatroom_name), 3000)
+
+        asyncio.run(chatroom.add_message_async("User", text))
+
+        # self.message_input_area.clear()
+        # self.statusBar().showMessage(self.tr("Message sent to {0}.").format(chatroom_name), 3000)
 
     # def _update_bot_response_selector(self):
     #     """Updates the bot response selector combo box.
@@ -951,8 +975,7 @@ class MainWindow(QMainWindow):
                 )
                 self.logger.info(
                     f"Bot '{selected_bot_name_to_use}' generated response successfully in chatroom '{chatroom_name}'.")
-                chatroom.add_message(bot.name, ai_response)
-                self._update_message_display()
+                await chatroom.add_message_async(bot.name, ai_response)
             except ValueError as ve:  # Specific handling for ValueErrors from create_bot or engine
                 self.logger.error(
                     f"Configuration or input error for bot '{selected_bot_name_to_use}': {ve}", exc_info=True)
@@ -966,9 +989,8 @@ class MainWindow(QMainWindow):
                     f"Error during bot response generation for bot '{selected_bot_name_to_use}' in chatroom '{chatroom_name}': {e}", exc_info=True)
                 QMessageBox.critical(self, self.tr("Error"), self.tr(
                     "An error occurred while getting bot response for '{0}': {1}").format(selected_bot_name_to_use, str(e)))
-                chatroom.add_message("System", self.tr(
+                await chatroom.add_message_async("System", self.tr(
                     "Error during bot response for '{0}': {1}").format(selected_bot_name_to_use, str(e)))
-                self._update_message_display()
             finally:
                 # if is_main_button_trigger and original_button_text is not None:
                 #     self.trigger_bot_response_button.setText(original_button_text)
@@ -2634,6 +2656,37 @@ class MainWindow(QMainWindow):
                 event.accept() # Indicate that the event has been handled
                 return
         super().keyPressEvent(event) # Call base class implementation for other keys
+
+    def _chatroom_add_message_handler(self, _event_type: str, chatroom_name: str, _message_data: str):
+        self._update_message_display_qt()
+        current_chatroom_name = self.chatroom_list_widget.currentItem(
+        ).text() if self.chatroom_list_widget.currentItem() else None
+        if current_chatroom_name == chatroom_name:
+            self.message_input_area.clear()
+        self.statusBar().showMessage(self.tr("Message sent to {0}.").format(chatroom_name), 3000)
+
+    def _event_signal_method(self, event_type, signal, method):
+        """
+        Converts a Qt signal to an asyncio coroutine.
+
+        This allows the signal to be awaited in an async context.
+        """
+        signal.connect(method)
+        self._event_type_to_signal_dict[event_type] = signal
+        self.event_hub.subscribe(event_type, self._event_coroutine)
+
+    async def _event_coroutine(self, event_type, *args, **kwargs):
+        signal = self._event_type_to_signal_dict.get(event_type, None)
+        if not signal:
+            return
+        args0 = []
+        for arg in args:
+            if isinstance(arg, BaseModel):
+                args0.append(arg.model_dump_json())
+            else:
+                args0.append(arg)
+        signal.emit(event_type, *args0, **kwargs)
+
 
 def main():
     """Main entry point for the application.

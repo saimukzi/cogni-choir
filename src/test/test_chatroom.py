@@ -93,22 +93,22 @@ class TestChatroom(unittest.TestCase):
         self.assertEqual(len(self.chatroom.list_bots()), 0)
         self.mock_manager.notify_chatroom_updated.assert_called_with(self.chatroom)
 
-    def test_add_get_messages(self):
+    async def test_add_get_messages(self):
         """Tests adding messages to the chatroom and retrieving them."""
-        msg1 = self.chatroom.add_message("User1", "Hello")
+        msg1 = await self.chatroom.add_message_async("User1", "Hello")
         self.assertIsInstance(msg1, MessageData)
         self.assertEqual(len(self.chatroom.get_messages()), 1)
         self.mock_manager.notify_chatroom_updated.assert_called_with(self.chatroom)
         self.mock_manager.notify_chatroom_updated.reset_mock()
 
-        self.chatroom.add_message("Bot1", "Hi there!")
+        await self.chatroom.add_message_async("Bot1", "Hi there!")
         self.assertEqual(len(self.chatroom.get_messages()), 2)
         self.mock_manager.notify_chatroom_updated.assert_called_with(self.chatroom)
 
-    def test_delete_message(self):
-        msg1_ts = self.chatroom.add_message("User1", "Msg1").timestamp
+    async def test_delete_message(self):
+        msg1_ts = await self.chatroom.add_message_async("User1", "Msg1").timestamp
         self.mock_manager.notify_chatroom_updated.reset_mock()
-        msg2_ts = self.chatroom.add_message("User2", "Msg2").timestamp
+        msg2_ts = await self.chatroom.add_message_async("User2", "Msg2").timestamp
         self.mock_manager.notify_chatroom_updated.reset_mock()
         self.assertEqual(len(self.chatroom.get_messages()), 2)
 
@@ -127,7 +127,7 @@ class TestChatroom(unittest.TestCase):
         self.mock_manager.notify_chatroom_updated.assert_called_with(self.chatroom)
 
     @patch.object(logging.getLogger('src.main.chatroom.Chatroom'), 'warning')
-    def test_chatroom_save_load_cycle(self, mock_logger_warning):
+    async def test_chatroom_save_load_cycle(self, mock_logger_warning):
         """Tests the Chatroom to_dict and from_dict methods (serialization/deserialization)."""
 
         # Define NoKeyEngine (can be an inner class or defined in the test module)
@@ -177,8 +177,8 @@ class TestChatroom(unittest.TestCase):
         self.chatroom.add_bot(bot1)
         self.chatroom.add_bot(bot2)
         self.chatroom.add_bot(bot3)
-        self.chatroom.add_message("User", "Hello Bots")
-        self.chatroom.add_message("BotAlpha", "Hello User from Alpha")
+        await self.chatroom.add_message_async("User", "Hello Bots")
+        await self.chatroom.add_message_async("BotAlpha", "Hello User from Alpha")
         
         dict_data = self.chatroom.to_dict()
 
@@ -306,8 +306,8 @@ class TestChatroomManager(unittest.TestCase):
         mock_glob_glob.assert_called_once_with(os.path.join(DATA_DIR, "*.json"))
         self.assertEqual(mock_open_file.call_count, 2)
         self.assertEqual(mock_json_load.call_count, 2)
-        mock_chatroom_from_dict.assert_any_call(mock_room_data1, manager, dummy_filepath1) # Removed thirdpartyapikey_manager
-        mock_chatroom_from_dict.assert_any_call(mock_room_data2, manager, dummy_filepath2) # Removed thirdpartyapikey_manager
+        mock_chatroom_from_dict.assert_any_call(mock_room_data1, manager, dummy_filepath1, None) # Removed thirdpartyapikey_manager
+        mock_chatroom_from_dict.assert_any_call(mock_room_data2, manager, dummy_filepath2, None) # Removed thirdpartyapikey_manager
 
 
     @patch('src.main.chatroom.Chatroom.save') # Patched public save
@@ -387,7 +387,7 @@ class TestChatroomManager(unittest.TestCase):
         mock_os_remove.assert_called_once_with(expected_old_filepath_str)
         mock_chatroom_save.assert_called_once() # Chatroom._save on the renamed chatroom object
 
-    def test_clone_chatroom(self):
+    async def test_clone_chatroom(self):
         """Tests cloning a chatroom, ensuring bots are copied but messages are not."""
         original_room_name = "test_original_clone"
         
@@ -408,7 +408,7 @@ class TestChatroomManager(unittest.TestCase):
         )]
 
         original_chatroom.add_bot(original_bot)
-        original_chatroom.add_message("User", "Hello clone test")
+        await original_chatroom.add_message_async("User", "Hello clone test")
 
     # ChatroomManager.clone_chatroom now uses copy.deepcopy(bot)
     # So, ThirdPartyApiKeyManager.load_key is not directly involved in the cloning of the bot object itself.

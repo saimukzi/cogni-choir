@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from .ai_bots import BotData
 # create_bot is imported locally in methods that use it.
 from .message import MessageData
+from .event_hub import EventHub
 
 from . import commons
 
@@ -65,7 +66,7 @@ class Chatroom:
         manager (Optional[ChatroomManager]): A reference to the ChatroomManager, if any.
         filepath (Optional[str]): The filesystem path where this chatroom is saved.
     """
-    def __init__(self, data: ChatroomData, manager: Optional[ChatroomManager], filepath: Optional[str]): # name here is the initial name
+    def __init__(self, data: ChatroomData, manager: Optional[ChatroomManager], filepath: Optional[str], event_hub: EventHub = None):
         """Initializes a new Chatroom instance.
 
         Args:
@@ -84,6 +85,7 @@ class Chatroom:
         self._data = data
         self.manager: Optional[ChatroomManager] = manager
         self.filepath: Optional[str] = filepath
+        self._event_hub = event_hub
         self.logger.debug(f"Chatroom '{self.name}' initialized with {len(self._data.bots)} bot(s) and {len(self._data.messages)} message(s).")
 
     @property
@@ -159,7 +161,7 @@ class Chatroom:
         self.logger.debug(f"Listing {len(self._data.bots)} bot(s) for chatroom '{self.name}'.") # DEBUG
         return list(self._data.bots.values())
 
-    def add_message(self, sender: str, content: str) -> MessageData:
+    async def add_message_async(self, sender: str, content: str) -> MessageData:
         """Adds a new message to the chatroom's history.
 
         Notifies the manager (if any) that the chatroom has been updated.
@@ -174,8 +176,12 @@ class Chatroom:
         message = MessageData(sender=sender, content=content, timestamp=time.time())
         self._data.messages.append(message)
         self.logger.info(f"Message from '{sender}' (length: {len(content)}) added to chatroom '{self.name}'.") # INFO
-        if self.manager:
-            self.manager.notify_chatroom_updated(self)
+        # if self.manager:
+        #     self.manager.notify_chatroom_updated(self)
+        if self._event_hub:
+            await self._event_hub.publish_async("chatroom_add_message", self.name, message)
+        else:
+            self.logger.debug(f"No event hub available to notify about new message in chatroom '{self.name}'.")
         return message
 
     def get_messages(self) -> list[MessageData]:
@@ -252,7 +258,7 @@ class Chatroom:
             self.logger.error(f"Error saving chatroom '{self.name}' to '{self.filepath}': {e}", exc_info=True) # ERROR
 
     @staticmethod
-    def from_dict(data: dict, manager: ChatroomManager, filepath: str) -> Chatroom:
+    def from_dict(data: dict, manager: ChatroomManager, filepath: str, event_hub: EventHub = None) -> Chatroom:
         """Deserializes a chatroom from a dictionary (typically from a JSON file).
 
         Args:
@@ -328,12 +334,12 @@ class Chatroom:
         logger.debug(f"Deserializing chatroom from dictionary. File: {filepath}") # DEBUG
         # chatroom_data = commons.to_obj(data, cls=ChatroomData) # Deserialize using jsons
         chatroom_data = ChatroomData.model_validate(data)
-        chatroom = Chatroom(chatroom_data, manager, filepath) # Initializes _name
+        chatroom = Chatroom(chatroom_data, manager, filepath, event_hub) # Initializes _name
 
         return chatroom
 
     @staticmethod
-    def create_by_name(name: str, manager: Optional[ChatroomManager] = None, filepath: Optional[str] = None) -> Chatroom:
+    def create_by_name(name: str, manager: Optional[ChatroomManager] = None, filepath: Optional[str] = None, event_hub: EventHub = None) -> Chatroom:
         """Creates a new chatroom with the given name.
 
         Args:
@@ -346,7 +352,7 @@ class Chatroom:
         logger = logging.getLogger(__name__ + ".Chatroom")
         logger.debug(f"Creating new chatroom with name '{name}'.")
         chatroom_data = ChatroomData(name=name, bots={}, messages=[])
-        chatroom = Chatroom(data=chatroom_data, manager=manager, filepath=filepath)
+        chatroom = Chatroom(data=chatroom_data, manager=manager, filepath=filepath, event_hub=event_hub)
         return chatroom
 
 class ChatroomManager:
@@ -357,15 +363,19 @@ class ChatroomManager:
         chatrooms (dict[str, Chatroom]): A dictionary of chatrooms, keyed by chatroom name.
         thirdpartyapikey_manager: An instance of `ThirdPartyApiKeyManager` for handling API keys for bots.
     """
-    def __init__(self): # thirdpartyapikey_manager is now required
+    def __init__(self, event_hub: EventHub = None): # thirdpartyapikey_manager is now required
         """Initializes the ChatroomManager.
 
         Loads existing chatrooms from disk.
         """
         self.logger = logging.getLogger(__name__ + ".ChatroomManager")
+        self._event_hub = event_hub
         self.chatrooms: dict[str, Chatroom] = {}
         self.logger.info(f"ChatroomManager initialized. Data directory: {os.path.abspath(DATA_DIR)}") # INFO
         self._load_chatrooms_from_disk()
+
+        if self._event_hub:
+            self._event_hub.subscribe("chatroom_add_message", self._on_chatroom_add_message_async)
 
     def _load_chatrooms_from_disk(self):
         """Loads all chatroom JSON files from the `DATA_DIR`.
@@ -384,7 +394,7 @@ class ChatroomManager:
             try:
                 with open(filepath, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                chatroom = Chatroom.from_dict(data, self, filepath)
+                chatroom = Chatroom.from_dict(data, self, filepath, self._event_hub)
                 self.chatrooms[chatroom.name] = chatroom
                 loaded_count +=1
             except Exception as e:
@@ -422,7 +432,7 @@ class ChatroomManager:
 
         chatroom_filename = _sanitize_filename(name)
         chatroom_filepath = os.path.join(DATA_DIR, chatroom_filename)
-        chatroom = Chatroom.create_by_name(name, manager=self, filepath=chatroom_filepath)
+        chatroom = Chatroom.create_by_name(name, manager=self, filepath=chatroom_filepath, event_hub=self._event_hub)
 
         self.chatrooms[name] = chatroom
         chatroom.save()
@@ -599,3 +609,21 @@ class ChatroomManager:
         self.logger.info(f"Finished cloning chatroom '{original_chatroom_name}' as '{cloned_chatroom.name}'. Message history was not copied.") # INFO
         # cloned_chatroom is already saved by create_chatroom and subsequent add_bot calls.
         return cloned_chatroom
+
+    async def _on_chatroom_add_message_async(self, event_type: str, chatroom_name: str, message: MessageData):
+        """Asynchronous callback for when a message is added to a chatroom.
+
+        This method is called by the EventHub when a message is added to any chatroom.
+        It can be used to perform additional actions, such as logging or notifying other systems.
+
+        Args:
+            event_type: The type of event that triggered this callback (should be "chatroom_add_message").
+            chatroom_name: The name of the chatroom where the message was added.
+            message: The `MessageData` object representing the added message.
+        """
+        self.logger.debug(f"Received event '{event_type}' for chatroom '{chatroom_name}': {message.to_display_string()}")
+        chatroom = self.get_chatroom(chatroom_name)
+        if not chatroom:
+            self.logger.warning(f"Chatroom '{chatroom_name}' not found for event '{event_type}'. Cannot process message: {message.to_display_string()}")
+            return
+        chatroom.save()

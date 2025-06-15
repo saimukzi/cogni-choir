@@ -3,4 +3,4 @@
 * Follow the guideline in documents/D01 - Development Conventions.md
 * Run unit test after development.
 * Must not create and run unit test for UI.
-* Today is 2025-05-28
+* Today is 2025-06-14
